@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Configurações do Sistema - Pronto Ar{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <h2 class="text-2xl font-bold text-gray-800">Configurações do Sistema</h2>
+    <p class="text-gray-600">Personalize a aparência, logo e cores do sistema para sua empresa.</p>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="mb-4 text-sm {% if category == 'danger' %}text-red-600 bg-red-100{% else %}text-green-600 bg-green-100{% endif %} p-2 rounded">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="bg-white shadow overflow-hidden sm:rounded-lg max-w-3xl mx-auto p-6">
+    <form method="POST" action="{{ url_for('admin.settings') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="grid grid-cols-1 gap-6">
+
+            <div class="border-b pb-4">
+                <h3 class="text-lg font-medium text-gray-900 mb-2">Informações Básicas</h3>
+
+                <div class="grid grid-cols-1 gap-4">
+                    <div>
+                        <label for="company_name" class="block text-sm font-medium text-gray-700">Nome da Empresa</label>
+                        <input type="text" name="company_name" id="company_name" value="{{ config.company_name }}" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                    </div>
+
+                    <div>
+                        <label for="logo_path" class="block text-sm font-medium text-gray-700">Caminho / URL da Logo</label>
+                        <input type="text" name="logo_path" id="logo_path" value="{{ config.logo_path }}" placeholder="/static/img/logo.jpg" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                        <p class="text-xs text-gray-500 mt-1">Preview atual:</p>
+                        <div class="mt-2 p-2 border rounded inline-block bg-gray-50">
+                            <img src="{{ config.logo_path }}" alt="Logo Preview" class="h-16 w-auto object-contain">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-2">
+                <h3 class="text-lg font-medium text-gray-900 mb-2">Paleta de Cores da Aplicação</h3>
+                <p class="text-xs text-gray-500 mb-4">A aplicação é desenvolvida usando as cores: Azul Boreal, Cinza Claro e Branco como base. Você pode alterar aqui.</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="primary_color" class="block text-sm font-medium text-gray-700 flex items-center">
+                            Cor Primária (Azul Boreal/Principal)
+                        </label>
+                        <div class="flex items-center mt-1">
+                            <input type="color" name="primary_color" id="primary_color" value="{{ config.primary_color }}" class="h-10 w-10 border border-gray-300 rounded-md shadow-sm p-1 cursor-pointer">
+                            <input type="text" value="{{ config.primary_color }}" class="ml-2 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary sm:text-sm" readonly>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="secondary_color" class="block text-sm font-medium text-gray-700 flex items-center">
+                            Cor Secundária (Cinza Claro)
+                        </label>
+                        <div class="flex items-center mt-1">
+                            <input type="color" name="secondary_color" id="secondary_color" value="{{ config.secondary_color }}" class="h-10 w-10 border border-gray-300 rounded-md shadow-sm p-1 cursor-pointer">
+                            <input type="text" value="{{ config.secondary_color }}" class="ml-2 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary sm:text-sm" readonly>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="background_color" class="block text-sm font-medium text-gray-700 flex items-center">
+                            Cor de Fundo (Padrão: Branco)
+                        </label>
+                        <div class="flex items-center mt-1">
+                            <input type="color" name="background_color" id="background_color" value="{{ config.background_color }}" class="h-10 w-10 border border-gray-300 rounded-md shadow-sm p-1 cursor-pointer">
+                            <input type="text" value="{{ config.background_color }}" class="ml-2 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary sm:text-sm" readonly>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="text_color" class="block text-sm font-medium text-gray-700 flex items-center">
+                            Cor do Texto Principal
+                        </label>
+                        <div class="flex items-center mt-1">
+                            <input type="color" name="text_color" id="text_color" value="{{ config.text_color }}" class="h-10 w-10 border border-gray-300 rounded-md shadow-sm p-1 cursor-pointer">
+                            <input type="text" value="{{ config.text_color }}" class="ml-2 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary sm:text-sm" readonly>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end mt-6 border-t pt-4">
+                <button type="submit" class="bg-primary border border-transparent rounded-md shadow-sm py-2 px-4 inline-flex justify-center text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                    Salvar Configurações
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

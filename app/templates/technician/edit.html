@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Editar Técnico - Pronto Ar{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <h2 class="text-2xl font-bold text-gray-800">Editar Funcionário/Técnico</h2>
+</div>
+
+<div class="bg-white shadow overflow-hidden sm:rounded-lg max-w-2xl mx-auto p-6">
+    <form method="POST" action="{{ url_for('tech.edit_technician', user_id=user.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="grid grid-cols-1 gap-6">
+            <div>
+                <label for="name" class="block text-sm font-medium text-gray-700">Nome Completo *</label>
+                <input type="text" name="name" id="name" value="{{ user.name }}" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+            </div>
+
+            <div>
+                <label for="email" class="block text-sm font-medium text-gray-700">E-mail (Login) *</label>
+                <input type="email" name="email" id="email" value="{{ user.email }}" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+            </div>
+
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-700">Nova Senha (deixe em branco para não alterar)</label>
+                <input type="password" name="password" id="password"
+                       pattern="^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$"
+                       title="A senha deve ter no mínimo 8 caracteres, incluindo letras e números"
+                       class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+            </div>
+
+            <div>
+                <label for="specialty" class="block text-sm font-medium text-gray-700">Especialidade (Opcional)</label>
+                <input type="text" name="specialty" id="specialty" value="{{ user.specialty or '' }}" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+            </div>
+
+            <div class="flex items-center mt-2">
+                <input id="is_active" name="is_active" type="checkbox" {% if user.is_active %}checked{% endif %} class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                <label for="is_active" class="ml-2 block text-sm text-gray-900">
+                    Ativo (Permite acesso ao sistema)
+                </label>
+            </div>
+
+            <div class="flex justify-end mt-4">
+                <a href="{{ url_for('tech.list_technicians') }}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mr-3">
+                    Cancelar
+                </a>
+                <button type="submit" class="bg-primary border border-transparent rounded-md shadow-sm py-2 px-4 inline-flex justify-center text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                    Salvar Alterações
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Detalhes do Equipamento - Pronto Ar{% endblock %}
+{% block content %}
+<div class="mb-6 flex justify-between items-center">
+    <h2 class="text-2xl font-bold text-gray-800">Detalhes do Equipamento</h2>
+    <a href="{{ url_for('equipment.index') }}" class="text-gray-600 hover:text-primary"><i class="fas fa-arrow-left"></i> Voltar</a>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+    <!-- Equipment Info -->
+    <div class="bg-white shadow rounded-lg p-6 md:col-span-1">
+        <div class="text-center mb-4">
+            <div class="h-20 w-20 bg-gray-100 rounded-full mx-auto flex items-center justify-center text-gray-400 text-3xl mb-2">
+                <i class="fas fa-snowflake"></i>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900">{{ equip.name }}</h3>
+            <p class="text-sm text-gray-500">{{ equip.brand }} - {{ equip.model }}</p>
+        </div>
+
+        <div class="border-t pt-4">
+            <dl class="divide-y divide-gray-200">
+                <div class="py-3 flex justify-between text-sm font-medium">
+                    <dt class="text-gray-500">Número de Série</dt>
+                    <dd class="text-gray-900">{{ equip.serial_number or '-' }}</dd>
+                </div>
+                <div class="py-3 flex justify-between text-sm font-medium">
+                    <dt class="text-gray-500">Cliente</dt>
+                    <dd class="text-gray-900">{{ equip.owner.name }}</dd>
+                </div>
+                <div class="py-3 flex justify-between text-sm font-medium">
+                    <dt class="text-gray-500">Telefone Cliente</dt>
+                    <dd class="text-gray-900">{{ equip.owner.phone or '-' }}</dd>
+                </div>
+                <div class="py-3 flex justify-between text-sm font-medium">
+                    <dt class="text-gray-500">Localização</dt>
+                    <dd class="text-gray-900">{{ equip.location or '-' }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <div class="mt-6">
+            <a href="{{ url_for('services.add') }}?equipment_id={{ equip.id }}&client_id={{ equip.owner.id }}" class="w-full bg-primary hover:opacity-90 text-white font-bold py-2 px-4 rounded text-center block">
+                <i class="fas fa-plus mr-2"></i>Criar Nova OS
+            </a>
+        </div>
+    </div>
+
+    <!-- History -->
+    <div class="bg-white shadow rounded-lg p-6 md:col-span-2">
+        <h3 class="text-lg font-bold text-gray-900 border-b pb-2 mb-4">Histórico de Ordens de Serviço</h3>
+
+        {% if equip.work_orders %}
+        <ul class="divide-y divide-gray-200">
+            {% for wo in equip.work_orders|sort(attribute='created_at', reverse=True) %}
+            <li class="py-4">
+                <div class="flex items-center space-x-4">
+                    <div class="flex-shrink-0">
+                        <span class="inline-flex items-center justify-center h-8 w-8 rounded-full
+                        {% if wo.status == 'Completed' %}bg-green-100 text-green-500
+                        {% elif wo.status == 'Pending' %}bg-yellow-100 text-yellow-500
+                        {% elif wo.status == 'In Progress' %}bg-blue-100 text-blue-500
+                        {% else %}bg-gray-100 text-gray-500{% endif %}">
+                            <i class="fas fa-clipboard-list"></i>
+                        </span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-gray-900 truncate">
+                            OS #{{ wo.id }} - {{ wo.service_type.name }}
+                        </p>
+                        <p class="text-sm text-gray-500 truncate">
+                            Status: {{ wo.status }} | Técnico: {{ wo.technician.name if wo.technician else 'N/A' }}
+                        </p>
+                    </div>
+                    <div class="text-xs text-gray-400">
+                        {{ wo.created_at.strftime('%d/%m/%Y') }}
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-gray-500 text-sm text-center py-4">Nenhuma ordem de serviço registrada para este equipamento.</p>
+        {% endif %}
+
+        <h3 class="text-lg font-bold text-gray-900 border-b pb-2 mb-4 mt-8">Próximas Manutenções</h3>
+        {% if equip.maintenance_schedules %}
+        <ul class="divide-y divide-gray-200">
+            {% for sched in equip.maintenance_schedules %}
+            <li class="py-4 flex justify-between">
+                <div>
+                    <p class="text-sm font-medium {% if sched.is_active %}text-gray-900{% else %}text-gray-400 line-through{% endif %}">
+                        Data Programada: {{ sched.next_maintenance_date.strftime('%d/%m/%Y') }}
+                    </p>
+                    {% if sched.description %}
+                    <p class="text-xs text-gray-500">{{ sched.description }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    {% if sched.is_active %}
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Agendada</span>
+                    {% else %}
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Realizada</span>
+                    {% endif %}
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-gray-500 text-sm text-center py-4">Nenhum agendamento futuro para este equipamento.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

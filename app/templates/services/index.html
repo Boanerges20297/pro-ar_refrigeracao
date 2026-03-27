@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Serviços e Ordens - Pronto Ar{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <h2 class="text-2xl font-bold text-gray-800">Ordens de Serviço (OS)</h2>
+    {% if current_user.role == 'admin' %}
+    <a href="{{ url_for('services.add') }}" class="bg-primary hover:opacity-90 text-white font-bold py-2 px-4 rounded">
+        <i class="fas fa-plus mr-2"></i>Nova OS
+    </a>
+    {% endif %}
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="mb-4 text-sm {% if category == 'danger' %}text-red-600 bg-red-100{% else %}text-green-600 bg-green-100{% endif %} p-2 rounded">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+            <tr>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">OS #</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data Agendada</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente / Equip.</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serviço</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Técnico</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                {% if current_user.role == 'admin' %}
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+            {% for wo in work_orders %}
+            <tr>
+                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">#{{ wo.id }}</div></td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-900">{{ wo.scheduled_date.strftime('%d/%m/%Y %H:%M') if wo.scheduled_date else 'Sem data' }}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-900">{{ wo.client.name }}</div>
+                    <div class="text-sm text-gray-500">{{ wo.equipment.name if wo.equipment else 'Geral' }}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm text-gray-900">{{ wo.service_type.name }}</div></td>
+                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm text-gray-900">{{ wo.technician.name if wo.technician else 'Não atribuído' }}</div></td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    {% if wo.status == 'Completed' %}
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Concluído</span>
+                    {% elif wo.status == 'Pending' %}
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Pendente</span>
+                    {% elif wo.status == 'In Progress' %}
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Em Progresso</span>
+                    {% else %}
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">{{ wo.status }}</span>
+                    {% endif %}
+                </td>
+                {% if current_user.role == 'admin' %}
+                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">R$ {{ "%.2f"|format(wo.total_value) }}</div></td>
+                {% endif %}
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="{% if current_user.role == 'admin' %}7{% else %}6{% endif %}" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Nenhuma ordem de serviço cadastrada.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
