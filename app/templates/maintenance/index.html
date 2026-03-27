@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Agendamento de Manutenção - Pronto Ar{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <h2 class="text-2xl font-bold text-gray-800">Agendamento de Manutenção por Máquina</h2>
+    {% if current_user.role == 'admin' %}
+    <a href="{{ url_for('maintenance.add') }}" class="bg-primary hover:opacity-90 text-white font-bold py-2 px-4 rounded">
+        <i class="fas fa-plus mr-2"></i>Novo Agendamento
+    </a>
+    {% endif %}
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="mb-4 text-sm {% if category == 'danger' %}text-red-600 bg-red-100{% else %}text-green-600 bg-green-100{% endif %} p-2 rounded">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+            <tr>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data Programada</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Equipamento</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Última Realizada</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+            </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+            {% for sched in schedules %}
+            <tr>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-900 font-bold {% if sched.is_active and sched.next_maintenance_date < now %}text-red-600{% endif %}">
+                        {{ sched.next_maintenance_date.strftime('%d/%m/%Y') }}
+                    </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">{{ sched.equipment.owner.name }}</div></td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-900">{{ sched.equipment.name }}</div>
+                    <div class="text-sm text-gray-500">SN: {{ sched.equipment.serial_number or '-' }}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-500">{{ sched.last_maintenance_date.strftime('%d/%m/%Y') if sched.last_maintenance_date else 'Nunca' }}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    {% if not sched.is_active %}
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Concluída</span>
+                    {% elif sched.next_maintenance_date < now %}
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Atrasada</span>
+                    {% else %}
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Agendada</span>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    {% if sched.is_active %}
+                    <form action="{{ url_for('maintenance.complete', schedule_id=sched.id) }}" method="POST" class="inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="text-primary hover:text-indigo-900" title="Marcar como Concluída"><i class="fas fa-check-circle"></i> Fechar</button>
+                    </form>
+                    {% else %}
+                    <span class="text-gray-400"><i class="fas fa-check-circle"></i> Fechado</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Nenhum agendamento cadastrado.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

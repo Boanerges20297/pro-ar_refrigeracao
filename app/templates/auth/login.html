@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Pronto Ar Refrigeração</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    {% if app_config %}
+    <style>
+        :root {
+            --primary-color: {{ app_config.primary_color }};
+            --secondary-color: {{ app_config.secondary_color }};
+            --bg-color: {{ app_config.background_color }};
+            --text-color: {{ app_config.text_color }};
+        }
+        .bg-primary { background-color: var(--primary-color); }
+        .text-primary { color: var(--primary-color); }
+    </style>
+    {% else %}
+    <style>
+        :root {
+            --primary-color: #3b82f6; /* Azul Boreal default */
+        }
+        .bg-primary { background-color: var(--primary-color); }
+        .text-primary { color: var(--primary-color); }
+    </style>
+    {% endif %}
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+
+    <div class="bg-white p-8 rounded-lg shadow-xl w-96">
+        <div class="flex justify-center mb-6">
+            <img class="h-16 w-auto" src="{{ app_config.logo_path if app_config.logo_path else 'https://ui-avatars.com/api/?name=Pronto+Ar&background=3b82f6&color=fff&rounded=true' }}" alt="Logo">
+        </div>
+
+        <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Bem-vindo</h2>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 text-sm {% if category == 'danger' %}text-red-600 bg-red-100{% else %}text-green-600 bg-green-100{% endif %} p-2 rounded">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('auth.login') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="mb-4">
+                <label for="email" class="block text-gray-700 text-sm font-bold mb-2">E-mail</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3">
+                        <i class="fas fa-envelope text-gray-400"></i>
+                    </span>
+                    <input type="email" name="email" id="email" required
+                           class="shadow appearance-none border rounded w-full py-2 pl-10 pr-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <label for="password" class="block text-gray-700 text-sm font-bold mb-2">Senha</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3">
+                        <i class="fas fa-lock text-gray-400"></i>
+                    </span>
+                    <!-- Passwords need minimum 8 characters, letters and numbers -->
+                    <input type="password" name="password" id="password" required
+                           pattern="^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$"
+                           title="A senha deve ter no mínimo 8 caracteres, incluindo letras e números"
+                           class="shadow appearance-none border rounded w-full py-2 pl-10 pr-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Mínimo de 8 caracteres (letras e números).</p>
+            </div>
+
+            <div class="flex items-center justify-between">
+                <button type="submit" class="bg-primary hover:opacity-90 text-white font-bold py-2 px-4 rounded w-full focus:outline-none focus:shadow-outline transition duration-150 ease-in-out">
+                    Entrar
+                </button>
+            </div>
+        </form>
+        <p class="text-center text-gray-500 text-xs mt-6">
+            &copy; 2024 Pronto Ar Refrigeração.
+        </p>
+    </div>
+
+</body>
+</html>

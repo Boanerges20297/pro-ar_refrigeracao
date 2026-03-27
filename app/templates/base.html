@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Pronto Ar Refrigeração{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    {% if app_config %}
+    <style>
+        :root {
+            --primary-color: {{ app_config.primary_color }};
+            --secondary-color: {{ app_config.secondary_color }};
+            --bg-color: {{ app_config.background_color }};
+            --text-color: {{ app_config.text_color }};
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+        .bg-primary { background-color: var(--primary-color); }
+        .text-primary { color: var(--primary-color); }
+        .bg-secondary { background-color: var(--secondary-color); }
+        .text-secondary { color: var(--secondary-color); }
+    </style>
+    {% else %}
+    <style>
+        :root {
+            --primary-color: #3b82f6;
+            --secondary-color: #9ca3af;
+            --bg-color: #ffffff;
+            --text-color: #111827;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+        .bg-primary { background-color: var(--primary-color); }
+        .text-primary { color: var(--primary-color); }
+        .bg-secondary { background-color: var(--secondary-color); }
+        .text-secondary { color: var(--secondary-color); }
+    </style>
+    {% endif %}
+</head>
+<body class="min-h-screen bg-gray-50 flex flex-col">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Navbar -->
+    <nav class="bg-white shadow-md w-full border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <img class="h-10 w-auto" src="{{ app_config.logo_path if app_config.logo_path else 'https://ui-avatars.com/api/?name=Pronto+Ar&background=3b82f6&color=fff&rounded=true' }}" alt="Logo">
+                    <span class="ml-2 font-bold text-xl text-primary">{{ app_config.company_name if app_config else 'Pronto Ar Refrigeração' }}</span>
+                </div>
+                {% if current_user %}
+                <div class="flex items-center space-x-4">
+                    <div class="hidden md:flex items-center space-x-4">
+                        {% if current_user.role == 'admin' %}
+                        <a href="{{ url_for('admin.dashboard') }}" class="text-gray-600 hover:text-primary px-3 py-2 rounded-md text-sm font-medium">Dashboard Admin</a>
+                        <a href="{{ url_for('tech.list_technicians') }}" class="text-gray-600 hover:text-primary px-3 py-2 rounded-md text-sm font-medium">Técnicos</a>
+                        <a href="{{ url_for('admin.settings') }}" class="text-gray-600 hover:text-primary px-3 py-2 rounded-md text-sm font-medium">Configurações</a>
+                        {% else %}
+                        <a href="{{ url_for('tech.dashboard') }}" class="text-gray-600 hover:text-primary px-3 py-2 rounded-md text-sm font-medium">Meu Dashboard</a>
+                        {% endif %}
+                        <a href="{{ url_for('clients.index') }}" class="text-gray-600 hover:text-primary px-3 py-2 rounded-md text-sm font-medium">Clientes</a>
+                        <a href="{{ url_for('equipment.index') }}" class="text-gray-600 hover:text-primary px-3 py-2 rounded-md text-sm font-medium">Equipamentos</a>
+                        <a href="{{ url_for('services.index') }}" class="text-gray-600 hover:text-primary px-3 py-2 rounded-md text-sm font-medium">Serviços</a>
+                        <a href="{{ url_for('maintenance.index') }}" class="text-gray-600 hover:text-primary px-3 py-2 rounded-md text-sm font-medium">Manutenção</a>
+                        <button onclick="startGlobalScanner()" class="ml-4 text-white bg-primary hover:bg-blue-600 px-3 py-2 rounded-md text-sm font-medium flex items-center">
+                            <i class="fas fa-barcode mr-2"></i> Escanear / Buscar
+                        </button>
+                    </div>
+                    <div class="flex items-center border-l pl-4">
+                        <span class="text-sm text-gray-700 mr-2">{{ current_user.name }}</span>
+                        <a href="{{ url_for('auth.logout') }}" class="text-red-500 hover:text-red-700">
+                            <i class="fas fa-sign-out-alt"></i> Sair
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Global Scanner Modal -->
+    <div id="global-scanner-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-[100]" style="display: none;">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4">
+                    <i class="fas fa-barcode text-primary text-xl"></i>
+                </div>
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Buscar Equipamento</h3>
+                <div class="mt-2 px-7 py-3">
+                    <p class="text-sm text-gray-500 mb-4">Escaneie o código de barras ou digite o número de série da máquina.</p>
+
+                    <div id="global-reader-container" class="border border-gray-300 rounded mb-4 overflow-hidden">
+                        <div id="global-reader" width="100%"></div>
+                    </div>
+
+                    <div class="flex">
+                        <input type="text" id="manual_serial" placeholder="Ou digite o número de série..." class="block w-full border border-gray-300 rounded-l-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                        <button type="button" onclick="manualSearch()" class="inline-flex items-center px-4 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 font-medium">
+                            Buscar
+                        </button>
+                    </div>
+                </div>
+                <div class="items-center px-4 py-3">
+                    <button id="close-scanner-btn" onclick="stopGlobalScanner()" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                        Fechar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 w-full">
+        {% block content %}
+        <div class="px-4 py-6 sm:px-0">
+            <div class="border-4 border-dashed border-gray-200 rounded-lg h-96 flex items-center justify-center">
+                <p class="text-gray-500">Welcome to Pronto Ar Refrigeração System</p>
+            </div>
+        </div>
+        {% endblock %}
+    </main>
+    <!-- Scripts -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script>
+        let globalHtml5QrcodeScanner = null;
+
+        function startGlobalScanner() {
+            document.getElementById('global-scanner-modal').style.display = 'block';
+
+            if (!globalHtml5QrcodeScanner) {
+                globalHtml5QrcodeScanner = new Html5QrcodeScanner(
+                    "global-reader",
+                    { fps: 10, qrbox: {width: 250, height: 250} },
+                    /* verbose= */ false);
+
+                globalHtml5QrcodeScanner.render(onGlobalScanSuccess, onGlobalScanFailure);
+            }
+        }
+
+        function stopGlobalScanner() {
+            document.getElementById('global-scanner-modal').style.display = 'none';
+            if (globalHtml5QrcodeScanner) {
+                globalHtml5QrcodeScanner.clear();
+                globalHtml5QrcodeScanner = null;
+            }
+        }
+
+        function onGlobalScanSuccess(decodedText, decodedResult) {
+            stopGlobalScanner();
+            // Play a small beep (optional)
+            const audio = new Audio('https://www.soundjay.com/buttons/beep-07a.mp3');
+            audio.play().catch(e => console.log('Audio error:', e));
+
+            // Redirect to the equipment view page
+            window.location.href = `/equipment/view/${encodeURIComponent(decodedText)}`;
+        }
+
+        function onGlobalScanFailure(error) {
+            // handle scan failure, usually better to ignore and keep scanning.
+        }
+
+        function manualSearch() {
+            const serial = document.getElementById('manual_serial').value.trim();
+            if (serial) {
+                window.location.href = `/equipment/view/${encodeURIComponent(serial)}`;
+            }
+        }
+    </script>
+</body>
+</html>

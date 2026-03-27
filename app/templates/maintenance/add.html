@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Novo Agendamento - Pronto Ar{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <h2 class="text-2xl font-bold text-gray-800">Criar Agendamento de Manutenção Preventiva</h2>
+</div>
+
+<div class="bg-white shadow overflow-hidden sm:rounded-lg max-w-2xl mx-auto p-6">
+    <form method="POST" action="{{ url_for('maintenance.add') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="grid grid-cols-1 gap-6">
+
+            <div>
+                <label for="equipment_id" class="block text-sm font-medium text-gray-700">Equipamento (Máquina) *</label>
+                <select id="equipment_id" name="equipment_id" required class="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                    <option value="" disabled selected>Selecione um equipamento...</option>
+                    {% for equip in equipments %}
+                        <option value="{{ equip.id }}">{{ equip.name }} (Cliente: {{ equip.owner.name }})</option>
+                    {% endfor %}
+                </select>
+                {% if not equipments %}
+                <p class="text-xs text-red-500 mt-1">Atenção: Você precisa cadastrar um equipamento primeiro.</p>
+                {% endif %}
+            </div>
+
+            <div>
+                <label for="next_maintenance_date" class="block text-sm font-medium text-gray-700">Data da Próxima Manutenção *</label>
+                <input type="date" name="next_maintenance_date" id="next_maintenance_date" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+            </div>
+
+            <div>
+                <label for="description" class="block text-sm font-medium text-gray-700">Observações (Opcional)</label>
+                <textarea id="description" name="description" rows="3" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"></textarea>
+            </div>
+
+            <div class="flex justify-end mt-4">
+                <a href="{{ url_for('maintenance.index') }}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mr-3">
+                    Cancelar
+                </a>
+                <button type="submit" class="bg-primary border border-transparent rounded-md shadow-sm py-2 px-4 inline-flex justify-center text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {% if not equipments %}disabled{% endif %}>
+                    Agendar Manutenção
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
