@@ -13,8 +13,9 @@ class AppConfig(db.Model):
     text_color = db.Column(db.String(20), default='#111827') # Preto/Cinza escuro
 
     # Navbar
-    navbar_bg_color   = db.Column(db.String(20), default='#ffffff')   # Fundo do menu
-    navbar_link_color = db.Column(db.String(20), default='#4b5563')   # Cor dos links
+    navbar_bg_color    = db.Column(db.String(20), default='#ffffff')   # Fundo do menu
+    navbar_link_color  = db.Column(db.String(20), default='#4b5563')   # Cor dos links
+    navbar_hover_color = db.Column(db.String(20), default='#3b82f6')   # Cor de hover e ativo
 
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

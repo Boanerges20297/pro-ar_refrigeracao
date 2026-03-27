@@ -59,8 +59,9 @@ def settings():
         config.secondary_color   = request.form.get('secondary_color')
         config.background_color  = request.form.get('background_color')
         config.text_color        = request.form.get('text_color')
-        config.navbar_bg_color   = request.form.get('navbar_bg_color')
-        config.navbar_link_color = request.form.get('navbar_link_color')
+        config.navbar_bg_color    = request.form.get('navbar_bg_color')
+        config.navbar_link_color  = request.form.get('navbar_link_color')
+        config.navbar_hover_color = request.form.get('navbar_hover_color')
 
         # Handle logo file upload
         logo_file = request.files.get('logo_file')

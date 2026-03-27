@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Editar Técnico{% endblock %}
+{% block title %}Editar Funcionário{% endblock %}
 {% block content %}
 <div class="mb-6">
-    <h2 class="text-2xl font-bold text-gray-800">Editar Funcionário/Técnico</h2>
+    <h2 class="text-2xl font-bold text-gray-800">Editar Funcionário</h2>
 </div>
 
 <div class="bg-white shadow overflow-hidden sm:rounded-lg max-w-2xl mx-auto p-6">
@@ -28,7 +28,30 @@
             </div>
 
             <div>
-                <label for="specialty" class="block text-sm font-medium text-gray-700">Especialidade (Opcional)</label>
+                <label for="permission_level" class="block text-sm font-medium text-gray-700">Nível de Permissão *</label>
+                <select name="permission_level" id="permission_level" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                    <option value="user" {% if user.permission_level == 'user' %}selected{% endif %}>Usuário (Sem acesso ao admin)</option>
+                    <option value="admin" {% if user.permission_level == 'admin' %}selected{% endif %}>Administrador</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="job_title" class="block text-sm font-medium text-gray-700">Função *</label>
+                <select name="job_title" id="job_title" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" onchange="toggleOtherJobTitle()">
+                    <option value="Técnico" {% if user.job_title == 'Técnico' %}selected{% endif %}>Técnico</option>
+                    <option value="Recepcionista" {% if user.job_title == 'Recepcionista' %}selected{% endif %}>Recepcionista</option>
+                    <option value="Administrador" {% if user.job_title == 'Administrador' %}selected{% endif %}>Administrador</option>
+                    <option value="Outros" {% if user.job_title not in ['Técnico', 'Recepcionista', 'Administrador'] %}selected{% endif %}>Outros...</option>
+                </select>
+            </div>
+
+            <div id="other_job_title_group" style="display: {% if user.job_title not in ['Técnico', 'Recepcionista', 'Administrador'] %}block{% else %}none{% endif %};">
+                <label for="other_job_title" class="block text-sm font-medium text-gray-700">Qual Função?</label>
+                <input type="text" name="other_job_title" id="other_job_title" value="{% if user.job_title not in ['Técnico', 'Recepcionista', 'Administrador'] %}{{ user.job_title }}{% endif %}" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+            </div>
+
+            <div>
+                <label for="specialty" class="block text-sm font-medium text-gray-700">Especialidade (Opcional - p/ Técnicos)</label>
                 <input type="text" name="specialty" id="specialty" value="{{ user.specialty or '' }}" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
             </div>
 
@@ -50,4 +73,15 @@
         </div>
     </form>
 </div>
+<script>
+function toggleOtherJobTitle() {
+    var select = document.getElementById("job_title");
+    var group = document.getElementById("other_job_title_group");
+    if (select.value === "Outros") {
+        group.style.display = "block";
+    } else {
+        group.style.display = "none";
+    }
+}
+</script>
 {% endblock %}

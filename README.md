@@ -36,15 +36,16 @@ A identidade visual (logotipo, cores, nome da empresa) é **totalmente personali
 
 | Módulo | Descrição |
 |---|---|
-| 🔐 **Autenticação** | Login com JWT em cookie HttpOnly, perfis por role |
+| 🔐 **Autenticação** | Login com JWT em cookie HttpOnly, niveis de permissão (admin/user) |
 | 👥 **Clientes** | Cadastro completo com telefone, e-mail e endereço |
 | ❄️ **Equipamentos** | Cadastro com QR Code gerado automaticamente |
 | 📷 **Scanner QR** | Leitura via câmera do celular — abre o equipamento direto |
 | 🔧 **Ordens de Serviço** | Criação, atribuição de técnico, controle financeiro e status |
 | 📅 **Manutenção Preventiva** | Agendamentos vinculados a equipamentos |
-| 👷 **Técnicos** | Cadastro da equipe com login próprio |
+| 👥 **Funcionários** | Gestão unificada (Técnico, Recepcionista, Admin, Outros) |
 | 📊 **Dashboard Admin** | KPIs, receita, performance de técnicos |
 | ⚙️ **Configurações** | Logo, cores, nome da empresa — tema 100% personalizável |
+| 📱 **Responsividade** | Navbar adaptável com menu hambúrguer para dispositivos móveis |
 | 📘 **Tutorial** | Guia embutido passo a passo acessível por botão flutuante |
 
 ---
@@ -176,7 +177,7 @@ pro-ar_refrigeracao/
 │   │   ├── equipment.py     # CRUD Equipamentos + Geração QR
 │   │   ├── services.py      # Ordens de Serviço
 │   │   ├── maintenance.py   # Manutenções
-│   │   └── technician.py    # Gestão de Técnicos
+│   │   └── technician.py    # Gestão Unificada de Funcionários (Técnicos, Recepcionistas, etc)
 │   ├── templates/
 │   │   ├── base.html        # Layout base (navbar, FABs, tutorial)
 │   │   ├── auth/            # Login
@@ -201,13 +202,15 @@ pro-ar_refrigeracao/
 
 ---
 
-## Perfis de Usuário
+O sistema utiliza um modelo de permissões flexível que separa o nível de acesso da função exercida:
 
-| Role | Acesso |
-|---|---|
-| `admin` | Dashboard, todas as funcionalidades e configurações |
-| `technician` | Dashboard próprio, OS atribuídas, scanner |
-| `manager` | Acesso intermediário (configurável) |
+| Nível de Permissão | Acesso | Funções Comuns |
+|---|---|---|
+| `admin` | Acesso total: Dashboards, Financeiro, Configurações e Gestão de Funcionários | Administrador, Gerente, Proprietário |
+| `user` | Acesso operacional: Dashboard Técnico, OS atribuídas, Clientes e Equipamentos | Técnico, Recepcionista, Auxiliar |
+
+### Funções (`job_title`)
+As funções são personalizáveis. O sistema vem com padrões (`Técnico`, `Recepcionista`, `Administrador`), mas o administrador pode criar novas funções (ex: `Estagiário`, `Supervisor`) diretamente no cadastro.
 
 ---
 

@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Novo Técnico{% endblock %}
+{% block title %}Novo Funcionário{% endblock %}
 {% block content %}
 <div class="mb-6">
-    <h2 class="text-2xl font-bold text-gray-800">Adicionar Funcionário/Técnico</h2>
+    <h2 class="text-2xl font-bold text-gray-800">Adicionar Funcionário</h2>
 </div>
 
 <div class="bg-white shadow overflow-hidden sm:rounded-lg max-w-2xl mx-auto p-6">
@@ -30,7 +30,30 @@
             </div>
 
             <div>
-                <label for="specialty" class="block text-sm font-medium text-gray-700">Especialidade (Opcional)</label>
+                <label for="permission_level" class="block text-sm font-medium text-gray-700">Nível de Permissão *</label>
+                <select name="permission_level" id="permission_level" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                    <option value="user">Usuário (Sem acesso ao admin)</option>
+                    <option value="admin">Administrador</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="job_title" class="block text-sm font-medium text-gray-700">Função *</label>
+                <select name="job_title" id="job_title" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" onchange="toggleOtherJobTitle()">
+                    <option value="Técnico">Técnico</option>
+                    <option value="Recepcionista">Recepcionista</option>
+                    <option value="Administrador">Administrador</option>
+                    <option value="Outros">Outros...</option>
+                </select>
+            </div>
+            
+            <div id="other_job_title_group" style="display: none;">
+                <label for="other_job_title" class="block text-sm font-medium text-gray-700">Qual Função?</label>
+                <input type="text" name="other_job_title" id="other_job_title" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+            </div>
+
+            <div>
+                <label for="specialty" class="block text-sm font-medium text-gray-700">Especialidade (Opcional - p/ Técnicos)</label>
                 <input type="text" name="specialty" id="specialty" placeholder="Ex: Refrigeração, Elétrica" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
             </div>
 
@@ -46,10 +69,21 @@
                     Cancelar
                 </a>
                 <button type="submit" class="bg-primary border border-transparent rounded-md shadow-sm py-2 px-4 inline-flex justify-center text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
-                    Salvar Técnico
+                    Salvar Funcionário
                 </button>
             </div>
         </div>
     </form>
 </div>
+<script>
+function toggleOtherJobTitle() {
+    var select = document.getElementById("job_title");
+    var group = document.getElementById("other_job_title_group");
+    if (select.value === "Outros") {
+        group.style.display = "block";
+    } else {
+        group.style.display = "none";
+    }
+}
+</script>
 {% endblock %}

@@ -7,7 +7,9 @@ class User(db.Model):
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
-    role = db.Column(db.String(20), nullable=False, default='technician') # 'admin' or 'technician'
+    permission_level = db.Column(db.String(20), nullable=False, default='user') # 'admin' or 'user'
+    job_title = db.Column(db.String(50), nullable=False, default='Técnico') # e.g. Técnico, Recepcionista, Administrador
+    role = db.Column(db.String(20), nullable=False, default='technician') # Deprecated: 'admin' or 'technician', kept for compatibility if needed.
     specialty = db.Column(db.String(100), nullable=True) # E.g., Refrigeration, Electrical
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -22,4 +24,4 @@ class User(db.Model):
         return check_password_hash(self.password_hash, password)
 
     def __repr__(self):
-        return f'<User {self.name} - {self.role}>'
+        return f'<User {self.name} - {self.job_title} ({self.permission_level})>'

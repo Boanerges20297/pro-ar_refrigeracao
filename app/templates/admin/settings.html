@@ -150,6 +150,13 @@
                                 <input type="text" value="{{ config.navbar_link_color or '#4b5563' }}" class="ml-2 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary sm:text-sm" readonly>
                             </div>
                         </div>
+                        <div>
+                            <label for="navbar_hover_color" class="block text-sm font-medium text-gray-700">Cor de Hover / Ativo</label>
+                            <div class="flex items-center mt-1">
+                                <input type="color" name="navbar_hover_color" id="navbar_hover_color" value="{{ config.navbar_hover_color or '#3b82f6' }}" class="h-10 w-10 border border-gray-300 rounded-md shadow-sm p-1 cursor-pointer">
+                                <input type="text" value="{{ config.navbar_hover_color or '#3b82f6' }}" class="ml-2 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary sm:text-sm" readonly>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

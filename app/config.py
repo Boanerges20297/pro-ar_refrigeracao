@@ -12,5 +12,5 @@ class Config:
     JWT_COOKIE_SECURE = False # Set to True in production with HTTPS
 
     # Disable JWT's built-in CSRF to prevent conflict with Flask-WTF
-    JWT_COOKIE_CSRF_PROTECT = True
-    JWT_CSRF_CHECK_FORM = True 
+    JWT_COOKIE_CSRF_PROTECT = False
+    JWT_CSRF_CHECK_FORM = False 
