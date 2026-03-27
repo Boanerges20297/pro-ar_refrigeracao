@@ -7,10 +7,10 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or os.urandom(32).hex()
-    JWT_ACCESS_TOKEN_EXPIRES = 3600 # 1 hour
+    JWT_ACCESS_TOKEN_EXPIRES = 1800 # 30 minutos
     JWT_TOKEN_LOCATION = ['cookies']
     JWT_COOKIE_SECURE = False # Set to True in production with HTTPS
 
     # Disable JWT's built-in CSRF to prevent conflict with Flask-WTF
-    JWT_COOKIE_CSRF_PROTECT = False
-    JWT_CSRF_CHECK_FORM = False
+    JWT_COOKIE_CSRF_PROTECT = True
+    JWT_CSRF_CHECK_FORM = True 

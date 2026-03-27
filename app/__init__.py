@@ -1,3 +1,4 @@
+import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -5,13 +6,16 @@ from flask_jwt_extended import JWTManager
 from flask_bcrypt import Bcrypt
 from app.config import Config
 
+# Resolve the project root (two levels up from this file: app/__init__.py -> app/ -> project root)
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
 bcrypt = Bcrypt()
 
 def create_app(config_class=Config):
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder=os.path.join(_PROJECT_ROOT, 'static'))
     app.config.from_object(config_class)
 
     db.init_app(app)

@@ -3,38 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Pronto Ar Refrigeração</title>
+    <title>ProntoAr | Login</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     {% if app_config %}
     <style>
-        :root {
-            --primary-color: {{ app_config.primary_color }};
-            --secondary-color: {{ app_config.secondary_color }};
-            --bg-color: {{ app_config.background_color }};
-            --text-color: {{ app_config.text_color }};
-        }
+        :root { --primary-color: {{ app_config.primary_color }}; }
         .bg-primary { background-color: var(--primary-color); }
         .text-primary { color: var(--primary-color); }
+        .ring-primary { --tw-ring-color: var(--primary-color); }
     </style>
     {% else %}
     <style>
-        :root {
-            --primary-color: #3b82f6; /* Azul Boreal default */
-        }
+        :root { --primary-color: #3b82f6; }
         .bg-primary { background-color: var(--primary-color); }
         .text-primary { color: var(--primary-color); }
     </style>
     {% endif %}
+    <style>
+        html, body { height: 100%; margin: 0; font-family: 'Inter', sans-serif; }
+        .login-wrapper {
+            display: flex;
+            min-height: 100vh;
+        }
+        /* Left 70% — background hero */
+        .login-hero {
+            flex: 0 0 70%;
+            background-image: url('/static/img/fundo_1.png');
+            background-size: cover;
+            background-position: center;
+            position: relative;
+        }
+        .login-hero::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.15) 100%);
+        }
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 3rem;
+            color: #fff;
+            text-align: center;
+        }
+        /* Right 30% — sidebar */
+        .login-sidebar {
+            flex: 0 0 30%;
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 2rem 2rem 3rem;
+            box-shadow: -4px 0 32px rgba(0,0,0,0.12);
+            overflow-y: auto;
+        }
+
+        /* ── Mobile ── */
+        @media (max-width: 767px) {
+            .login-wrapper { flex-direction: column; }
+
+            .login-hero {
+                flex: none;
+                height: 220px;
+                width: 100%;
+            }
+            .hero-content { padding: 1.5rem; }
+            .hero-content h1 {
+                font-size: 1.6rem !important;
+                letter-spacing: 0.08em !important;
+            }
+            .hero-content p { font-size: 0.7rem !important; }
+
+            .login-sidebar {
+                flex: 1;
+                width: 100%;
+                justify-content: flex-start;
+                padding: 2rem 1.5rem 2.5rem;
+                box-shadow: none;
+            }
+        }
+    </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center h-screen">
+<body>
+<div class="login-wrapper">
 
-    <div class="bg-white p-8 rounded-lg shadow-xl w-96">
-        <div class="flex justify-center mb-6">
-            <img class="h-16 w-auto" src="{{ app_config.logo_path if app_config.logo_path else 'https://ui-avatars.com/api/?name=Pronto+Ar&background=3b82f6&color=fff&rounded=true' }}" alt="Logo">
+    <!-- Left: Hero -->
+    <div class="login-hero">
+        <div class="hero-content">
+            <h1 style="font-size: 2.8rem; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; text-shadow: 0 2px 20px rgba(0,0,0,0.5); line-height: 1.2; font-family: 'Inter', sans-serif;">{{ app_config.company_name if app_config else 'Pronto Ar Refrigeração' }}</h1>
+            <p class="mt-3 text-sm" style="color: rgba(255,255,255,0.75); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 500;">Sistema de Gestão de Serviços</p>
         </div>
+    </div>
 
-        <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Bem-vindo</h2>
+    <!-- Right: Sidebar Login -->
+    <div class="login-sidebar">
+
+        <!-- Logo + title -->
+        <div class="flex flex-col items-center mb-6">
+            <div class="h-20 w-20 rounded-full overflow-hidden bg-white shadow-md ring-4 ring-gray-100 mb-4">
+                <img class="h-full w-full object-cover object-center"
+                     src="{{ app_config.logo_path if app_config and app_config.logo_path else 'https://ui-avatars.com/api/?name=Pronto+Ar&background=3b82f6&color=fff&rounded=true' }}"
+                     alt="Logo">
+            </div>
+            <h2 class="text-2xl font-bold text-gray-800">Bem-vindo</h2>
+            <p class="text-xs text-gray-400 mt-1">Faça login para continuar</p>
+        </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -47,7 +130,7 @@
         {% endwith %}
 
         <form method="POST" action="{{ url_for('auth.login') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="mb-4">
                 <label for="email" class="block text-gray-700 text-sm font-bold mb-2">E-mail</label>
@@ -66,25 +149,30 @@
                     <span class="absolute inset-y-0 left-0 flex items-center pl-3">
                         <i class="fas fa-lock text-gray-400"></i>
                     </span>
-                    <!-- Passwords need minimum 8 characters, letters and numbers -->
                     <input type="password" name="password" id="password" required
                            pattern="^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$"
                            title="A senha deve ter no mínimo 8 caracteres, incluindo letras e números"
                            class="shadow appearance-none border rounded w-full py-2 pl-10 pr-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 </div>
-                <p class="text-xs text-gray-500 mt-1">Mínimo de 8 caracteres (letras e números).</p>
+                <p class="text-xs text-gray-400 mt-1">Mínimo de 8 caracteres (letras e números).</p>
             </div>
 
-            <div class="flex items-center justify-between">
-                <button type="submit" class="bg-primary hover:opacity-90 text-white font-bold py-2 px-4 rounded w-full focus:outline-none focus:shadow-outline transition duration-150 ease-in-out">
-                    Entrar
-                </button>
-            </div>
+            <button type="submit" class="bg-primary hover:opacity-90 text-white font-bold py-2 px-4 rounded w-full focus:outline-none transition duration-150 ease-in-out">
+                Entrar
+            </button>
         </form>
-        <p class="text-center text-gray-500 text-xs mt-6">
-            &copy; 2024 Pronto Ar Refrigeração.
-        </p>
-    </div>
 
+        <!-- Footer credits -->
+        <div class="mt-8 text-center">
+            <p class="text-gray-400 text-xs">&copy; 2026 Pronto Ar - Refrigeração</p>
+            <p class="text-gray-300 text-[10px] mt-1 leading-relaxed">
+                Desenvolvido por Boanerges Teixeira de Almeida<br>
+                Engenheiro de Software
+            </p>
+        </div>
+
+    </div>
+</div>
 </body>
 </html>
+

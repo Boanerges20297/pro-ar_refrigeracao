@@ -12,6 +12,10 @@ class AppConfig(db.Model):
     background_color = db.Column(db.String(20), default='#ffffff') # Branco
     text_color = db.Column(db.String(20), default='#111827') # Preto/Cinza escuro
 
+    # Navbar
+    navbar_bg_color   = db.Column(db.String(20), default='#ffffff')   # Fundo do menu
+    navbar_link_color = db.Column(db.String(20), default='#4b5563')   # Cor dos links
+
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def __repr__(self):

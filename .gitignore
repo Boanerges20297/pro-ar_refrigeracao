@@ -31,3 +31,6 @@ htmlcov/
 .vscode/
 *.swp
 *.swo
+
+# Environment secrets
+.env

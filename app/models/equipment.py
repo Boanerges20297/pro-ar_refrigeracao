@@ -7,7 +7,8 @@ class Equipment(db.Model):
     brand = db.Column(db.String(100), nullable=True)
     model = db.Column(db.String(100), nullable=True)
     serial_number = db.Column(db.String(100), unique=True, nullable=True) # Useful for barcodes
-    location = db.Column(db.String(200), nullable=True) # E.g., Sala de Estar, Quarto 1
+    location = db.Column(db.String(200), nullable=True)
+    qr_code_path = db.Column(db.String(255), nullable=True)  # path to QR code image
 
     client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=False)
 
