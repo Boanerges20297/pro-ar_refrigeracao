@@ -63,6 +63,18 @@ def settings():
         config.navbar_link_color  = request.form.get('navbar_link_color')
         config.navbar_hover_color = request.form.get('navbar_hover_color')
 
+        # SMTP Settings
+        config.smtp_provider    = request.form.get('smtp_provider')
+        config.smtp_server      = request.form.get('smtp_server')
+
+        config.smtp_port        = int(request.form.get('smtp_port') or 587)
+        config.smtp_user        = request.form.get('smtp_user')
+        config.smtp_password    = request.form.get('smtp_password')
+        config.smtp_use_tls     = 'smtp_use_tls' in request.form
+        config.smtp_use_ssl     = 'smtp_use_ssl' in request.form
+        config.mail_sender_name = request.form.get('mail_sender_name')
+
+
         # Handle logo file upload
         logo_file = request.files.get('logo_file')
         if logo_file and logo_file.filename:

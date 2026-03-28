@@ -17,7 +17,19 @@ class AppConfig(db.Model):
     navbar_link_color  = db.Column(db.String(20), default='#4b5563')   # Cor dos links
     navbar_hover_color = db.Column(db.String(20), default='#3b82f6')   # Cor de hover e ativo
 
+    # SMTP Settings (for password recovery)
+    smtp_provider = db.Column(db.String(50), default='gmail') # 'gmail', 'outlook', 'yahoo', 'custom'
+    smtp_server = db.Column(db.String(100), default='smtp.gmail.com')
+
+    smtp_port = db.Column(db.Integer, default=587)
+    smtp_user = db.Column(db.String(120), nullable=True)
+    smtp_password = db.Column(db.String(128), nullable=True)
+    smtp_use_tls = db.Column(db.Boolean, default=True)
+    smtp_use_ssl = db.Column(db.Boolean, default=False)
+    mail_sender_name = db.Column(db.String(100), default='Pronto Ar Refrigeração')
+
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 
     def __repr__(self):
         return f'<AppConfig {self.company_name}>'

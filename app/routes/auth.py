@@ -1,8 +1,28 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response
+from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response, current_app
 from app.models.user import User
 from flask_jwt_extended import create_access_token, set_access_cookies, unset_jwt_cookies, jwt_required, get_jwt_identity
+from itsdangerous import URLSafeTimedSerializer
+from app.utils.email import send_password_reset_email
+from app import db
+from datetime import datetime
 
 auth_bp = Blueprint('auth', __name__)
+
+def generate_reset_token(email):
+    serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+    return serializer.dumps(email, salt='password-reset-salt')
+
+def confirm_reset_token(token, expiration=3600):
+    serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+    try:
+        email = serializer.loads(
+            token,
+            salt='password-reset-salt',
+            max_age=expiration
+        )
+    except:
+        return False
+    return email
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -37,3 +57,70 @@ def logout():
     resp = make_response(redirect(url_for('auth.login')))
     unset_jwt_cookies(resp)
     return resp
+
+@auth_bp.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        user = User.query.filter_by(email=email).first()
+        
+        # Genericamente dizemos que enviamos o e-mail por segurança
+        flash('Se o e-mail estiver cadastrado, você receberá um link de recuperação em instantes.', 'info')
+        
+        if user:
+            token = generate_reset_token(user.email)
+            reset_url = url_for('auth.reset_password', token=token, _external=True)
+            
+            # Use absolute logo URL or fallback
+            logo_url = None
+            if current_app.config.get('APP_CONFIG'):
+                app_config = current_app.config['APP_CONFIG']
+                if app_config.logo_path:
+                    if app_config.logo_path.startswith('http'):
+                        logo_url = app_config.logo_path
+                    else:
+                        # Clean-up path and make it absolute
+                        clean_path = app_config.logo_path.lstrip('/')
+                        if clean_path.startswith('static/'):
+                            clean_path = clean_path.replace('static/', '', 1)
+                        logo_url = url_for('static', filename=clean_path, _external=True)
+            
+            success, message = send_password_reset_email(user, reset_url, logo_url)
+            if not success:
+                # Log error internally but message to user is helpful for debugging if SMTP fails
+                current_app.logger.error(f"Failed to send reset email: {message}")
+
+
+        
+        return redirect(url_for('auth.login'))
+        
+    return render_template('auth/forgot_password.html')
+
+@auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    email = confirm_reset_token(token)
+    if not email:
+        flash('O link de recuperação é inválido ou expirou.', 'danger')
+        return redirect(url_for('auth.forgot_password'))
+        
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        flash('Usuário não encontrado.', 'danger')
+        return redirect(url_for('auth.login'))
+        
+    if request.method == 'POST':
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if password != confirm_password:
+            flash('As senhas não coincidem.', 'danger')
+            return render_template('auth/reset_password.html', token=token)
+            
+        user.set_password(password)
+        db.session.commit()
+        
+        flash('Sua senha foi atualizada com sucesso! Agora você pode fazer login.', 'success')
+        return redirect(url_for('auth.login'))
+        
+    return render_template('auth/reset_password.html', token=token)
+

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #f9fafb; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #e5e7eb; }
+        .header { background-color: {{ config.primary_color }}; padding: 32px; text-align: center; }
+        .header img { max-width: 120px; height: auto; }
+        .content { padding: 40px 32px; text-align: center; }
+        .title { color: #111827; font-size: 24px; font-weight: 700; margin-bottom: 16px; }
+        .text { color: #4b5563; font-size: 16px; line-height: 1.6; margin-bottom: 32px; }
+        .button { display: inline-block; background-color: {{ config.primary_color }}; color: #ffffff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; transition: opacity 0.2s; }
+        .footer { background-color: #f3f4f6; padding: 24px; text-align: center; color: #9ca3af; font-size: 12px; }
+        .warning { color: #9ca3af; font-size: 14px; margin-top: 24px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            {% if logo_url %}
+            <img src="{{ logo_url }}" alt="{{ config.company_name }}">
+            {% else %}
+            <h1 style="color: white; margin: 0;">{{ config.company_name }}</h1>
+            {% endif %}
+        </div>
+
+        <div class="content">
+            <h1 class="title">Recuperação de Senha</h1>
+            <p class="text">Olá, <strong>{{ user.name }}</strong>. Você solicitou a redefinição de sua senha para o sistema <strong>{{ config.company_name }}</strong>.</p>
+            
+            <a href="{{ reset_url }}" class="button">Redefinir minha Senha</a>
+
+            
+            <p class="warning">Este link é válido por <strong>1 hora</strong>. Se você não solicitou esta alteração, por favor ignore este e-mail.</p>
+        </div>
+        <div class="footer">
+            &copy; {{ now.year if now else '2026' }} {{ config.company_name }} - Todos os direitos reservados.
+        </div>
+    </div>
+</body>
+</html>

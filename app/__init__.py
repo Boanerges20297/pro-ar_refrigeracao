@@ -9,10 +9,26 @@ from app.config import Config
 # Resolve the project root (two levels up from this file: app/__init__.py -> app/ -> project root)
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+import sqlite3
+
+
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
 bcrypt = Bcrypt()
+
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    if isinstance(dbapi_connection, sqlite3.Connection):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.close()
+
+
+
 
 def create_app(config_class=Config):
     app = Flask(__name__, static_folder=os.path.join(_PROJECT_ROOT, 'static'))
