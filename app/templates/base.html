@@ -118,8 +118,8 @@
             <div class="flex items-center justify-between min-h-[4rem] py-2 gap-4">
                 <!-- Brand -->
                 <div class="flex items-center gap-2 flex-shrink-0 whitespace-nowrap">
-                    <div class="h-9 w-9 rounded-full overflow-hidden flex-shrink-0 bg-white shadow-sm">
-                        <img class="h-full w-full object-cover object-center" src="{{ app_config.logo_path if app_config.logo_path else 'https://ui-avatars.com/api/?name=Pronto+Ar&background=3b82f6&color=fff&rounded=true' }}" alt="Logo">
+                    <div class="h-16 flex-shrink-0 bg-transparent">
+                        <img class="h-full w-auto object-contain" src="{{ app_config.logo_path if app_config.logo_path else 'https://ui-avatars.com/api/?name=Pronto+Ar&background=3b82f6&color=fff' }}" alt="Logo">
                     </div>
                     <span class="brand-name font-bold text-base leading-tight">{{ app_config.company_name if app_config else 'Pronto Ar Refrigeração' }}</span>
                 </div>
@@ -132,6 +132,7 @@
                         <a href="{{ url_for('admin.dashboard') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('admin.dashboard') %}active{% endif %}">Dashboard Admin</a>
                         <a href="{{ url_for('tech.list_technicians') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/tech/list' in request.path or '/tech/edit' in request.path or '/tech/add' in request.path %}active{% endif %}">Funcionários</a>
                         <a href="{{ url_for('admin.settings') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('admin.settings') %}active{% endif %}">Configurações</a>
+                        <a href="{{ url_for('reports.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/reports' in request.path %}active{% endif %}">Relatórios</a>
                         {% else %}
                         <a href="{{ url_for('tech.dashboard') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('tech.dashboard') %}active{% endif %}">Meu Dashboard</a>
                         {% endif %}
@@ -179,6 +180,7 @@
                 <a href="{{ url_for('admin.dashboard') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Dashboard Admin</a>
                 <a href="{{ url_for('tech.list_technicians') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Funcionários</a>
                 <a href="{{ url_for('admin.settings') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Configurações</a>
+                <a href="{{ url_for('reports.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Relatórios</a>
                 {% else %}
                 <a href="{{ url_for('tech.dashboard') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Meu Dashboard</a>
                 {% endif %}
@@ -512,5 +514,7 @@
             }
         }
     </script>
+    <script src="https://unpkg.com/slim-select@latest/dist/slimselect.min.js"></script>
+    {% block scripts %}{% endblock %}
 </body>
 </html>

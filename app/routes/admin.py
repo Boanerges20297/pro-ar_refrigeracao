@@ -54,7 +54,6 @@ def settings():
         db.session.commit()
 
     if request.method == 'POST':
-        config.company_name      = request.form.get('company_name')
         config.primary_color     = request.form.get('primary_color')
         config.secondary_color   = request.form.get('secondary_color')
         config.background_color  = request.form.get('background_color')
@@ -73,33 +72,6 @@ def settings():
         config.smtp_use_tls     = 'smtp_use_tls' in request.form
         config.smtp_use_ssl     = 'smtp_use_ssl' in request.form
         config.mail_sender_name = request.form.get('mail_sender_name')
-
-
-        # Handle logo file upload
-        logo_file = request.files.get('logo_file')
-        if logo_file and logo_file.filename:
-            ext = logo_file.filename.rsplit('.', 1)[-1].lower()
-            if ext not in ALLOWED_LOGO_EXTENSIONS:
-                flash(f'Formato inválido. Use: JPG, PNG, WEBP ou SVG.', 'danger')
-                return render_template('admin/settings.html', config=config)
-
-            logo_file.seek(0, 2)  # seek to end
-            file_size = logo_file.tell()
-            logo_file.seek(0)
-            if file_size > MAX_LOGO_SIZE_BYTES:
-                flash('A imagem excede o limite de 2 MB. Escolha um arquivo menor.', 'danger')
-                return render_template('admin/settings.html', config=config)
-
-            save_dir = os.path.join(current_app.static_folder, 'img')
-            os.makedirs(save_dir, exist_ok=True)
-            filename = f'logo.{ext}'
-            logo_file.save(os.path.join(save_dir, filename))
-            config.logo_path = f'/static/img/{filename}'
-        else:
-            # Allow manual URL if no file was chosen
-            manual = request.form.get('logo_path')
-            if manual:
-                config.logo_path = manual
 
         db.session.commit()
         flash('Configurações atualizadas com sucesso!', 'success')

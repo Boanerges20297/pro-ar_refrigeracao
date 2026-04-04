@@ -11,13 +11,31 @@
         <div class="grid grid-cols-1 gap-6">
 
             <div>
-                <label for="equipment_id" class="block text-sm font-medium text-gray-700">Equipamento (Máquina) *</label>
-                <select id="equipment_id" name="equipment_id" required class="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
-                    <option value="" disabled selected>Selecione um equipamento...</option>
-                    {% for equip in equipments %}
-                        <option value="{{ equip.id }}">{{ equip.name }} (Cliente: {{ equip.owner.name }})</option>
-                    {% endfor %}
-                </select>
+                <label for="equipment_search" class="block text-sm font-medium text-gray-700">Equipamento (Máquina) *</label>
+                <div class="relative">
+                    <input type="text" 
+                        id="equipment_search" 
+                        list="equip_list" 
+                        autocomplete="off"
+                        placeholder="Digite o nome, série ou cliente para buscar..."
+                        class="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                        oninput="syncEquipmentId()">
+                    
+                    <datalist id="equip_list">
+                        {% for equip in equipments %}
+                            <option value="{{ equip.name }} - S/N: {{ equip.serial_number or 'N/A' }} (Cliente: {{ equip.owner.name }})" data-id="{{ equip.id }}"></option>
+                        {% endfor %}
+                    </datalist>
+                    
+                    <!-- Hidden field to send the ID -->
+                    <input type="hidden" name="equipment_id" id="equipment_id" required>
+                    
+                    <div id="selection_feedback" class="mt-1 text-[10px] hidden">
+                        <span class="text-green-600 font-bold bg-green-50 px-1 py-0.5 rounded border border-green-200">
+                            <i class="fas fa-check-circle mr-1"></i>Aparelho identificado com sucesso
+                        </span>
+                    </div>
+                </div>
                 {% if not equipments %}
                 <p class="text-xs text-red-500 mt-1">Atenção: Você precisa cadastrar um equipamento primeiro.</p>
                 {% endif %}
@@ -44,4 +62,44 @@
         </div>
     </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function syncEquipmentId() {
+        const input = document.getElementById('equipment_search');
+        const hiddenInput = document.getElementById('equipment_id');
+        const feedback = document.getElementById('selection_feedback');
+        const list = document.getElementById('equip_list');
+        const options = list.options;
+        
+        let foundId = "";
+        
+        // Find if the typed value matches any option
+        for (let i = 0; i < options.length; i++) {
+            if (options[i].value === input.value) {
+                foundId = options[i].getAttribute('data-id');
+                break;
+            }
+        }
+        
+        hiddenInput.value = foundId;
+        
+        // Visual feedback
+        if (foundId) {
+            feedback.classList.remove('hidden');
+        } else {
+            feedback.classList.add('hidden');
+        }
+    }
+
+    // Set default date to today
+    document.addEventListener('DOMContentLoaded', function() {
+        const dateInput = document.getElementById('next_maintenance_date');
+        if (dateInput) {
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.value = today;
+        }
+    });
+</script>
 {% endblock %}

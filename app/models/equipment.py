@@ -9,6 +9,7 @@ class Equipment(db.Model):
     serial_number = db.Column(db.String(100), unique=True, nullable=True) # Useful for barcodes
     location = db.Column(db.String(200), nullable=True)
     qr_code_path = db.Column(db.String(255), nullable=True)  # path to QR code image
+    maintenance_interval = db.Column(db.Integer, nullable=True, default=6) # interval in months
 
     client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=False)
 

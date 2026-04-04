@@ -108,6 +108,7 @@ def create_app(config_class=Config):
     from app.routes.equipment import equip_bp
     from app.routes.services import services_bp
     from app.routes.maintenance import maint_bp
+    from app.routes.reports import reports_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -117,5 +118,6 @@ def create_app(config_class=Config):
     app.register_blueprint(equip_bp, url_prefix='/equipment')
     app.register_blueprint(services_bp, url_prefix='/services')
     app.register_blueprint(maint_bp, url_prefix='/maintenance')
+    app.register_blueprint(reports_bp, url_prefix='/reports')
 
     return app

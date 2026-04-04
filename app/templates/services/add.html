@@ -6,7 +6,7 @@
 </div>
 
 <div class="bg-white shadow overflow-hidden sm:rounded-lg max-w-4xl mx-auto p-6">
-    <form method="POST" action="{{ url_for('services.add') }}">
+    <form method="POST" action="{{ url_for('services.add') }}" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -14,7 +14,7 @@
             <!-- Col 1 -->
             <div>
                 <label for="client_id" class="block text-sm font-medium text-gray-700">Cliente *</label>
-                <select id="client_id" name="client_id" required class="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                <select id="client_id" name="client_id" required class="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" onchange="filterEquipment(this.value)">
                     <option value="" disabled selected>Selecione um cliente...</option>
                     {% for client in clients %}
                         <option value="{{ client.id }}">{{ client.name }}</option>
@@ -28,9 +28,9 @@
             <div>
                 <label for="equipment_id" class="block text-sm font-medium text-gray-700">Equipamento (Opcional)</label>
                 <select id="equipment_id" name="equipment_id" class="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
-                    <option value="" selected>Serviço Geral (Sem equipamento específico)</option>
+                    <option value="" data-client="-1" selected>Serviço Geral (Sem equipamento específico)</option>
                     {% for equip in equipments %}
-                        <option value="{{ equip.id }}">{{ equip.name }} ({{ equip.owner.name }})</option>
+                        <option value="{{ equip.id }}" data-client="{{ equip.client_id }}">{{ equip.name }} (SN: {{ equip.serial_number or '-' }})</option>
                     {% endfor %}
                 </select>
             </div>
@@ -68,6 +68,18 @@
                 <input type="number" step="0.01" min="0" name="total_value" id="total_value" placeholder="0.00" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
             </div>
 
+            <div>
+                <label for="photo_before" class="block text-sm font-medium text-gray-700">Foto ANTES do Serviço</label>
+                <input type="file" name="photo_before" id="photo_before" accept="image/*" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-primary hover:file:bg-blue-100" onchange="checkFileSize(this)">
+                <p class="text-[10px] text-gray-400 mt-1">Limite: 2MB. Imagens maiores serão redimensionadas automaticamente.</p>
+            </div>
+
+            <div>
+                <label for="photo_after" class="block text-sm font-medium text-gray-700">Foto DEPOIS do Serviço</label>
+                <input type="file" name="photo_after" id="photo_after" accept="image/*" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-primary hover:file:bg-blue-100" onchange="checkFileSize(this)">
+                <p class="text-[10px] text-gray-400 mt-1">Limite: 2MB. Imagens maiores serão redimensionadas automaticamente.</p>
+            </div>
+
             <div class="md:col-span-2">
                 <label for="description" class="block text-sm font-medium text-gray-700">Observações / Descrição do Problema</label>
                 <textarea id="description" name="description" rows="3" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"></textarea>
@@ -83,5 +95,42 @@
             </div>
         </div>
     </form>
-</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterEquipment(clientId) {
+    const equipSelect = document.getElementById('equipment_id');
+    const options = equipSelect.options;
+    
+    let firstFound = false;
+    for (let i = 0; i < options.length; i++) {
+        const opt = options[i];
+        const optClient = opt.getAttribute('data-client');
+        
+        if (optClient === "-1" || optClient === clientId) {
+            opt.style.display = 'block';
+            if (!firstFound && optClient === clientId) {
+                opt.selected = true;
+                firstFound = true;
+            }
+        } else {
+            opt.style.display = 'none';
+        }
+    }
+    
+    if (!firstFound) {
+        equipSelect.value = "";
+    }
+}
+
+function checkFileSize(input) {
+    if (input.files && input.files[0]) {
+        const fileSize = input.files[0].size / 1024 / 1024; // in MB
+        if (fileSize > 2) {
+            alert(`A imagem selecionada possui ${fileSize.toFixed(2)}MB. \n\nO sistema irá redimensioná-la automaticamente para economizar espaço, mas recomendamos o uso de imagens menores para um upload mais rápido.`);
+        }
+    }
+}
+</script>
 {% endblock %}

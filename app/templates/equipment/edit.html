@@ -1,12 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Novo Equipamento{% endblock %}
+{% block title %}Editar Equipamento{% endblock %}
 {% block content %}
-<div class="mb-6">
-    <h2 class="text-2xl font-bold text-gray-800">Adicionar Equipamento</h2>
+<div class="mb-6 flex justify-between items-center">
+    <h2 class="text-2xl font-bold text-gray-800">Editar Equipamento: {{ equip.name }}</h2>
+    <a href="{{ url_for('equipment.view_by_serial', serial_number=equip.serial_number or equip.id) }}" class="text-sm text-primary hover:underline">
+        <i class="fas fa-eye mr-1"></i>Ver Detalhes
+    </a>
 </div>
 
-<div class="bg-white shadow overflow-hidden sm:rounded-lg max-w-2xl mx-auto p-6">
-    <form method="POST" action="{{ url_for('equipment.add') }}">
+<div class="bg-white shadow overflow-hidden sm:rounded-lg max-w-2xl mx-auto p-6 transition-all border border-gray-100">
+    <form method="POST" action="{{ url_for('equipment.edit', id=equip.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         <div class="grid grid-cols-1 gap-6">
@@ -14,29 +17,25 @@
             <div>
                 <label for="client_id" class="block text-sm font-medium text-gray-700">Cliente Proprietário *</label>
                 <select id="client_id" name="client_id" required class="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
-                    <option value="" disabled selected>Selecione um cliente...</option>
                     {% for client in clients %}
-                        <option value="{{ client.id }}">{{ client.name }}</option>
+                        <option value="{{ client.id }}" {% if equip.client_id == client.id %}selected{% endif %}>{{ client.name }}</option>
                     {% endfor %}
                 </select>
-                {% if not clients %}
-                <p class="text-xs text-red-500 mt-1">Atenção: Você precisa cadastrar um cliente antes de adicionar equipamentos.</p>
-                {% endif %}
             </div>
 
             <div>
                 <label for="name" class="block text-sm font-medium text-gray-700">Nome/Tipo do Equipamento *</label>
-                <input type="text" name="name" id="name" placeholder="Ex: Ar Condicionado Split 12000 BTUs" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                <input type="text" name="name" id="name" value="{{ equip.name }}" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
             </div>
 
             <div class="grid grid-cols-2 gap-6">
                 <div>
                     <label for="brand" class="block text-sm font-medium text-gray-700">Marca</label>
-                    <input type="text" name="brand" id="brand" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                    <input type="text" name="brand" id="brand" value="{{ equip.brand or '' }}" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
                 </div>
                 <div>
                     <label for="model" class="block text-sm font-medium text-gray-700">Modelo</label>
-                    <input type="text" name="model" id="model" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                    <input type="text" name="model" id="model" value="{{ equip.model or '' }}" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
                 </div>
             </div>
 
@@ -44,7 +43,7 @@
                 <div>
                     <label for="serial_number" class="block text-sm font-medium text-gray-700">Número de Série (Código de Barras)</label>
                     <div class="flex">
-                        <input type="text" name="serial_number" id="serial_number" class="mt-1 block w-full border border-gray-300 rounded-l-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                        <input type="text" name="serial_number" id="serial_number" value="{{ equip.serial_number or '' }}" class="mt-1 block w-full border border-gray-300 rounded-l-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
                         <button type="button" onclick="startScanner()" class="mt-1 inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 hover:bg-gray-100" title="Ler Código de Barras">
                             <i class="fas fa-barcode"></i>
                         </button>
@@ -52,18 +51,18 @@
                 </div>
                 <div>
                     <label for="location" class="block text-sm font-medium text-gray-700">Localização no Cliente</label>
-                    <input type="text" name="location" id="location" placeholder="Ex: Sala de Estar, Quarto 1" class="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                    <input type="text" name="location" id="location" value="{{ equip.location or '' }}" placeholder="Ex: Sala de Estar, Quarto 1" class="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
                 </div>
             </div>
 
             <div>
                 <label for="maintenance_interval" class="block text-sm font-medium text-gray-700">Intervalo de Manutenção Recomendado (Meses) *</label>
                 <select id="maintenance_interval" name="maintenance_interval" required class="mt-1 block w-full bg-white border border-gray-300 text-gray-900 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
-                    {% for i in range(3, 11) %}
-                        <option value="{{ i }}" {% if i == 6 %}selected{% endif %}>{{ i }} meses</option>
+                    {% for i in range(3, 13) %}
+                        <option value="{{ i }}" {% if equip.maintenance_interval == i %}selected{% endif %}>{{ i }} meses</option>
                     {% endfor %}
                 </select>
-                <p class="mt-1 text-xs text-gray-400 italic">O sistema gerará alertas automaticamente com base neste intervalo.</p>
+                <p class="mt-1 text-xs text-gray-400 italic">Nota: Alterar o intervalo não afetará manutenções já agendadas.</p>
             </div>
 
             <div id="reader-container" class="hidden mt-4 border border-gray-300 p-2 rounded">
@@ -80,15 +79,17 @@
                 <a href="{{ url_for('equipment.index') }}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mr-3">
                     Cancelar
                 </a>
-                <button type="submit" class="bg-primary border border-transparent rounded-md shadow-sm py-2 px-4 inline-flex justify-center text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {% if not clients %}disabled{% endif %}>
-                    Salvar Equipamento
+                <button type="submit" class="bg-primary border border-transparent rounded-md shadow-sm py-2 px-4 inline-flex justify-center text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                    Atualizar Equipamento
                 </button>
             </div>
         </div>
     </form>
 </div>
 
-<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+{% endblock %}
+
+{% block scripts %}
 <script>
     let html5QrcodeScanner = null;
 
@@ -114,17 +115,12 @@
     }
 
     function onScanSuccess(decodedText, decodedResult) {
-        // Handle the scanned code
         document.getElementById('serial_number').value = decodedText;
-        // Stop scanning
         stopScanner();
-        // Play a small beep (optional)
         const audio = new Audio('https://www.soundjay.com/buttons/beep-07a.mp3');
         audio.play().catch(e => console.log('Audio error:', e));
     }
 
-    function onScanFailure(error) {
-        // handle scan failure, usually better to ignore and keep scanning.
-    }
+    function onScanFailure(error) {}
 </script>
 {% endblock %}

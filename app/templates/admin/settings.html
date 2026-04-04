@@ -28,8 +28,8 @@
                 <div class="grid grid-cols-1 gap-5">
                     <div>
                         <label for="company_name" class="block text-sm font-medium text-gray-700">Nome da Empresa</label>
-                        <input type="text" name="company_name" id="company_name" value="{{ config.company_name }}"
-                               class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                        <input type="text" name="company_name" id="company_name" value="{{ config.company_name }}" readonly
+                               class="mt-1 block w-full border border-gray-300 bg-gray-100 text-gray-500 cursor-not-allowed rounded-md shadow-sm py-2 px-3 focus:outline-none sm:text-sm" title="O nome da empresa não pode ser alterado por aqui.">
                     </div>
 
                     <!-- Logo Upload -->
@@ -37,47 +37,23 @@
                         <label class="block text-sm font-medium text-gray-700 mb-2">Logo da Empresa</label>
                         <div class="flex items-start gap-6">
 
-                            <!-- Clickable Thumbnail -->
-                            <div id="logo-drop-zone"
-                                 onclick="document.getElementById('logo_file').click()"
-                                 class="relative flex-shrink-0 w-32 h-32 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50
-                                        flex flex-col items-center justify-center cursor-pointer
-                                        hover:border-primary hover:bg-blue-50 transition-all duration-200 overflow-hidden group">
-                                <img id="logo-preview"
-                                     src="{{ config.logo_path or '' }}"
-                                     alt="Logo atual"
-                                     class="absolute inset-0 w-full h-full object-contain p-2 {{ 'hidden' if not config.logo_path else '' }}"
-                                     onerror="this.classList.add('hidden'); document.getElementById('logo-placeholder').classList.remove('hidden')">
-                                <div id="logo-placeholder" class="{{ 'hidden' if config.logo_path else '' }} flex flex-col items-center gap-1 text-gray-400 pointer-events-none">
-                                    <i class="fas fa-image text-2xl"></i>
-                                    <span class="text-xs text-center leading-tight">Clique ou<br>arraste aqui</span>
-                                </div>
-                                <!-- Hover overlay -->
-                                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all flex items-center justify-center">
-                                    <i class="fas fa-camera text-white opacity-0 group-hover:opacity-100 transition-opacity text-xl drop-shadow"></i>
-                                </div>
+                            <!-- Static Thumbnail -->
+                            <div class="relative flex-shrink-0 w-32 h-32 rounded-xl border border-gray-300 bg-gray-50 flex items-center justify-center overflow-hidden">
+                                {% if config.logo_path %}
+                                    <img src="{{ config.logo_path }}" alt="Logo atual" class="w-full h-full object-contain p-2">
+                                {% else %}
+                                    <div class="flex flex-col items-center gap-1 text-gray-400">
+                                        <i class="fas fa-image text-2xl"></i>
+                                        <span class="text-xs text-center">Sem Logo</span>
+                                    </div>
+                                {% endif %}
                             </div>
 
                             <!-- Info + Feedback -->
-                            <div class="flex flex-col gap-2 pt-1">
-                                <input type="file" id="logo_file" name="logo_file" accept=".jpg,.jpeg,.png,.webp,.svg" class="hidden">
-                                <p class="text-sm text-gray-600 font-medium">Substituir logo</p>
-                                <ul class="text-xs text-gray-500 space-y-0.5">
-                                    <li><i class="fas fa-check-circle text-green-400 mr-1"></i>Formatos: JPG, PNG, WEBP, SVG</li>
-                                    <li><i class="fas fa-check-circle text-green-400 mr-1"></i>Tamanho máximo: <strong>2 MB</strong></li>
-                                    <li><i class="fas fa-check-circle text-green-400 mr-1"></i>Recomendado: até 400 × 400 px</li>
-                                    <li><i class="fas fa-check-circle text-green-400 mr-1"></i>Fundo transparente (PNG/SVG) preferível</li>
-                                </ul>
-                                <!-- Inline JS feedback -->
-                                <div id="logo-feedback" class="hidden text-xs font-medium px-3 py-1.5 rounded-lg mt-1"></div>
-                                <div id="logo-filename" class="hidden text-xs text-gray-500 italic"></div>
-                                <!-- Manual URL fallback -->
-                                <details class="mt-1">
-                                    <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600">Ou informe um caminho/URL manual</summary>
-                                    <input type="text" name="logo_path" id="logo_path" value="{{ config.logo_path }}"
-                                           placeholder="/static/img/logo.jpg"
-                                           class="mt-2 block w-full border border-gray-200 rounded-md py-1.5 px-2 text-xs text-gray-600 focus:outline-none focus:ring-primary focus:border-primary">
-                                </details>
+                            <div class="flex flex-col justify-center pt-1">
+                                <p class="text-sm text-gray-500 italic">
+                                    <i class="fas fa-lock mr-1"></i> A alteração da logo está desabilitada nestas configurações.
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -94,28 +70,28 @@
                             Cor Primária (Azul Boreal/Principal)
                         </label>
                         <div class="flex items-center mt-1">
-                            <input type="color" name="primary_color" id="primary_color" value="{{ config.primary_color }}" class="h-10 w-10 border border-gray-300 rounded-md shadow-sm p-1 cursor-pointer">
-                            <input type="text" value="{{ config.primary_color }}" class="ml-2 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary sm:text-sm" readonly>
+                            <input type="color" id="primary_color_picker" value="{{ config.primary_color }}" class="h-10 w-10 border border-gray-300 rounded-md shadow-sm p-1 cursor-pointer color-sync-picker">
+                            <input type="text" name="primary_color" id="primary_color" value="{{ config.primary_color }}" class="ml-2 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary sm:text-sm color-sync-text">
                         </div>
                     </div>
 
                     <div>
                         <label for="secondary_color" class="block text-sm font-medium text-gray-700 flex items-center">
-                            Cor Secundária (Cinza Claro)
+                            Cor Secundária (Preto)
                         </label>
                         <div class="flex items-center mt-1">
-                            <input type="color" name="secondary_color" id="secondary_color" value="{{ config.secondary_color }}" class="h-10 w-10 border border-gray-300 rounded-md shadow-sm p-1 cursor-pointer">
-                            <input type="text" value="{{ config.secondary_color }}" class="ml-2 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary sm:text-sm" readonly>
+                            <input type="color" id="secondary_color_picker" value="{{ config.secondary_color or '#000000' }}" class="h-10 w-10 border border-gray-300 rounded-md shadow-sm p-1 cursor-pointer color-sync-picker">
+                            <input type="text" name="secondary_color" id="secondary_color" value="{{ config.secondary_color or '#000000' }}" class="ml-2 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary sm:text-sm color-sync-text">
                         </div>
                     </div>
 
                     <div>
                         <label for="background_color" class="block text-sm font-medium text-gray-700 flex items-center">
-                            Cor de Fundo (Padrão: Branco)
+                            Cor de Fundo (Cinza de Fundo)
                         </label>
                         <div class="flex items-center mt-1">
-                            <input type="color" name="background_color" id="background_color" value="{{ config.background_color }}" class="h-10 w-10 border border-gray-300 rounded-md shadow-sm p-1 cursor-pointer">
-                            <input type="text" value="{{ config.background_color }}" class="ml-2 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary sm:text-sm" readonly>
+                            <input type="color" id="background_color_picker" value="{{ config.background_color or '#dbd6d6' }}" class="h-10 w-10 border border-gray-300 rounded-md shadow-sm p-1 cursor-pointer color-sync-picker">
+                            <input type="text" name="background_color" id="background_color" value="{{ config.background_color or '#dbd6d6' }}" class="ml-2 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary sm:text-sm color-sync-text">
                         </div>
                     </div>
 
@@ -124,8 +100,8 @@
                             Cor do Texto Principal
                         </label>
                         <div class="flex items-center mt-1">
-                            <input type="color" name="text_color" id="text_color" value="{{ config.text_color }}" class="h-10 w-10 border border-gray-300 rounded-md shadow-sm p-1 cursor-pointer">
-                            <input type="text" value="{{ config.text_color }}" class="ml-2 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary sm:text-sm" readonly>
+                            <input type="color" id="text_color_picker" value="{{ config.text_color or '#000000' }}" class="h-10 w-10 border border-gray-300 rounded-md shadow-sm p-1 cursor-pointer color-sync-picker">
+                            <input type="text" name="text_color" id="text_color" value="{{ config.text_color or '#000000' }}" class="ml-2 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary sm:text-sm color-sync-text">
                         </div>
                     </div>
                 </div>
@@ -139,22 +115,22 @@
                         <div>
                             <label for="navbar_bg_color" class="block text-sm font-medium text-gray-700">Fundo do Menu</label>
                             <div class="flex items-center mt-1">
-                                <input type="color" name="navbar_bg_color" id="navbar_bg_color" value="{{ config.navbar_bg_color or '#ffffff' }}" class="h-10 w-10 border border-gray-300 rounded-md shadow-sm p-1 cursor-pointer">
-                                <input type="text" value="{{ config.navbar_bg_color or '#ffffff' }}" class="ml-2 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary sm:text-sm" readonly>
+                                <input type="color" id="navbar_bg_color_picker" value="{{ config.navbar_bg_color or '#ffffff' }}" class="h-10 w-10 border border-gray-300 rounded-md shadow-sm p-1 cursor-pointer color-sync-picker">
+                                <input type="text" name="navbar_bg_color" id="navbar_bg_color" value="{{ config.navbar_bg_color or '#ffffff' }}" class="ml-2 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary sm:text-sm color-sync-text">
                             </div>
                         </div>
                         <div>
-                            <label for="navbar_link_color" class="block text-sm font-medium text-gray-700">Cor dos Links do Menu</label>
+                            <label for="navbar_link_color" class="block text-sm font-medium text-gray-700">Cor da Fonte do Menu</label>
                             <div class="flex items-center mt-1">
-                                <input type="color" name="navbar_link_color" id="navbar_link_color" value="{{ config.navbar_link_color or '#4b5563' }}" class="h-10 w-10 border border-gray-300 rounded-md shadow-sm p-1 cursor-pointer">
-                                <input type="text" value="{{ config.navbar_link_color or '#4b5563' }}" class="ml-2 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary sm:text-sm" readonly>
+                                <input type="color" id="navbar_link_color_picker" value="{{ config.navbar_link_color or '#000000' }}" class="h-10 w-10 border border-gray-300 rounded-md shadow-sm p-1 cursor-pointer color-sync-picker">
+                                <input type="text" name="navbar_link_color" id="navbar_link_color" value="{{ config.navbar_link_color or '#000000' }}" class="ml-2 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary sm:text-sm color-sync-text">
                             </div>
                         </div>
                         <div>
                             <label for="navbar_hover_color" class="block text-sm font-medium text-gray-700">Cor de Hover / Ativo</label>
                             <div class="flex items-center mt-1">
-                                <input type="color" name="navbar_hover_color" id="navbar_hover_color" value="{{ config.navbar_hover_color or '#3b82f6' }}" class="h-10 w-10 border border-gray-300 rounded-md shadow-sm p-1 cursor-pointer">
-                                <input type="text" value="{{ config.navbar_hover_color or '#3b82f6' }}" class="ml-2 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary sm:text-sm" readonly>
+                                <input type="color" id="navbar_hover_color_picker" value="{{ config.navbar_hover_color or '#787c7d' }}" class="h-10 w-10 border border-gray-300 rounded-md shadow-sm p-1 cursor-pointer color-sync-picker">
+                                <input type="text" name="navbar_hover_color" id="navbar_hover_color" value="{{ config.navbar_hover_color or '#787c7d' }}" class="ml-2 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary sm:text-sm color-sync-text">
                             </div>
                         </div>
                     </div>
@@ -330,79 +306,22 @@
 
 <script>
 (function () {
-    const input       = document.getElementById('logo_file');
-    const dropZone    = document.getElementById('logo-drop-zone');
-    const preview     = document.getElementById('logo-preview');
-    const placeholder = document.getElementById('logo-placeholder');
-    const feedback    = document.getElementById('logo-feedback');
-    const fileLabel   = document.getElementById('logo-filename');
 
-    const ALLOWED = ['jpg', 'jpeg', 'png', 'webp', 'svg'];
-    const MAX_MB  = 2;
-
-    function showError(msg) {
-        feedback.textContent = '⚠ ' + msg;
-        feedback.className = 'text-xs font-medium px-3 py-1.5 rounded-lg mt-1 bg-red-50 text-red-600 border border-red-200';
-        feedback.classList.remove('hidden');
-    }
-    function showSuccess(msg) {
-        feedback.textContent = '✓ ' + msg;
-        feedback.className = 'text-xs font-medium px-3 py-1.5 rounded-lg mt-1 bg-green-50 text-green-700 border border-green-200';
-        feedback.classList.remove('hidden');
-    }
-
-    function handleFile(file) {
-        feedback.classList.add('hidden');
-        fileLabel.classList.add('hidden');
-        const ext = file.name.split('.').pop().toLowerCase();
-        if (!ALLOWED.includes(ext)) {
-            showError('Formato inválido. Use: JPG, PNG, WEBP ou SVG.');
-            input.value = '';
-            return;
-        }
-        if (file.size > MAX_MB * 1024 * 1024) {
-            showError('Arquivo muito grande (' + (file.size/1024/1024).toFixed(1) + ' MB). Limite: ' + MAX_MB + ' MB.');
-            input.value = '';
-            return;
-        }
-        showSuccess('"' + file.name + '" pronta para envio (' + (file.size/1024).toFixed(0) + ' KB)');
-        fileLabel.textContent = file.name;
-        fileLabel.classList.remove('hidden');
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            preview.src = e.target.result;
-            preview.classList.remove('hidden');
-            placeholder.classList.add('hidden');
-        };
-        reader.readAsDataURL(file);
-    }
-
-    input.addEventListener('change', function() {
-        if (input.files[0]) handleFile(input.files[0]);
+    document.querySelectorAll('.color-sync-picker').forEach(function(picker) {
+        var textInput = picker.parentElement.querySelector('.color-sync-text');
+        picker.addEventListener('input', function() { 
+            textInput.value = picker.value; 
+        });
     });
 
-    dropZone.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        dropZone.classList.add('border-primary', 'bg-blue-50');
-    });
-    dropZone.addEventListener('dragleave', function() {
-        dropZone.classList.remove('border-primary', 'bg-blue-50');
-    });
-    dropZone.addEventListener('drop', function(e) {
-        e.preventDefault();
-        dropZone.classList.remove('border-primary', 'bg-blue-50');
-        var file = e.dataTransfer.files[0];
-        if (file) {
-            var dt = new DataTransfer();
-            dt.items.add(file);
-            input.files = dt.files;
-            handleFile(file);
-        }
-    });
-
-    document.querySelectorAll('input[type=color]').forEach(function(picker) {
-        var textInput = picker.nextElementSibling;
-        picker.addEventListener('input', function() { textInput.value = picker.value; });
+    document.querySelectorAll('.color-sync-text').forEach(function(textInput) {
+        var picker = textInput.parentElement.querySelector('.color-sync-picker');
+        textInput.addEventListener('input', function() {
+            var val = textInput.value;
+            if (/^#[0-9A-F]{6}$/i.test(val)) {
+                picker.value = val;
+            }
+        });
     });
 
     // SMTP Provider Logic

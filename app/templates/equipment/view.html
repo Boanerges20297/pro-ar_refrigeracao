@@ -154,9 +154,9 @@ document.getElementById('print-confirm-modal').addEventListener('click', functio
         {% if equip.work_orders %}
         <ul class="divide-y divide-gray-200">
             {% for wo in equip.work_orders|sort(attribute='created_at', reverse=True) %}
-            <li class="py-4">
-                <div class="flex items-center space-x-4">
-                    <div class="flex-shrink-0">
+            <li class="py-4 border-b last:border-0 hover:bg-gray-50 transition-colors">
+                <div class="flex items-start space-x-4">
+                    <div class="flex-shrink-0 mt-1">
                         <span class="inline-flex items-center justify-center h-8 w-8 rounded-full
                         {% if wo.status == 'Completed' %}bg-green-100 text-green-500
                         {% elif wo.status == 'Pending' %}bg-yellow-100 text-yellow-500
@@ -166,15 +166,42 @@ document.getElementById('print-confirm-modal').addEventListener('click', functio
                         </span>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium text-gray-900 truncate">
-                            OS #{{ wo.id }} - {{ wo.service_type.name }}
+                        <div class="flex justify-between">
+                            <p class="text-sm font-bold text-gray-900">
+                                OS #{{ wo.id }} - {{ wo.service_type.name }}
+                            </p>
+                            <span class="text-xs text-gray-400">{{ wo.created_at.strftime('%d/%m/%Y') }}</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">
+                            Status: <span class="font-semibold">{{ wo.status }}</span> | Técnico: {{ wo.technician.name if wo.technician else 'N/A' }}
                         </p>
-                        <p class="text-sm text-gray-500 truncate">
-                            Status: {{ wo.status }} | Técnico: {{ wo.technician.name if wo.technician else 'N/A' }}
+                        {% if wo.description %}
+                        <p class="text-xs text-gray-600 italic mt-2 bg-gray-50 p-2 rounded border-l-4 border-gray-200">
+                            "{{ wo.description }}"
                         </p>
-                    </div>
-                    <div class="text-xs text-gray-400">
-                        {{ wo.created_at.strftime('%d/%m/%Y') }}
+                        {% endif %}
+
+                        <!-- Photos -->
+                        {% if wo.photo_before or wo.photo_after %}
+                        <div class="flex gap-4 mt-3">
+                            {% if wo.photo_before %}
+                            <div class="flex flex-col">
+                                <span class="text-[10px] text-gray-400 mb-1 uppercase font-bold">Antes</span>
+                                <a href="{{ wo.photo_before }}" target="_blank">
+                                    <img src="{{ wo.photo_before }}" class="h-16 w-16 object-cover rounded shadow-sm hover:opacity-80 border border-gray-200">
+                                </a>
+                            </div>
+                            {% endif %}
+                            {% if wo.photo_after %}
+                            <div class="flex flex-col">
+                                <span class="text-[10px] text-gray-400 mb-1 uppercase font-bold">Depois</span>
+                                <a href="{{ wo.photo_after }}" target="_blank">
+                                    <img src="{{ wo.photo_after }}" class="h-16 w-16 object-cover rounded shadow-sm hover:opacity-80 border border-gray-200">
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </li>
@@ -187,8 +214,8 @@ document.getElementById('print-confirm-modal').addEventListener('click', functio
         <h3 class="text-lg font-bold text-gray-900 border-b pb-2 mb-4 mt-8">Próximas Manutenções</h3>
         {% if equip.maintenance_schedules %}
         <ul class="divide-y divide-gray-200">
-            {% for sched in equip.maintenance_schedules %}
-            <li class="py-4 flex justify-between">
+            {% for sched in equip.maintenance_schedules | sort(attribute='next_maintenance_date') %}
+            <li class="py-4 flex justify-between items-center">
                 <div>
                     <p class="text-sm font-medium {% if sched.is_active %}text-gray-900{% else %}text-gray-400 line-through{% endif %}">
                         Data Programada: {{ sched.next_maintenance_date.strftime('%d/%m/%Y') }}
@@ -197,11 +224,15 @@ document.getElementById('print-confirm-modal').addEventListener('click', functio
                     <p class="text-xs text-gray-500">{{ sched.description }}</p>
                     {% endif %}
                 </div>
-                <div>
+                <div class="flex items-center gap-2">
                     {% if sched.is_active %}
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Agendada</span>
+                        {% if sched.next_maintenance_date < now %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800 animate-pulse">ATRASADA</span>
+                        {% else %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Agendada</span>
+                        {% endif %}
                     {% else %}
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Realizada</span>
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Realizada</span>
                     {% endif %}
                 </div>
             </li>

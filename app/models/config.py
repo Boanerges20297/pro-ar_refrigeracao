@@ -3,19 +3,19 @@ from datetime import datetime
 
 class AppConfig(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    logo_path = db.Column(db.String(255), nullable=True, default='/static/img/logo.jpg')
+    logo_path = db.Column(db.String(255), nullable=True, default='/static/img/logo_clean.png')
     company_name = db.Column(db.String(100), default='Pronto Ar Refrigeração')
 
     # Colors
     primary_color = db.Column(db.String(20), default='#3b82f6') # Azul
-    secondary_color = db.Column(db.String(20), default='#9ca3af') # Cinza claro
-    background_color = db.Column(db.String(20), default='#ffffff') # Branco
-    text_color = db.Column(db.String(20), default='#111827') # Preto/Cinza escuro
+    secondary_color = db.Column(db.String(20), default='#000000') # Preto
+    background_color = db.Column(db.String(20), default='#dbd6d6') # Cinza de fundo
+    text_color = db.Column(db.String(20), default='#000000') # Preto
 
     # Navbar
     navbar_bg_color    = db.Column(db.String(20), default='#ffffff')   # Fundo do menu
-    navbar_link_color  = db.Column(db.String(20), default='#4b5563')   # Cor dos links
-    navbar_hover_color = db.Column(db.String(20), default='#3b82f6')   # Cor de hover e ativo
+    navbar_link_color  = db.Column(db.String(20), default='#000000')   # Cor da fonte/links
+    navbar_hover_color = db.Column(db.String(20), default='#787c7d')   # Cor de hover e ativo
 
     # SMTP Settings (for password recovery)
     smtp_provider = db.Column(db.String(50), default='gmail') # 'gmail', 'outlook', 'yahoo', 'custom'

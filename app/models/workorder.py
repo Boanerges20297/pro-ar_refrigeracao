@@ -7,6 +7,8 @@ class WorkOrder(db.Model):
     scheduled_date = db.Column(db.DateTime, nullable=True) # Data/Hora do agendamento
     completed_date = db.Column(db.DateTime, nullable=True)
     description = db.Column(db.Text, nullable=True) # Observações do serviço
+    photo_before = db.Column(db.String(255), nullable=True)
+    photo_after = db.Column(db.String(255), nullable=True)
 
     # Financials
     total_value = db.Column(db.Float, nullable=False, default=0.0) # Valor total cobrado

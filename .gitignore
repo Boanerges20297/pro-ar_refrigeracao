@@ -27,6 +27,35 @@ htmlcov/
 *.log
 
 # IDEs
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Flask
+instance/
+.webassets-cache
+
+# Databases
+*.sqlite3
+*.db
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.env
+
+# Pytest / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+
+# IDEs
 .idea/
 .vscode/
 *.swp
@@ -34,3 +63,6 @@ htmlcov/
 
 # Environment secrets
 .env
+
+# Automated Tests
+tests/
