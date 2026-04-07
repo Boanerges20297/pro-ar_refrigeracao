@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Agendamento - Ordem {{ workorder.id }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto max-w-4xl p-6">
+    <div class="mb-6">
+        <a href="{{ url_for('secretary.dashboard') }}" class="text-primary hover:underline mb-4 inline-block">
+            <i class="fas fa-arrow-left mr-2"></i>Voltar ao Dashboard
+        </a>
+        <h1 class="text-3xl font-bold text-primary mb-2">Editar Agendamento</h1>
+        <p class="text-gray-600">Ordem de Serviço #{{ workorder.id }}</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Form -->
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <form method="POST" class="space-y-6">
+                    <!-- Cliente (Read-only) -->
+                    <div class="form-group">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-user mr-2 text-primary"></i>Cliente
+                        </label>
+                        <div class="px-4 py-2 bg-gray-100 rounded-lg text-gray-700">
+                            <strong>{{ workorder.client.name }}</strong>
+                            {% if workorder.client.phone %}
+                            <br><span class="text-sm text-gray-600">{{ workorder.client.phone }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Equipamento (Read-only) -->
+                    <div class="form-group">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-wrench mr-2 text-primary"></i>Equipamento
+                        </label>
+                        <div class="px-4 py-2 bg-gray-100 rounded-lg text-gray-700">
+                            <strong>{{ workorder.equipment.name }}</strong>
+                            {% if workorder.equipment.model %}
+                            <br><span class="text-sm text-gray-600">{{ workorder.equipment.model }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Técnico -->
+                    <div class="form-group">
+                        <label for="technician_id" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-hammer mr-2 text-primary"></i>Técnico Responsável
+                        </label>
+                        <select name="technician_id" id="technician_id" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                            <option value="">Manter técnico atual</option>
+                            {% for tech in technicians %}
+                            <option value="{{ tech.id }}" {% if tech.id == workorder.technician_id %}selected{% endif %}>
+                                {{ tech.name }} {% if tech.specialty %}({{ tech.specialty }}){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Data do Agendamento -->
+                    <div class="form-group">
+                        <label for="scheduled_date" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-calendar mr-2 text-primary"></i>Data e Hora do Agendamento
+                        </label>
+                        <input type="datetime-local" name="scheduled_date" id="scheduled_date"
+                               value="{% if workorder.scheduled_date %}{{ workorder.scheduled_date.strftime('%Y-%m-%dT%H:%M') }}{% endif %}"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                    </div>
+
+                    <!-- Descrição -->
+                    <div class="form-group">
+                        <label for="description" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-align-left mr-2 text-primary"></i>Descrição do Serviço
+                        </label>
+                        <textarea name="description" id="description" rows="5"
+                                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">{{ workorder.description or '' }}</textarea>
+                    </div>
+
+                    <!-- Status (Read-only) -->
+                    <div class="form-group">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-info-circle mr-2 text-primary"></i>Status
+                        </label>
+                        <div class="px-4 py-2 bg-gray-100 rounded-lg">
+                            <span class="inline-block px-3 py-1 rounded-full text-sm font-medium
+                                {% if workorder.status == 'Pending' %}bg-yellow-100 text-yellow-800
+                                {% elif workorder.status == 'In Progress' %}bg-blue-100 text-blue-800
+                                {% elif workorder.status == 'Completed' %}bg-green-100 text-green-800
+                                {% else %}bg-gray-100 text-gray-800
+                                {% endif %}">
+                                {{ workorder.status }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Botões -->
+                    <div class="flex gap-4 pt-4 border-t">
+                        <button type="submit" class="flex-1 bg-primary text-white px-6 py-2 rounded-lg hover:bg-opacity-90 font-medium transition">
+                            <i class="fas fa-save mr-2"></i>Salvar Alterações
+                        </button>
+                        <a href="{{ url_for('secretary.dashboard') }}" class="flex-1 bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 font-medium transition text-center">
+                            <i class="fas fa-times mr-2"></i>Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Info Panel -->
+        <div class="lg:col-span-1">
+            <!-- Criar -->
+            <div class="bg-white rounded-lg shadow-md p-6 space-y-4">
+                <h3 class="font-bold text-lg text-primary">Informações</h3>
+                
+                <div class="border-t pt-4">
+                    <p class="text-sm text-gray-600 mb-2"><i class="fas fa-calendar mr-2"></i>Criado em:</p>
+                    <p class="font-medium text-gray-800">{{ workorder.created_at.strftime('%d/%m/%Y %H:%M') if workorder.created_at else 'N/A' }}</p>
+                </div>
+
+                {% if workorder.completed_date %}
+                <div class="border-t pt-4">
+                    <p class="text-sm text-gray-600 mb-2"><i class="fas fa-check-circle mr-2"></i>Concluído em:</p>
+                    <p class="font-medium text-gray-800">{{ workorder.completed_date.strftime('%d/%m/%Y %H:%M') }}</p>
+                </div>
+                {% endif %}
+
+                <div class="border-t pt-4">
+                    <p class="text-sm text-gray-600 mb-2"><i class="fas fa-hammer mr-2"></i>Técnico:</p>
+                    <p class="font-medium text-gray-800">{{ workorder.technician.name if workorder.technician else 'N/A' }}</p>
+                </div>
+
+                <div class="border-t pt-4">
+                    <p class="text-sm text-gray-600 mb-2"><i class="fas fa-user mr-2"></i>Cliente:</p>
+                    <p class="font-medium text-gray-800">{{ workorder.client.name }}</p>
+                </div>
+            </div>
+
+            <!-- Ações Rápidas -->
+            {% if workorder.status != 'Completed' %}
+            <div class="bg-white rounded-lg shadow-md p-6 mt-4">
+                <h3 class="font-bold text-lg text-primary mb-4">Ações</h3>
+                
+                <form method="POST" action="{{ url_for('secretary.conclude_workorder', wo_id=workorder.id) }}" class="space-y-2">
+                    <button type="submit" class="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium transition">
+                        <i class="fas fa-check-circle mr-2"></i>Marcar como Concluído
+                    </button>
+                </form>
+            </div>
+            {% else %}
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
+                <p class="text-sm text-green-800">
+                    <i class="fas fa-check-circle mr-2"></i>
+                    Esta ordem já foi concluída
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    // Set minimum date to today
+    const today = new Date().toISOString().slice(0, 16);
+    document.getElementById('scheduled_date').min = today;
+</script>
+{% endblock %}

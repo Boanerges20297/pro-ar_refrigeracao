@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}Histórico de Ordens{% endblock %}
+{% block content %}
+<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+    <h2 class="text-2xl font-bold text-gray-800">Histórico Completo de Ordens</h2>
+    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+        <a href="{{ url_for('services.index') }}" class="w-full sm:w-auto bg-secondary hover:opacity-90 text-white font-bold py-2 px-4 rounded transition-all shadow-sm text-center text-sm">
+            <i class="fas fa-arrow-left mr-2"></i>Voltar
+        </a>
+        <a href="{% if selected_client_id %}{{ url_for('services.export_pdf', client_id=selected_client_id, status=selected_status) }}{% else %}{{ url_for('services.export_pdf') }}{% endif %}" class="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-all shadow-sm text-center text-sm">
+            <i class="fas fa-file-pdf mr-2"></i>Gerar PDF
+        </a>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="mb-4 text-sm {% if category == 'danger' %}text-red-600 bg-red-100{% else %}text-green-600 bg-green-100{% endif %} p-3 rounded">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<!-- Filtros -->
+<div class="bg-white shadow rounded-lg p-4 sm:p-6 mb-6 border border-gray-100">
+    <form method="GET" class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <!-- Filtro por Cliente -->
+            <div>
+                <label for="client_id" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Empresa</label>
+                <select name="client_id" id="client_id" class="w-full bg-white border border-gray-300 text-gray-700 text-sm rounded-md focus:ring-primary focus:border-primary p-2">
+                    <option value="">Todas as Empresas</option>
+                    {% for client in clients %}
+                    <option value="{{ client.id }}" {% if request.args.get('client_id')|int == client.id %}selected{% endif %}>
+                        {{ client.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Filtro por Status -->
+            <div>
+                <label for="status" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Status</label>
+                <select name="status" id="status" class="w-full bg-white border border-gray-300 text-gray-700 text-sm rounded-md focus:ring-primary focus:border-primary p-2">
+                    <option value="">Todos os Status</option>
+                    <option value="Pending" {% if request.args.get('status') == 'Pending' %}selected{% endif %}>Pendente</option>
+                    <option value="In Progress" {% if request.args.get('status') == 'In Progress' %}selected{% endif %}>Em Andamento</option>
+                    <option value="Completed" {% if request.args.get('status') == 'Completed' %}selected{% endif %}>Concluída</option>
+                </select>
+            </div>
+
+            <!-- Itens por Página -->
+            <div>
+                <label for="per_page" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Itens por Página</label>
+                <select name="per_page" id="per_page" class="w-full bg-white border border-gray-300 text-gray-700 text-sm rounded-md focus:ring-primary focus:border-primary p-2">
+                    <option value="10" {% if request.args.get('per_page')|int == 10 %}selected{% endif %}>10 por página</option>
+                    <option value="20" {% if request.args.get('per_page')|int == 20 %}selected{% endif %}>20 por página</option>
+                    <option value="50" {% if request.args.get('per_page')|int == 50 %}selected{% endif %}>50 por página</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-2">
+            <button type="submit" class="flex-1 bg-primary hover:opacity-90 text-white font-bold py-2 px-4 rounded transition-all shadow-sm text-center">
+                <i class="fas fa-filter mr-2"></i>Filtrar
+            </button>
+            <a href="{{ url_for('services.history') }}" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded transition-all shadow-sm text-center">
+                <i class="fas fa-redo mr-2"></i>Limpar Filtros
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Tabela de Ordens -->
+<div class="bg-white shadow rounded-lg overflow-hidden border border-gray-100">
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-gray-50 border-b border-gray-100">
+                <tr>
+                    <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">OS #</th>
+                    <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Empresa</th>
+                    <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Data</th>
+                    <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Equipamento</th>
+                    <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Técnico</th>
+                    <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                    {% if current_user.permission_level == 'admin' %}
+                    <th scope="col" class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Valor</th>
+                    {% endif %}
+                    <th scope="col" class="relative px-4 py-3"><span class="sr-only">Ações</span></th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {% for wo in pagination.items %}
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-4 py-3 whitespace-nowrap text-xs font-bold text-gray-900">#{{ wo.id }}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-700 font-semibold">
+                        {{ wo.client.name }}
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-600">
+                        {{ wo.created_at.strftime('%d/%m/%Y') }}
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-600">
+                        {{ wo.equipment.name if wo.equipment else 'Geral' }}
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-600">
+                        {{ wo.technician.name if wo.technician else '-' }}
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap">
+                        {% if wo.status == 'Completed' %}
+                        <span class="px-2 py-1 inline-flex text-[10px] font-bold rounded-full bg-green-100 text-green-800">✓ Concluída</span>
+                        {% elif wo.status == 'Pending' %}
+                        <span class="px-2 py-1 inline-flex text-[10px] font-bold rounded-full bg-yellow-100 text-yellow-800">⏱ Pendente</span>
+                        {% elif wo.status == 'In Progress' %}
+                        <span class="px-2 py-1 inline-flex text-[10px] font-bold rounded-full bg-blue-100 text-blue-800">▶ Andamento</span>
+                        {% else %}
+                        <span class="px-2 py-1 inline-flex text-[10px] font-bold rounded-full bg-gray-100 text-gray-800">{{ wo.status }}</span>
+                        {% endif %}
+                    </td>
+                    {% if current_user.permission_level == 'admin' %}
+                    <td class="px-4 py-3 whitespace-nowrap text-right text-xs font-bold text-gray-900">
+                        R$ {{ "%.2f"|format(wo.total_value) }}
+                    </td>
+                    {% endif %}
+                    <td class="px-4 py-3 whitespace-nowrap text-right">
+                        <a href="{{ url_for('services.edit', id=wo.id) }}" class="text-primary hover:text-blue-900 text-xs font-medium">
+                            <i class="fas fa-edit mr-1"></i>Editar
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="{% if current_user.permission_level == 'admin' %}8{% else %}7{% endif %}" class="px-4 py-8 text-center text-gray-500">
+                        <i class="fas fa-inbox text-4xl text-gray-200 mb-3 block"></i>
+                        Nenhuma ordem de serviço encontrada
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Info e Paginação -->
+    <div class="px-4 sm:px-6 py-4 bg-gray-50 border-t border-gray-100">
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <p class="text-xs text-gray-600">
+                Mostrando <span class="font-bold">{{ ((pagination.page - 1) * pagination.per_page + 1) if pagination.items else 0 }}</span> 
+                a <span class="font-bold">{% if pagination.page * pagination.per_page < pagination.total %}{{ pagination.page * pagination.per_page }}{% else %}{{ pagination.total }}{% endif %}</span> 
+                de <span class="font-bold">{{ pagination.total }}</span> ordens de serviço
+            </p>
+
+            {% if pagination.pages > 1 %}
+            <nav class="flex items-center justify-center gap-1" aria-label="Pagination">
+                <!-- Botão Anterior -->
+                {% if pagination.has_prev %}
+                <a href="?page={{ pagination.prev_num }}&per_page={{ per_page }}{% if selected_client_id %}&client_id={{ selected_client_id }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}" 
+                   class="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 transition-all">
+                    <i class="fas fa-chevron-left"></i> Anterior
+                </a>
+                {% else %}
+                <span class="px-2 py-1 border border-gray-200 rounded text-xs font-medium text-gray-400 bg-gray-100">
+                    <i class="fas fa-chevron-left"></i> Anterior
+                </span>
+                {% endif %}
+
+                <!-- Números de Página -->
+                {% for p in pagination.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=0) %}
+                    {% if p %}
+                        <a href="?page={{ p }}&per_page={{ per_page }}{% if selected_client_id %}&client_id={{ selected_client_id }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}"
+                           class="px-2 py-1 border rounded text-xs font-medium transition-all {% if p == pagination.page %}bg-primary text-white border-primary{% else %}border-gray-300 text-gray-700 bg-white hover:bg-gray-50{% endif %}">
+                            {{ p }}
+                        </a>
+                    {% else %}
+                        <span class="px-2 py-1 text-xs text-gray-500">...</span>
+                    {% endif %}
+                {% endfor %}
+
+                <!-- Botão Próximo -->
+                {% if pagination.has_next %}
+                <a href="?page={{ pagination.next_num }}&per_page={{ per_page }}{% if selected_client_id %}&client_id={{ selected_client_id }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}"
+                   class="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 transition-all">
+                    Próximo <i class="fas fa-chevron-right"></i>
+                </a>
+                {% else %}
+                <span class="px-2 py-1 border border-gray-200 rounded text-xs font-medium text-gray-400 bg-gray-100">
+                    Próximo <i class="fas fa-chevron-right"></i>
+                </span>
+                {% endif %}
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}

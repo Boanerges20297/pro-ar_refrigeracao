@@ -6,6 +6,67 @@
     <p class="text-gray-600">Visão geral financeira e de serviços da empresa.</p>
 </div>
 
+<!-- Seção de Alertas -->
+{% if services_today or overdue_services or overdue_maintenance or upcoming_maintenance %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <!-- Serviços para Hoje -->
+    {% if services_today %}
+    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg shadow-sm">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-xs font-bold text-blue-700 uppercase">📅 Hoje</p>
+                <p class="text-2xl font-bold text-blue-900 mt-1">{{ services_today|length }}</p>
+                <p class="text-xs text-blue-600 mt-1">Serviços agendados</p>
+            </div>
+            <i class="fas fa-calendar-check text-4xl text-blue-200 opacity-50"></i>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Serviços Atrasados -->
+    {% if overdue_services %}
+    <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg shadow-sm">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-xs font-bold text-red-700 uppercase">⚠️ Atrasados</p>
+                <p class="text-2xl font-bold text-red-900 mt-1">{{ overdue_services|length }}</p>
+                <p class="text-xs text-red-600 mt-1">Serviços vencidos</p>
+            </div>
+            <i class="fas fa-exclamation-triangle text-4xl text-red-200 opacity-50"></i>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Manutenção Atrasada -->
+    {% if overdue_maintenance %}
+    <div class="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-lg shadow-sm">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-xs font-bold text-orange-700 uppercase">🔧 Manutenção Atrasada</p>
+                <p class="text-2xl font-bold text-orange-900 mt-1">{{ overdue_maintenance|length }}</p>
+                <p class="text-xs text-orange-600 mt-1">Equipamentos</p>
+            </div>
+            <i class="fas fa-tools text-4xl text-orange-200 opacity-50"></i>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Manutenção Próxima -->
+    {% if upcoming_maintenance %}
+    <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-lg shadow-sm">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-xs font-bold text-yellow-700 uppercase">⏱️ Próximos 7 Dias</p>
+                <p class="text-2xl font-bold text-yellow-900 mt-1">{{ upcoming_maintenance|length }}</p>
+                <p class="text-xs text-yellow-600 mt-1">Manutenções agendadas</p>
+            </div>
+            <i class="fas fa-calendar-alt text-4xl text-yellow-200 opacity-50"></i>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
 <!-- Key Metrics Cards -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
     <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">

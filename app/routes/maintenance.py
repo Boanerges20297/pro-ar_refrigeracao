@@ -1,21 +1,44 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from app.models.maintenance import MaintenanceSchedule
 from app.models.equipment import Equipment
+from app.models.user import User
 from app import db
 from datetime import datetime
-from flask_jwt_extended import jwt_required
-from app.utils.decorators import roles_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.utils.decorators import roles_required, get_technician_client_ids
 
 maint_bp = Blueprint('maintenance', __name__)
 
 @maint_bp.route('/')
-@roles_required('admin', 'technician')
+@roles_required('admin', 'secretary', 'technician')
 def index():
-    schedules = MaintenanceSchedule.query.order_by(MaintenanceSchedule.next_maintenance_date).all()
+    # Get current user
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id) if current_user_id else None
+    
+    # Check if user is technician
+    is_technician = current_user and current_user.permission_level == 'user'
+    
+    if is_technician:
+        # Técnico vê apenas manutenções de equipamentos de clientes que atendeu
+        client_ids = get_technician_client_ids(current_user.id)
+        if client_ids:
+            # Get all equipments from the clients the technician has served
+            equip_ids = db.session.query(Equipment.id).filter(Equipment.client_id.in_(client_ids)).all()
+            equip_ids = [eid[0] for eid in equip_ids]
+            schedules = MaintenanceSchedule.query.filter(
+                MaintenanceSchedule.equipment_id.in_(equip_ids)
+            ).order_by(MaintenanceSchedule.next_maintenance_date).all()
+        else:
+            schedules = []
+    else:
+        # Admin e Secretary veem todas as manutenções
+        schedules = MaintenanceSchedule.query.order_by(MaintenanceSchedule.next_maintenance_date).all()
+    
     return render_template('maintenance/index.html', schedules=schedules, now=datetime.utcnow())
 
 @maint_bp.route('/add', methods=['GET', 'POST'])
-@roles_required('admin')
+@roles_required('admin', 'secretary')
 def add():
     equipments = Equipment.query.all()
 

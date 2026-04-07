@@ -3,6 +3,7 @@ from app.models.user import User
 from flask_jwt_extended import create_access_token, set_access_cookies, unset_jwt_cookies, jwt_required, get_jwt_identity
 from itsdangerous import URLSafeTimedSerializer
 from app.utils.email import send_password_reset_email
+from app.utils.audit import log_login, log_logout
 from app import db
 from datetime import datetime
 
@@ -34,13 +35,20 @@ def login():
         if user and user.check_password(password):
             if not user.is_active:
                 flash('Sua conta está inativa. Contate o administrador.', 'danger')
+                # Log failed login attempt (inactive user)
+                log_login(user.id, success=False, details={'reason': 'inactive_account'})
                 return redirect(url_for('auth.login'))
 
             access_token = create_access_token(identity=str(user.id))
 
-            # Determine where to redirect based on role
-            if user.role == 'admin':
+            # Log successful login
+            log_login(user.id, success=True)
+
+            # Determine where to redirect based on permission_level
+            if user.permission_level == 'admin':
                 redirect_url = url_for('admin.dashboard')
+            elif user.permission_level == 'secretary':
+                redirect_url = url_for('secretary.dashboard')
             else:
                 redirect_url = url_for('tech.dashboard')
 
@@ -49,11 +57,19 @@ def login():
             return resp
         else:
             flash('Email ou senha inválidos.', 'danger')
+            # Log failed login attempt
+            log_login(user.id if user else None, success=False, details={'reason': 'invalid_credentials'})
 
     return render_template('auth/login.html')
 
 @auth_bp.route('/logout')
+@jwt_required(optional=True)
 def logout():
+    # Log logout action
+    current_user_id = get_jwt_identity()
+    if current_user_id:
+        log_logout(int(current_user_id))
+    
     resp = make_response(redirect(url_for('auth.login')))
     unset_jwt_cookies(resp)
     return resp
@@ -118,6 +134,15 @@ def reset_password(token):
             
         user.set_password(password)
         db.session.commit()
+        
+        # Log password reset
+        from app.utils.audit import log_action
+        log_action(
+            action='PASSWORD_RESET',
+            resource_type='User',
+            resource_id=user.id,
+            resource_name=user.email
+        )
         
         flash('Sua senha foi atualizada com sucesso! Agora você pode fazer login.', 'success')
         return redirect(url_for('auth.login'))

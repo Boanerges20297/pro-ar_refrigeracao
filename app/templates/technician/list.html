@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Funcionários{% endblock %}
 {% block content %}
-<div class="flex justify-between items-center mb-6">
+<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
     <h2 class="text-2xl font-bold text-gray-800">Funcionários</h2>
-    <a href="{{ url_for('tech.add_technician') }}" class="bg-primary hover:opacity-90 text-white font-bold py-2 px-4 rounded">
+    <a href="{{ url_for('tech.add_technician') }}" class="w-full sm:w-auto bg-primary hover:opacity-90 text-white font-bold py-2 px-4 rounded text-center">
         <i class="fas fa-plus mr-2"></i>Novo Funcionário
     </a>
 </div>
@@ -11,14 +11,15 @@
 {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
         {% for category, message in messages %}
-            <div class="mb-4 text-sm {% if category == 'danger' %}text-red-600 bg-red-100{% else %}text-green-600 bg-green-100{% endif %} p-2 rounded">
+            <div class="mb-4 text-sm {% if category == 'danger' %}text-red-600 bg-red-100{% else %}text-green-600 bg-green-100{% endif %} p-3 rounded">
                 {{ message }}
             </div>
         {% endfor %}
     {% endif %}
 {% endwith %}
 
-<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+<!-- Desktop View (Table) -->
+<div class="bg-white shadow overflow-hidden sm:rounded-lg hidden sm:block">
     <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
             <tr>
@@ -27,16 +28,25 @@
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Função</th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Permissão</th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                <th scope="col" class="relative px-6 py-3"><span class="sr-only">Ações</span></th>
             </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
             {% for tech in technicians %}
-            <tr>
+            <tr class="hover:bg-gray-50 transition-colors">
                 <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">{{ tech.name }}</div></td>
                 <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm text-gray-500">{{ tech.email }}</div></td>
                 <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">{{ tech.job_title }}</div></td>
-                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm text-gray-500">{{ 'Admin' if tech.permission_level == 'admin' else 'Usuário' }}</div></td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
+                        {% if tech.permission_level == 'admin' %}bg-purple-100 text-purple-800
+                        {% elif tech.permission_level == 'secretary' %}bg-blue-100 text-blue-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {% if tech.permission_level == 'admin' %}Admin
+                        {% elif tech.permission_level == 'secretary' %}Secretária
+                        {% else %}Técnico{% endif %}
+                    </span>
+                </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                     {% if tech.is_active %}
                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Ativo</span>
@@ -44,8 +54,8 @@
                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Inativo</span>
                     {% endif %}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <a href="{{ url_for('tech.edit_technician', user_id=tech.id) }}" class="text-indigo-600 hover:text-indigo-900 mr-3"><i class="fas fa-edit"></i> Editar</a>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <a href="{{ url_for('tech.edit_technician', user_id=tech.id) }}" class="text-primary hover:text-blue-900 bg-blue-50 px-2 py-1 rounded transition-all"><i class="fas fa-edit mr-1"></i>Editar</a>
                 </td>
             </tr>
             {% else %}
@@ -55,5 +65,63 @@
             {% endfor %}
         </tbody>
     </table>
+</div>
+
+<!-- Mobile View (Cards) -->
+<div class="sm:hidden space-y-3">
+    {% for tech in technicians %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
+        <div class="space-y-3">
+            <!-- Name and Status Badge -->
+            <div class="flex items-start justify-between gap-2">
+                <h3 class="text-sm font-bold text-gray-900 flex-1">{{ tech.name }}</h3>
+                {% if tech.is_active %}
+                <span class="inline-flex text-xs leading-4 font-semibold rounded-full bg-green-100 text-green-800 px-2 py-0.5">Ativo</span>
+                {% else %}
+                <span class="inline-flex text-xs leading-4 font-semibold rounded-full bg-red-100 text-red-800 px-2 py-0.5">Inativo</span>
+                {% endif %}
+            </div>
+
+            <!-- Email -->
+            <div class="flex items-center gap-2 text-xs">
+                <i class="fas fa-envelope text-gray-400 w-4 flex-shrink-0"></i>
+                <span class="text-gray-900 break-all">{{ tech.email }}</span>
+            </div>
+
+            <!-- Job Title -->
+            <div class="flex items-center gap-2 text-xs">
+                <i class="fas fa-briefcase text-gray-400 w-4 flex-shrink-0"></i>
+                <span class="text-gray-900">{{ tech.job_title }}</span>
+            </div>
+
+            <!-- Permission Level -->
+            <div class="flex items-start gap-2">
+                <i class="fas fa-shield-alt text-gray-400 w-4 flex-shrink-0 mt-0.5"></i>
+                <div class="flex-1">
+                    <span class="inline-flex text-xs font-semibold rounded-full px-2 py-0.5
+                        {% if tech.permission_level == 'admin' %}bg-purple-100 text-purple-800
+                        {% elif tech.permission_level == 'secretary' %}bg-blue-100 text-blue-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {% if tech.permission_level == 'admin' %}Admin
+                        {% elif tech.permission_level == 'secretary' %}Secretária
+                        {% else %}Técnico{% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Action Button -->
+            <div class="pt-2 border-t border-gray-100">
+                <a href="{{ url_for('tech.edit_technician', user_id=tech.id) }}" class="inline-block w-full text-center bg-blue-50 hover:bg-blue-100 text-primary font-medium py-2 rounded transition-colors text-xs">
+                    <i class="fas fa-edit mr-1"></i>Editar
+                </a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+        <i class="fas fa-users text-4xl text-gray-200 mb-2 block"></i>
+        <p class="text-sm text-gray-500">Nenhum funcionário cadastrado.</p>
+    </div>
+    {% endfor %}
 </div>
 {% endblock %}

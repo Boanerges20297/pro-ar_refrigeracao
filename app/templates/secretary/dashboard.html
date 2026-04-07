@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Dashboard Secretária{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <h2 class="text-2xl font-bold text-gray-800">Dashboard da Secretária</h2>
+    <p class="text-gray-600">Gerenciamento de clientes, equipamentos, serviços e manutenção.</p>
+</div>
+
+<!-- Seção de Alertas -->
+{% if services_today or overdue_services or overdue_maintenance or upcoming_maintenance %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <!-- Serviços para Hoje -->
+    {% if services_today %}
+    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg shadow-sm">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-xs font-bold text-blue-700 uppercase">📅 Hoje</p>
+                <p class="text-2xl font-bold text-blue-900 mt-1">{{ services_today|length }}</p>
+                <p class="text-xs text-blue-600 mt-1">Serviços agendados</p>
+            </div>
+            <i class="fas fa-calendar-check text-4xl text-blue-200 opacity-50"></i>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Serviços Atrasados -->
+    {% if overdue_services %}
+    <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg shadow-sm">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-xs font-bold text-red-700 uppercase">⚠️ Atrasados</p>
+                <p class="text-2xl font-bold text-red-900 mt-1">{{ overdue_services|length }}</p>
+                <p class="text-xs text-red-600 mt-1">Serviços vencidos</p>
+            </div>
+            <i class="fas fa-exclamation-triangle text-4xl text-red-200 opacity-50"></i>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Manutenção Atrasada -->
+    {% if overdue_maintenance %}
+    <div class="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-lg shadow-sm">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-xs font-bold text-orange-700 uppercase">🔧 Manutenção Atrasada</p>
+                <p class="text-2xl font-bold text-orange-900 mt-1">{{ overdue_maintenance|length }}</p>
+                <p class="text-xs text-orange-600 mt-1">Equipamentos</p>
+            </div>
+            <i class="fas fa-tools text-4xl text-orange-200 opacity-50"></i>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Manutenção Próxima -->
+    {% if upcoming_maintenance %}
+    <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-lg shadow-sm">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-xs font-bold text-yellow-700 uppercase">⏱️ Próximos 7 Dias</p>
+                <p class="text-2xl font-bold text-yellow-900 mt-1">{{ upcoming_maintenance|length }}</p>
+                <p class="text-xs text-yellow-600 mt-1">Manutenções agendadas</p>
+            </div>
+            <i class="fas fa-calendar-alt text-4xl text-yellow-200 opacity-50"></i>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Key Metrics Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-blue-100 text-blue-500 mr-4">
+                <i class="fas fa-users text-xl"></i>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 font-semibold">Total de Clientes</p>
+                <p class="text-2xl font-bold text-gray-800">{{ total_clients }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-green-100 text-green-500 mr-4">
+                <i class="fas fa-snowflake text-xl"></i>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 font-semibold">Equipamentos</p>
+                <p class="text-2xl font-bold text-gray-800">{{ total_equipment }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-purple-100 text-purple-500 mr-4">
+                <i class="fas fa-clipboard-list text-xl"></i>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 font-semibold">Total de OS</p>
+                <p class="text-2xl font-bold text-gray-800">{{ total_os }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-yellow-100 text-yellow-500 mr-4">
+                <i class="fas fa-clock text-xl"></i>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 font-semibold">OS Pendentes</p>
+                <p class="text-2xl font-bold text-gray-800">{{ pending_os }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Technician Performance -->
+<div class="bg-white rounded-lg shadow p-6">
+    <h3 class="text-lg font-bold text-gray-800 border-b pb-2 mb-4">Desempenho dos Técnicos (OS Atribuídas)</h3>
+    <ul class="divide-y divide-gray-200">
+        {% for tech in tech_performance %}
+        <li class="py-3 flex justify-between items-center">
+            <div class="flex items-center">
+                <div class="bg-gray-200 rounded-full h-10 w-10 flex items-center justify-center text-gray-600 font-bold mr-3">
+                    {{ tech.name[0].upper() }}
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-900">{{ tech.name }}</p>
+                    <p class="text-xs text-gray-500">{{ tech.specialty or 'Geral' }}</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    {{ tech.os_count }} OS
+                </span>
+            </div>
+        </li>
+        {% else %}
+        <li class="py-3 text-sm text-gray-500 text-center">Nenhum técnico para exibir.</li>
+        {% endfor %}
+    </ul>
+</div>
+
+<!-- Quick Actions -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
+    <a href="{{ url_for('secretary.schedule_workorder') }}" class="flex flex-col items-center justify-center p-6 border border-gray-200 rounded-lg hover:bg-primary hover:bg-opacity-10 transition bg-white shadow">
+        <i class="fas fa-calendar-plus text-3xl text-primary mb-3"></i>
+        <p class="text-sm font-bold text-gray-800 text-center">Agendar Serviço</p>
+    </a>
+    <a href="{{ url_for('secretary.pending_workorders') }}" class="flex flex-col items-center justify-center p-6 border border-gray-200 rounded-lg hover:bg-blue-50 transition bg-white shadow">
+        <i class="fas fa-list-check text-3xl text-blue-500 mb-3"></i>
+        <p class="text-sm font-bold text-gray-800 text-center">Ver Pendentes</p>
+    </a>
+    <a href="{{ url_for('clients.index') }}" class="flex flex-col items-center justify-center p-6 border border-gray-200 rounded-lg hover:bg-blue-50 transition bg-white shadow">
+        <i class="fas fa-users text-3xl text-blue-500 mb-3"></i>
+        <p class="text-sm font-bold text-gray-800 text-center">Gerenciar Clientes</p>
+    </a>
+    <a href="{{ url_for('equipment.index') }}" class="flex flex-col items-center justify-center p-6 border border-gray-200 rounded-lg hover:bg-green-50 transition bg-white shadow">
+        <i class="fas fa-snowflake text-3xl text-green-500 mb-3"></i>
+        <p class="text-sm font-bold text-gray-800 text-center">Equipamentos</p>
+    </a>
+</div>
+
+{% endblock %}

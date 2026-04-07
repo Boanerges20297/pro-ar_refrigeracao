@@ -133,6 +133,8 @@
                         <a href="{{ url_for('tech.list_technicians') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/tech/list' in request.path or '/tech/edit' in request.path or '/tech/add' in request.path %}active{% endif %}">Funcionários</a>
                         <a href="{{ url_for('admin.settings') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('admin.settings') %}active{% endif %}">Configurações</a>
                         <a href="{{ url_for('reports.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/reports' in request.path %}active{% endif %}">Relatórios</a>
+                        {% elif current_user.permission_level == 'secretary' %}
+                        <a href="{{ url_for('secretary.dashboard') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('secretary.dashboard') %}active{% endif %}">Dashboard</a>
                         {% else %}
                         <a href="{{ url_for('tech.dashboard') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('tech.dashboard') %}active{% endif %}">Meu Dashboard</a>
                         {% endif %}
@@ -142,6 +144,95 @@
                         <a href="{{ url_for('maintenance.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/maintenance' in request.path %}active{% endif %}">Manutenção</a>
                     </div>
                     <div class="flex items-center border-l border-gray-200 border-opacity-30 pl-4 gap-2 flex-shrink-0">
+                        <!-- Notifications Bell -->
+                        {% if alerts and alerts.total_count > 0 %}
+                        <div class="relative group">
+                            <button onclick="toggleNotifications()" class="relative p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-all" title="Notificações">
+                                <i class="fas fa-bell text-lg"></i>
+                                <span class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">
+                                    {{ alerts.total_count }}
+                                </span>
+                            </button>
+                            
+                            <!-- Dropdown de Notificações -->
+                            <div id="notificationsDropdown" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-2xl border border-gray-200 z-50 max-h-96 overflow-y-auto">
+                                <div class="px-4 py-3 border-b border-gray-100 bg-gray-50">
+                                    <h3 class="text-sm font-bold text-gray-900">Suas Notificações</h3>
+                                </div>
+                                
+                                <!-- Serviços para Hoje -->
+                                {% if alerts.services_today %}
+                                <div class="px-4 py-3 border-b border-gray-100">
+                                    <p class="text-xs font-bold text-blue-700 mb-2">📅 SERVIÇOS PARA HOJE ({{ alerts.services_today|length }})</p>
+                                    {% for service in alerts.services_today[:3] %}
+                                    <div class="text-xs text-gray-700 bg-blue-50 p-2 rounded mb-1">
+                                        <span class="font-semibold">OS #{{ service.id }}</span> - {{ service.client.name }}
+                                    </div>
+                                    {% endfor %}
+                                    {% if alerts.services_today|length > 3 %}
+                                    <p class="text-xs text-gray-500 mt-1">+ {{ alerts.services_today|length - 3 }} mais</p>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                                
+                                <!-- Serviços Atrasados -->
+                                {% if alerts.overdue_services %}
+                                <div class="px-4 py-3 border-b border-gray-100">
+                                    <p class="text-xs font-bold text-red-700 mb-2">⚠️ SERVIÇOS ATRASADOS ({{ alerts.overdue_services|length }})</p>
+                                    {% for service in alerts.overdue_services[:3] %}
+                                    <div class="text-xs text-gray-700 bg-red-50 p-2 rounded mb-1">
+                                        <span class="font-semibold">OS #{{ service.id }}</span> - {{ service.client.name }}
+                                    </div>
+                                    {% endfor %}
+                                    {% if alerts.overdue_services|length > 3 %}
+                                    <p class="text-xs text-gray-500 mt-1">+ {{ alerts.overdue_services|length - 3 }} mais</p>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                                
+                                <!-- Manutenção Atrasada -->
+                                {% if alerts.overdue_maintenance %}
+                                <div class="px-4 py-3 border-b border-gray-100">
+                                    <p class="text-xs font-bold text-orange-700 mb-2">🔧 MANUTENÇÃO ATRASADA ({{ alerts.overdue_maintenance|length }})</p>
+                                    {% for maint in alerts.overdue_maintenance[:3] %}
+                                    <div class="text-xs text-gray-700 bg-orange-50 p-2 rounded mb-1">
+                                        <span class="font-semibold">{{ maint.equipment.name }}</span> - {{ maint.equipment.owner.name }}
+                                    </div>
+                                    {% endfor %}
+                                    {% if alerts.overdue_maintenance|length > 3 %}
+                                    <p class="text-xs text-gray-500 mt-1">+ {{ alerts.overdue_maintenance|length - 3 }} mais</p>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                                
+                                <!-- Manutenção Próxima -->
+                                {% if alerts.upcoming_maintenance %}
+                                <div class="px-4 py-3 border-b border-gray-100">
+                                    <p class="text-xs font-bold text-yellow-700 mb-2">⏱️ PRÓXIMOS 7 DIAS ({{ alerts.upcoming_maintenance|length }})</p>
+                                    {% for maint in alerts.upcoming_maintenance[:3] %}
+                                    <div class="text-xs text-gray-700 bg-yellow-50 p-2 rounded mb-1">
+                                        <span class="font-semibold">{{ maint.equipment.name }}</span> - {{ maint.next_maintenance_date.strftime('%d/%m/%Y') }}
+                                    </div>
+                                    {% endfor %}
+                                    {% if alerts.upcoming_maintenance|length > 3 %}
+                                    <p class="text-xs text-gray-500 mt-1">+ {{ alerts.upcoming_maintenance|length - 3 }} mais</p>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                                
+                                <div class="px-4 py-2 bg-gray-50 border-t border-gray-100 text-center">
+                                    {% if current_user.permission_level == 'admin' %}
+                                    <a href="{{ url_for('admin.dashboard') }}" class="text-xs text-primary hover:text-blue-900 font-medium">Ver Dashboard Completo →</a>
+                                    {% elif current_user.permission_level == 'secretary' %}
+                                    <a href="{{ url_for('secretary.dashboard') }}" class="text-xs text-primary hover:text-blue-900 font-medium">Ver Dashboard →</a>
+                                    {% else %}
+                                    <a href="{{ url_for('tech.dashboard') }}" class="text-xs text-primary hover:text-blue-900 font-medium">Ver Dashboard →</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
                         <!-- Avatar + Info -->
                         <div class="flex items-center gap-2">
                             <div class="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold shadow-sm flex-shrink-0">
@@ -181,6 +272,8 @@
                 <a href="{{ url_for('tech.list_technicians') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Funcionários</a>
                 <a href="{{ url_for('admin.settings') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Configurações</a>
                 <a href="{{ url_for('reports.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Relatórios</a>
+                {% elif current_user.permission_level == 'secretary' %}
+                <a href="{{ url_for('secretary.dashboard') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Dashboard</a>
                 {% else %}
                 <a href="{{ url_for('tech.dashboard') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Meu Dashboard</a>
                 {% endif %}
@@ -511,6 +604,20 @@
                 menu.classList.add('hidden');
                 icon.classList.remove('fa-times');
                 icon.classList.add('fa-bars');
+            }
+        }
+
+        function toggleNotifications() {
+            const dropdown = document.getElementById('notificationsDropdown');
+            if (dropdown) {
+                dropdown.classList.toggle('hidden');
+                // Fechar ao clicar fora
+                document.addEventListener('click', function closeDropdown(e) {
+                    if (!e.target.closest('.relative.group') && !dropdown.classList.contains('hidden')) {
+                        dropdown.classList.add('hidden');
+                        document.removeEventListener('click', closeDropdown);
+                    }
+                });
             }
         }
     </script>

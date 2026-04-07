@@ -71,6 +71,7 @@ def create_app(config_class=Config):
         from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
         from app.models.user import User
         from flask import g
+        from app.utils.notifications import get_alerts
 
         # Cache current user in g to avoid multiple DB lookups per request
         if 'current_user' not in g:
@@ -94,15 +95,36 @@ def create_app(config_class=Config):
             except Exception:
                 g.app_config = None
 
-        return {'app_config': g.app_config, 'current_user': g.current_user}
+        # Cache alerts in g
+        if 'alerts' not in g:
+            try:
+                g.alerts = get_alerts(g.current_user) if g.current_user else None
+            except Exception:
+                g.alerts = None
+
+        return {'app_config': g.app_config, 'current_user': g.current_user, 'alerts': g.alerts}
 
     # Import models here so Alembic can discover them
     from app import models
+
+    # Register audit log CLI commands
+    from app.utils.audit_cli import register_commands
+    register_commands(app)
+
+    # Initialize automatic audit log cleanup on app start
+    with app.app_context():
+        try:
+            from app.models.audit_log import AuditLog
+            # Clean up old logs on startup (optional, can be done via CLI)
+            # AuditLog.cleanup_old_logs(days=7)
+        except Exception:
+            pass
 
     # Register blueprints (to be created next)
     from app.routes.main import main_bp
     from app.routes.auth import auth_bp
     from app.routes.admin import admin_bp
+    from app.routes.secretary import secretary_bp
     from app.routes.technician import tech_bp
     from app.routes.clients import clients_bp
     from app.routes.equipment import equip_bp
@@ -113,6 +135,7 @@ def create_app(config_class=Config):
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(admin_bp, url_prefix='/admin')
+    app.register_blueprint(secretary_bp, url_prefix='/secretary')
     app.register_blueprint(tech_bp, url_prefix='/tech')
     app.register_blueprint(clients_bp, url_prefix='/clients')
     app.register_blueprint(equip_bp, url_prefix='/equipment')

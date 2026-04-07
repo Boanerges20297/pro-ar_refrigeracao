@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Agendamento de Manutenção{% endblock %}
 {% block content %}
-<div class="flex justify-between items-center mb-6">
-    <h2 class="text-2xl font-bold text-gray-800">Agendamento de Manutenção por Máquina</h2>
-    {% if current_user.role == 'admin' %}
-    <a href="{{ url_for('maintenance.add') }}" class="bg-primary hover:opacity-90 text-white font-bold py-2 px-4 rounded">
+<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+    <h2 class="text-2xl font-bold text-gray-800">Agendamento de Manutenção</h2>
+    {% if current_user.permission_level in ['admin', 'secretary'] %}
+    <a href="{{ url_for('maintenance.add') }}" class="w-full sm:w-auto bg-primary hover:opacity-90 text-white font-bold py-2 px-4 rounded transition-all shadow-sm text-center">
         <i class="fas fa-plus mr-2"></i>Novo Agendamento
     </a>
     {% endif %}
@@ -13,67 +13,147 @@
 {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
         {% for category, message in messages %}
-            <div class="mb-4 text-sm {% if category == 'danger' %}text-red-600 bg-red-100{% else %}text-green-600 bg-green-100{% endif %} p-2 rounded">
+            <div class="mb-4 text-sm {% if category == 'danger' %}text-red-600 bg-red-100{% else %}text-green-600 bg-green-100{% endif %} p-3 rounded">
                 {{ message }}
             </div>
         {% endfor %}
     {% endif %}
 {% endwith %}
 
-<div class="bg-white shadow overflow-hidden sm:rounded-lg">
-    <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-            <tr>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data Programada</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Equipamento</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Última Realizada</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-            </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
-            {% for sched in schedules %}
-            <tr>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900 font-bold {% if sched.is_active and sched.next_maintenance_date < now %}text-red-600{% endif %}">
-                        {{ sched.next_maintenance_date.strftime('%d/%m/%Y') }}
-                    </div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">{{ sched.equipment.owner.name }}</div></td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900">{{ sched.equipment.name }}</div>
-                    <div class="text-sm text-gray-500">SN: {{ sched.equipment.serial_number or '-' }}</div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-500">{{ sched.last_maintenance_date.strftime('%d/%m/%Y') if sched.last_maintenance_date else 'Nunca' }}</div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    {% if not sched.is_active %}
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Concluída</span>
-                    {% elif sched.next_maintenance_date < now %}
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Atrasada</span>
-                    {% else %}
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Agendada</span>
-                    {% endif %}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    {% if sched.is_active %}
-                    <form action="{{ url_for('maintenance.complete', schedule_id=sched.id) }}" method="POST" class="inline">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="text-primary hover:text-indigo-900" title="Marcar como Concluída"><i class="fas fa-check-circle"></i> Fechar</button>
-                    </form>
-                    {% else %}
-                    <span class="text-gray-400"><i class="fas fa-check-circle"></i> Fechado</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Nenhum agendamento cadastrado.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<!-- Tabela para Desktop -->
+<div class="hidden sm:block bg-white shadow rounded-lg overflow-hidden border border-gray-100">
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-gray-50 border-b border-gray-100">
+                <tr>
+                    <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Data Programada</th>
+                    <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Cliente</th>
+                    <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Equipamento</th>
+                    <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Última Realizada</th>
+                    <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                    <th scope="col" class="relative px-4 py-3"><span class="sr-only">Ações</span></th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {% for sched in schedules %}
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-4 py-3 whitespace-nowrap">
+                        <div class="text-sm text-gray-900 font-bold {% if sched.is_active and sched.next_maintenance_date < now %}text-red-600{% endif %}">
+                            {{ sched.next_maintenance_date.strftime('%d/%m/%Y') }}
+                        </div>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">{{ sched.equipment.owner.name }}</div></td>
+                    <td class="px-4 py-3 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">{{ sched.equipment.name }}</div>
+                        <div class="text-xs text-gray-500">SN: {{ sched.equipment.serial_number or '-' }}</div>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap">
+                        <div class="text-sm text-gray-500">{{ sched.last_maintenance_date.strftime('%d/%m/%Y') if sched.last_maintenance_date else 'Nunca' }}</div>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap">
+                        {% if not sched.is_active %}
+                        <span class="px-2 py-1 inline-flex text-[10px] font-bold rounded-full bg-green-100 text-green-800">✓ Concluída</span>
+                        {% elif sched.next_maintenance_date < now %}
+                        <span class="px-2 py-1 inline-flex text-[10px] font-bold rounded-full bg-red-100 text-red-800">⚠ Atrasada</span>
+                        {% else %}
+                        <span class="px-2 py-1 inline-flex text-[10px] font-bold rounded-full bg-yellow-100 text-yellow-800">⏱ Agendada</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-right">
+                        {% if sched.is_active %}
+                        <form action="{{ url_for('maintenance.complete', schedule_id=sched.id) }}" method="POST" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="text-primary hover:text-blue-900 text-xs font-medium" title="Marcar como Concluída">
+                                <i class="fas fa-check-circle mr-1"></i>Fechar
+                            </button>
+                        </form>
+                        {% else %}
+                        <span class="text-gray-400 text-xs"><i class="fas fa-check-circle mr-1"></i>Fechado</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="px-4 py-8 text-center text-gray-500">
+                        <i class="fas fa-calendar-times text-4xl text-gray-200 mb-3 block"></i>
+                        Nenhum agendamento cadastrado
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
+
+<!-- Cards para Mobile -->
+<div class="sm:hidden space-y-3">
+    {% for sched in schedules %}
+    <div class="bg-white shadow rounded-lg border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+        <!-- Header do Card -->
+        <div class="px-4 py-3 bg-gray-50 border-b border-gray-100">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">{{ sched.equipment.owner.name }}</p>
+            <h3 class="text-sm font-bold text-gray-900">{{ sched.equipment.name }}</h3>
+            <p class="text-xs text-gray-500 mt-1">SN: {{ sched.equipment.serial_number or '-' }}</p>
+        </div>
+
+        <!-- Conteúdo -->
+        <div class="px-4 py-4 space-y-3">
+            <!-- Data Programada -->
+            <div class="flex justify-between items-center">
+                <span class="text-xs font-bold text-gray-600 uppercase">Data Prog.</span>
+                <span class="text-sm font-bold {% if sched.is_active and sched.next_maintenance_date < now %}text-red-600{% else %}text-gray-900{% endif %}">
+                    {{ sched.next_maintenance_date.strftime('%d/%m/%Y') }}
+                </span>
+            </div>
+
+            <!-- Última Realizada -->
+            <div class="flex justify-between items-center">
+                <span class="text-xs font-bold text-gray-600 uppercase">Última Realiz.</span>
+                <span class="text-sm text-gray-600">{{ sched.last_maintenance_date.strftime('%d/%m/%Y') if sched.last_maintenance_date else 'Nunca' }}</span>
+            </div>
+
+            <!-- Status -->
+            <div class="flex justify-between items-center pt-2 border-t border-gray-100">
+                <span class="text-xs font-bold text-gray-600 uppercase">Status</span>
+                <div>
+                    {% if not sched.is_active %}
+                    <span class="px-2 py-1 inline-flex text-[10px] font-bold rounded-full bg-green-100 text-green-800">✓ Concluída</span>
+                    {% elif sched.next_maintenance_date < now %}
+                    <span class="px-2 py-1 inline-flex text-[10px] font-bold rounded-full bg-red-100 text-red-800">⚠ Atrasada</span>
+                    {% else %}
+                    <span class="px-2 py-1 inline-flex text-[10px] font-bold rounded-full bg-yellow-100 text-yellow-800">⏱ Agendada</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer com Ação -->
+        <div class="px-4 py-3 bg-gray-50 border-t border-gray-100">
+            {% if sched.is_active %}
+            <form action="{{ url_for('maintenance.complete', schedule_id=sched.id) }}" method="POST" class="w-full">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="w-full text-center text-primary hover:text-blue-900 text-xs font-bold py-2 px-3 rounded bg-blue-50 hover:bg-blue-100 transition-all">
+                    <i class="fas fa-check-circle mr-1"></i>Marcar como Concluída
+                </button>
+            </form>
+            {% else %}
+            <div class="w-full text-center text-gray-400 text-xs font-medium py-2 px-3">
+                <i class="fas fa-check-circle mr-1"></i>Agendamento Fechado
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-white shadow rounded-lg p-8 sm:p-12 text-center border border-dashed border-gray-300">
+        <i class="fas fa-calendar-times text-6xl text-gray-200 mb-4"></i>
+        <p class="text-gray-500 text-base">Nenhum agendamento cadastrado</p>
+        {% if current_user.permission_level in ['admin', 'secretary'] %}
+        <a href="{{ url_for('maintenance.add') }}" class="mt-4 inline-block bg-primary text-white py-2 px-6 rounded hover:opacity-90">
+            <i class="fas fa-plus mr-2"></i>Criar Primeiro Agendamento
+        </a>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
 {% endblock %}

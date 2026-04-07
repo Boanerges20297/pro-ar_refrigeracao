@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}Logs de Auditoria{% endblock %}
+
+{% block content %}
+<div class="container mx-auto p-6">
+    <div class="mb-6">
+        <a href="{{ url_for('admin.dashboard') }}" class="text-primary hover:underline mb-4 inline-block">
+            <i class="fas fa-arrow-left mr-2"></i>Voltar ao Dashboard
+        </a>
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-primary mb-2">Logs de Auditoria</h1>
+                <p class="text-gray-600">Histórico de todas as ações no sistema</p>
+            </div>
+            <div class="space-x-2">
+                <a href="{{ url_for('admin.audit_logs_stats') }}" class="inline-block bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 font-medium transition">
+                    <i class="fas fa-chart-bar mr-2"></i>Estatísticas
+                </a>
+                <a href="{{ url_for('admin.audit_logs_export') }}" class="inline-block bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 font-medium transition">
+                    <i class="fas fa-download mr-2"></i>Exportar CSV
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h3 class="font-bold text-lg mb-4">Filtros</h3>
+        
+        <form method="GET" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <!-- Usuario -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Usuário</label>
+                <select name="user_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                    <option value="">Todos</option>
+                    {% for user in users %}
+                    <option value="{{ user.id }}" {% if user.id == user_id_filter %}selected{% endif %}>
+                        {{ user.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Ação -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Ação</label>
+                <select name="action" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                    <option value="">Todas</option>
+                    {% for action_tuple in actions %}
+                    {% set action_name = action_tuple[0] %}
+                    <option value="{{ action_name }}" {% if action_name == action_filter %}selected{% endif %}>
+                        {{ action_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Tipo de Recurso -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Recurso</label>
+                <select name="resource_type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                    <option value="">Todos</option>
+                    {% for resource_tuple in resource_types %}
+                    {% set resource_name = resource_tuple[0] %}
+                    <option value="{{ resource_name }}" {% if resource_name == resource_type_filter %}selected{% endif %}>
+                        {{ resource_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Status -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                    <option value="">Todos</option>
+                    <option value="success" {% if status_filter == 'success' %}selected{% endif %}>Sucesso</option>
+                    <option value="error" {% if status_filter == 'error' %}selected{% endif %}>Erro</option>
+                </select>
+            </div>
+
+            <!-- Dias -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Período (dias)</label>
+                <select name="days" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                    <option value="1" {% if days_back == 1 %}selected{% endif %}>Último dia</option>
+                    <option value="7" {% if days_back == 7 %}selected{% endif %}>Últimos 7 dias</option>
+                    <option value="30" {% if days_back == 30 %}selected{% endif %}>Últimos 30 dias</option>
+                    <option value="90" {% if days_back == 90 %}selected{% endif %}>Últimos 90 dias</option>
+                </select>
+            </div>
+
+            <div class="flex items-end gap-2">
+                <button type="submit" class="w-full bg-primary text-white px-4 py-2 rounded-lg hover:bg-opacity-90 font-medium transition">
+                    <i class="fas fa-search mr-2"></i>Filtrar
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Logs Table -->
+    {% if logs %}
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <table class="w-full">
+            <thead class="bg-gray-100 border-b">
+                <tr>
+                    <th class="text-left px-6 py-3 text-sm font-semibold text-gray-700">Data/Hora</th>
+                    <th class="text-left px-6 py-3 text-sm font-semibold text-gray-700">Usuário</th>
+                    <th class="text-left px-6 py-3 text-sm font-semibold text-gray-700">Ação</th>
+                    <th class="text-left px-6 py-3 text-sm font-semibold text-gray-700">Recurso</th>
+                    <th class="text-left px-6 py-3 text-sm font-semibold text-gray-700">Status</th>
+                    <th class="text-left px-6 py-3 text-sm font-semibold text-gray-700">IP</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr class="border-b hover:bg-gray-50 transition">
+                    <td class="px-6 py-4 text-sm text-gray-700">
+                        <i class="fas fa-clock mr-2 text-gray-400"></i>
+                        {{ log.timestamp.strftime('%d/%m/%Y %H:%M:%S') }}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-700">
+                        {% set user = users|selectattr('id', 'equalto', log.user_id)|first %}
+                        {% if user %}
+                        <strong>{{ user.name }}</strong>
+                        {% else %}
+                        <span class="text-gray-400">Desconhecido</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-sm">
+                        <span class="inline-block px-3 py-1 rounded-full text-xs font-medium
+                            {% if log.action == 'LOGIN' %}bg-blue-100 text-blue-800
+                            {% elif log.action == 'LOGOUT' %}bg-gray-100 text-gray-800
+                            {% elif log.action == 'CREATE' %}bg-green-100 text-green-800
+                            {% elif log.action == 'UPDATE' %}bg-yellow-100 text-yellow-800
+                            {% elif log.action == 'DELETE' %}bg-red-100 text-red-800
+                            {% else %}bg-purple-100 text-purple-800
+                            {% endif %}">
+                            {{ log.action }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-700">
+                        <div>
+                            <strong>{{ log.resource_type }}</strong>
+                            {% if log.resource_id %}
+                            <br><span class="text-xs text-gray-500">#{{ log.resource_id }}</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-sm">
+                        {% if log.status == 'success' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <i class="fas fa-check-circle mr-1"></i>Sucesso
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            <i class="fas fa-times-circle mr-1"></i>Erro
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-600 font-mono">
+                        {{ log.ip_address or 'N/A' }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination.pages > 1 %}
+    <div class="mt-6 flex justify-center items-center space-x-2">
+        {% if pagination.has_prev %}
+        <a href="{{ url_for('admin.audit_logs', page=pagination.prev_num, user_id=user_id_filter or '', action=action_filter or '', resource_type=resource_type_filter or '', status=status_filter or '', days=days_back) }}" 
+           class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition">
+            <i class="fas fa-chevron-left mr-2"></i>Anterior
+        </a>
+        {% endif %}
+
+        <div class="space-x-1">
+            {% for page_num in pagination.iter_pages() %}
+                {% if page_num %}
+                    {% if page_num == pagination.page %}
+                    <span class="px-3 py-2 bg-primary text-white rounded-lg font-medium">{{ page_num }}</span>
+                    {% else %}
+                    <a href="{{ url_for('admin.audit_logs', page=page_num, user_id=user_id_filter or '', action=action_filter or '', resource_type=resource_type_filter or '', status=status_filter or '', days=days_back) }}"
+                       class="px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition">{{ page_num }}</a>
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        {% if pagination.has_next %}
+        <a href="{{ url_for('admin.audit_logs', page=pagination.next_num, user_id=user_id_filter or '', action=action_filter or '', resource_type=resource_type_filter or '', status=status_filter or '', days=days_back) }}"
+           class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition">
+            Próxima<i class="fas fa-chevron-right ml-2"></i>
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="bg-white rounded-lg shadow-md p-12 text-center">
+        <i class="fas fa-search text-gray-300 text-6xl mb-4"></i>
+        <h2 class="text-2xl font-bold text-gray-700 mb-2">Nenhum log encontrado</h2>
+        <p class="text-gray-600">Ajuste os filtros e tente novamente.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

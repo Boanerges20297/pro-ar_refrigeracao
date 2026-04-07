@@ -6,6 +6,23 @@
     <p class="text-gray-600">Acompanhe suas ordens de serviço e atendimentos.</p>
 </div>
 
+<!-- Seção de Alertas -->
+{% if overdue_services %}
+<div class="grid grid-cols-1 gap-4 mb-8">
+    <!-- Serviços Atrasados -->
+    <a href="{{ url_for('services.index') }}" class="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-xs font-bold text-red-700 uppercase">⚠️ Serviços Atrasados</p>
+                <p class="text-2xl font-bold text-red-900 mt-1">{{ overdue_services|length }}</p>
+                <p class="text-xs text-red-600 mt-1">Precisam de ação imediata</p>
+            </div>
+            <i class="fas fa-exclamation-triangle text-4xl text-red-200 opacity-50"></i>
+        </div>
+    </a>
+</div>
+{% endif %}
+
 <!-- Key Metrics Cards -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
     <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">

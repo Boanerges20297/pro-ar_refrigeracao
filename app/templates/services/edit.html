@@ -5,6 +5,12 @@
     <h2 class="text-2xl font-bold text-gray-800">Editar Ordem de Serviço (OS) #{{ wo.id }}</h2>
 </div>
 
+{% if wo.status == 'Completed' and current_user.permission_level == 'user' %}
+<div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+    <p class="text-red-700 font-medium"><i class="fas fa-lock mr-2"></i> Este serviço foi concluído e não pode ser alterado.</p>
+</div>
+{% endif %}
+
 <div class="bg-white shadow overflow-hidden sm:rounded-lg max-w-4xl mx-auto p-6">
     <form method="POST" action="{{ url_for('services.edit', id=wo.id) }}" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -45,12 +51,18 @@
 
             <div>
                 <label for="technician_id" class="block text-sm font-medium text-gray-700">Técnico Responsável</label>
-                <select id="technician_id" name="technician_id" class="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                <select id="technician_id" name="technician_id" class="mt-1 block w-full bg-gray-100 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none sm:text-sm" {% if current_user.permission_level == 'user' %}disabled{% endif %}>
                     <option value="" {% if not wo.technician_id %}selected{% endif %}>Não atribuído</option>
                     {% for tech in technicians %}
                         <option value="{{ tech.id }}" {% if wo.technician_id == tech.id %}selected{% endif %}>{{ tech.name }}</option>
                     {% endfor %}
                 </select>
+                {% if current_user.permission_level == 'user' %}<input type="hidden" name="technician_id" value="{{ wo.technician_id or '' }}">{% endif %}
+            </div>
+
+            <div>
+                <label for="scheduled_date" class="block text-sm font-medium text-gray-700">Data e Hora Agendada</label>
+                <input type="datetime-local" name="scheduled_date" id="scheduled_date" value="{{ wo.scheduled_date.strftime('%Y-%m-%dT%H:%M') if wo.scheduled_date else '' }}" class="mt-1 block w-full bg-gray-100 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none sm:text-sm" {% if current_user.permission_level == 'user' %}disabled{% endif %}>
             </div>
 
             <div>
@@ -64,13 +76,8 @@
             </div>
 
             <div>
-                <label for="scheduled_date" class="block text-sm font-medium text-gray-700">Data e Hora Agendada</label>
-                <input type="datetime-local" name="scheduled_date" id="scheduled_date" value="{{ wo.scheduled_date.strftime('%Y-%m-%dT%H:%M') if wo.scheduled_date else '' }}" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
-            </div>
-
-            <div>
                 <label for="total_value" class="block text-sm font-medium text-gray-700">Valor Cobrado (R$)</label>
-                <input type="number" step="0.01" min="0" name="total_value" id="total_value" value="{{ "%.2f"|format(wo.total_value) if wo.total_value else '0.00' }}" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                <input type="number" step="0.01" min="0" name="total_value" id="total_value" value="{{ "%.2f"|format(wo.total_value) if wo.total_value else '0.00' }}" class="mt-1 block w-full bg-gray-100 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none sm:text-sm" {% if current_user.permission_level == 'user' %}disabled{% endif %}>
             </div>
 
             <div class="md:col-span-2">
@@ -79,6 +86,7 @@
             </div>
 
             <!-- Photos Section -->
+            {% if current_user.permission_level != 'user' %}
             <div class="border-t pt-4 md:col-span-2">
                 <h3 class="text-sm font-bold text-gray-900 mb-4">Documentação Fotográfica</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -106,12 +114,13 @@
                 </div>
                 <p class="text-[10px] text-gray-400 mt-2 italic">Limite: 2MB. Imagens maiores serão redimensionadas automaticamente.</p>
             </div>
+            {% endif %}
 
             <div class="md:col-span-2 flex justify-end mt-4">
                 <a href="{{ url_for('services.index') }}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mr-3">
                     Cancelar
                 </a>
-                <button type="submit" class="bg-primary border border-transparent rounded-md shadow-sm py-2 px-4 inline-flex justify-center text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                <button type="submit" class="bg-primary border border-transparent rounded-md shadow-sm py-2 px-4 inline-flex justify-center text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {% if current_user.permission_level == 'user' and wo.status == 'Completed' %}disabled{% endif %}>
                     Salvar Alterações
                 </button>
             </div>

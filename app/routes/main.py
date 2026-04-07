@@ -11,8 +11,10 @@ def index():
         current_user_id = get_jwt_identity()
         if current_user_id:
             user = User.query.get(current_user_id)
-            if user and user.role == 'admin':
+            if user and user.permission_level == 'admin':
                 return redirect(url_for('admin.dashboard'))
+            elif user and user.permission_level == 'secretary':
+                return redirect(url_for('secretary.dashboard'))
             elif user:
                 return redirect(url_for('tech.dashboard'))
     except Exception:

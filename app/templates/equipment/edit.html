@@ -1,14 +1,19 @@
 {% extends "base.html" %}
 {% block title %}Editar Equipamento{% endblock %}
 {% block content %}
-<div class="mb-6 flex justify-between items-center">
+<div class="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
     <h2 class="text-2xl font-bold text-gray-800">Editar Equipamento: {{ equip.name }}</h2>
-    <a href="{{ url_for('equipment.view_by_serial', serial_number=equip.serial_number or equip.id) }}" class="text-sm text-primary hover:underline">
-        <i class="fas fa-eye mr-1"></i>Ver Detalhes
-    </a>
+    <div class="flex gap-2 flex-wrap">
+        <a href="{{ url_for('equipment.view_by_serial', serial_number=equip.serial_number or equip.id) }}" class="text-sm text-primary hover:underline bg-blue-50 px-3 py-2 rounded">
+            <i class="fas fa-eye mr-1"></i>Ver Detalhes
+        </a>
+        <button type="button" onclick="generateQRCode()" class="text-sm text-white hover:opacity-90 bg-green-600 px-3 py-2 rounded">
+            <i class="fas fa-qrcode mr-1"></i>Gerar QR Code
+        </button>
+    </div>
 </div>
 
-<div class="bg-white shadow overflow-hidden sm:rounded-lg max-w-2xl mx-auto p-6 transition-all border border-gray-100">
+<div class="bg-white shadow overflow-hidden sm:rounded-lg max-w-2xl mx-auto p-4 sm:p-6 transition-all border border-gray-100">
     <form method="POST" action="{{ url_for('equipment.edit', id=equip.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
@@ -28,7 +33,7 @@
                 <input type="text" name="name" id="name" value="{{ equip.name }}" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
             </div>
 
-            <div class="grid grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
                     <label for="brand" class="block text-sm font-medium text-gray-700">Marca</label>
                     <input type="text" name="brand" id="brand" value="{{ equip.brand or '' }}" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
@@ -39,7 +44,7 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
                     <label for="serial_number" class="block text-sm font-medium text-gray-700">Número de Série (Código de Barras)</label>
                     <div class="flex">
@@ -75,8 +80,33 @@
                 <div id="reader" width="100%"></div>
             </div>
 
-            <div class="flex justify-end mt-4">
-                <a href="{{ url_for('equipment.index') }}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mr-3">
+            <!-- QR Code Modal -->
+            <div id="qrcode-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-[100]" style="display: none;">
+                <div class="relative top-20 mx-auto p-5 border w-full max-w-sm shadow-lg rounded-md bg-white">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">QR Code do Equipamento</h3>
+                        <button type="button" onclick="closeQRModal()" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    <div class="text-center py-4">
+                        <div id="qrcode-container" class="flex justify-center mb-4"></div>
+                        <p class="text-sm text-gray-600 mb-2">{{ equip.name }}</p>
+                        <p class="text-xs text-gray-500 font-mono">{{ equip.serial_number or equip.id }}</p>
+                    </div>
+                    <div class="flex gap-2 justify-end mt-4">
+                        <button type="button" onclick="downloadQR()" class="px-4 py-2 bg-primary text-white rounded text-sm font-medium hover:opacity-90">
+                            <i class="fas fa-download mr-1"></i>Baixar
+                        </button>
+                        <button type="button" onclick="closeQRModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded text-sm font-medium hover:bg-gray-300">
+                            Fechar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row justify-end gap-3 mt-4 pt-4 border-t border-gray-200">
+                <a href="{{ url_for('equipment.index') }}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary text-center">
                     Cancelar
                 </a>
                 <button type="submit" class="bg-primary border border-transparent rounded-md shadow-sm py-2 px-4 inline-flex justify-center text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
@@ -90,6 +120,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
     let html5QrcodeScanner = null;
 
@@ -122,5 +153,86 @@
     }
 
     function onScanFailure(error) {}
+
+    // QR Code Functions
+    function generateQRCode() {
+        const equipmentId = '{{ equip.id }}';
+        const equipmentName = document.getElementById('name').value || '{{ equip.name }}';
+        const serial = document.getElementById('serial_number').value || '{{ equip.id }}';
+        
+        // Show loading state
+        const modal = document.getElementById('qrcode-modal');
+        const container = document.getElementById('qrcode-container');
+        container.innerHTML = '<p class="text-center text-gray-500">Gerando QR Code...</p>';
+        modal.style.display = 'block';
+        
+        // Make AJAX request to backend
+        fetch(`/equipment/generate-qr-ajax/{{ equip.id }}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Clear and display QR code
+                container.innerHTML = '';
+                const qrData = `${window.location.origin}/equipment/view/{{ equip.id }}`;
+                
+                new QRCode(container, {
+                    text: qrData,
+                    width: 250,
+                    height: 250,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+                
+                // Show success message
+                const message = document.createElement('p');
+                message.className = 'mt-3 text-center text-sm text-green-600 font-medium';
+                message.textContent = '✓ QR Code gerado e salvo com sucesso!';
+                container.parentElement.insertBefore(message, container.nextSibling);
+                
+                // Auto-remove message after 3 seconds
+                setTimeout(() => {
+                    if (message.parentElement) {
+                        message.remove();
+                    }
+                }, 3000);
+            } else {
+                container.innerHTML = `<p class="text-center text-red-600">Erro: ${data.message}</p>`;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            container.innerHTML = '<p class="text-center text-red-600">Erro ao gerar QR Code</p>';
+        });
+    }
+
+    function closeQRModal() {
+        document.getElementById('qrcode-modal').style.display = 'none';
+    }
+
+    function downloadQR() {
+        const canvas = document.querySelector('#qrcode-container canvas');
+        if (canvas) {
+            const link = document.createElement('a');
+            link.href = canvas.toDataURL('image/png');
+            link.download = `QRCode_{{ equip.name }}_${new Date().getTime()}.png`;
+            link.click();
+        }
+    }
+
+    // Fechar modal ao clicar fora
+    document.addEventListener('click', function(event) {
+        const modal = document.getElementById('qrcode-modal');
+        if (event.target === modal) {
+            closeQRModal();
+        }
+    });
 </script>
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 {% endblock %}

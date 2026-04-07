@@ -1,9 +1,11 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from app.models.user import User
 from app.models.workorder import WorkOrder
+from app.models.maintenance import MaintenanceSchedule
 from app import db
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.utils.decorators import roles_required
+from datetime import datetime, timedelta
 
 tech_bp = Blueprint('tech', __name__)
 
@@ -20,12 +22,23 @@ def dashboard():
     pending_my_os = sum(1 for wo in my_os if wo.status == 'Pending')
     in_progress_my_os = sum(1 for wo in my_os if wo.status == 'In Progress')
 
+    # Alertas
+    today = datetime.utcnow().date()
+    
+    # Serviços atrasados (do técnico)
+    overdue_services = WorkOrder.query.filter(
+        WorkOrder.technician_id == user.id,
+        WorkOrder.scheduled_date < datetime.combine(today, datetime.min.time()),
+        WorkOrder.status.in_(['Pending', 'In Progress'])
+    ).all()
+
     return render_template('technician/dashboard.html',
                            my_os=my_os,
                            total_my_os=total_my_os,
                            completed_my_os=completed_my_os,
                            pending_my_os=pending_my_os,
-                           in_progress_my_os=in_progress_my_os)
+                           in_progress_my_os=in_progress_my_os,
+                           overdue_services=overdue_services)
 
 @tech_bp.route('/list')
 @roles_required('admin')
