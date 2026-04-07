@@ -5,12 +5,11 @@ __pycache__/
 *.so
 
 # Flask
-instance/
+instance/*
+!instance/pronto_ar.db
 .webassets-cache
 
-# Databases
-*.sqlite3
-*.db
+
 
 # Virtual Environment
 venv/
@@ -34,12 +33,8 @@ __pycache__/
 *.so
 
 # Flask
-instance/
 .webassets-cache
 
-# Databases
-*.sqlite3
-*.db
 
 # Virtual Environment
 venv/
