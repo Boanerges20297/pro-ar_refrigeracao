@@ -5,8 +5,7 @@ __pycache__/
 *.so
 
 # Flask
-instance/*
-!instance/pronto_ar.db
+
 .webassets-cache
 
 
