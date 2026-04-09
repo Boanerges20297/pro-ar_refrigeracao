@@ -1,0 +1,15 @@
+[Unit]
+Description=BTA License API Service
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/pro-ar_refrigeracao/license_service
+EnvironmentFile=/var/www/pro-ar_refrigeracao/license_service/license_api/.env
+ExecStart=/var/www/pro-ar_refrigeracao/license_service/.venv/bin/uvicorn license_api.main:app --host 127.0.0.1 --port 8010
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

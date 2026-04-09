@@ -1,7 +1,12 @@
 import os
+import uuid
 from PIL import Image
+from PIL import UnidentifiedImageError
 from werkzeug.utils import secure_filename
-from flask import current_app
+from flask import current_app, url_for
+
+
+ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp'}
 
 def save_and_resize_image(file, folder, max_size_mb=2, target_width=1024):
     """
@@ -12,17 +17,32 @@ def save_and_resize_image(file, folder, max_size_mb=2, target_width=1024):
 
     filename = secure_filename(file.filename)
     if not filename:
-        import uuid
         filename = f"{uuid.uuid4().hex}.jpg"
+
+    extension = os.path.splitext(filename)[1].lower().lstrip('.')
+    if extension not in ALLOWED_IMAGE_EXTENSIONS:
+        raise ValueError('Formato de imagem não permitido. Use JPG, PNG ou WEBP.')
     
     # Ensure directory exists
-    upload_path = os.path.join(current_app.static_folder, folder)
+    upload_root = None
+    app_config = getattr(current_app, 'config', None)
+    if app_config:
+        upload_root = app_config.get('UPLOAD_ROOT')
+
+    if not upload_root:
+        upload_root = getattr(current_app, 'static_folder')
+
+    upload_path = os.path.join(upload_root, folder)
     os.makedirs(upload_path, exist_ok=True)
+
+    stored_filename = f"{uuid.uuid4().hex}.jpg"
+    filepath = os.path.join(upload_path, stored_filename)
     
-    filepath = os.path.join(upload_path, filename)
-    
-    # Open image
-    img = Image.open(file)
+    try:
+        file.stream.seek(0)
+        img = Image.open(file.stream)
+    except UnidentifiedImageError as exc:
+        raise ValueError('Arquivo enviado não é uma imagem válida.') from exc
     
     # Convert RGBA to RGB if necessary (for JPEG)
     if img.mode in ("RGBA", "P"):
@@ -45,4 +65,14 @@ def save_and_resize_image(file, folder, max_size_mb=2, target_width=1024):
         # If still too large, save again with lower quality
         img.save(filepath, "JPEG", optimize=True, quality=50)
 
-    return f"/static/{folder}/{filename}"
+    return f"{folder}/{stored_filename}".replace('\\', '/')
+
+
+def get_workorder_photo_url(photo_path):
+    if not photo_path:
+        return None
+
+    if photo_path.startswith('/static/') or photo_path.startswith('http://') or photo_path.startswith('https://'):
+        return photo_path
+
+    return url_for('services.workorder_photo', filename=photo_path)

@@ -114,7 +114,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <!-- Navbar -->
     <nav class="app-navbar shadow-md w-full border-b border-gray-200 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between min-h-[4rem] py-2 gap-4">
                 <!-- Brand -->
                 <div class="flex items-center gap-2 flex-shrink-0 whitespace-nowrap">
@@ -126,14 +126,28 @@
                 {% if current_user %}
                 
                 <!-- Desktop Navigation -->
-                <div class="hidden xl:flex items-center gap-1 min-w-0 flex-1 justify-end">
-                    <div class="flex items-center flex-nowrap gap-x-0.5 mr-4 overflow-hidden">
-                        {% if current_user.permission_level == 'admin' %}
+                <div class="hidden xl:flex min-w-0 flex-1 items-center justify-center px-4">
+                    {% if current_user.permission_level == 'admin' %}
+                    <div class="flex max-w-4xl flex-wrap items-center justify-center gap-x-1 gap-y-1">
                         <a href="{{ url_for('admin.dashboard') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('admin.dashboard') %}active{% endif %}">Dashboard Admin</a>
                         <a href="{{ url_for('tech.list_technicians') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/tech/list' in request.path or '/tech/edit' in request.path or '/tech/add' in request.path %}active{% endif %}">Funcionários</a>
                         <a href="{{ url_for('admin.settings') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('admin.settings') %}active{% endif %}">Configurações</a>
+                        {% if has_license_feature('audit') %}
+                        <a href="{{ url_for('admin.audit_logs') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/admin/audit-logs' in request.path %}active{% endif %}">Logs</a>
+                        {% endif %}
+                        {% if has_license_feature('reports') %}
                         <a href="{{ url_for('reports.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/reports' in request.path %}active{% endif %}">Relatórios</a>
-                        {% elif current_user.permission_level == 'secretary' %}
+                        {% endif %}
+                        <a href="{{ url_for('clients.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/clients' in request.path %}active{% endif %}">Clientes</a>
+                        <a href="{{ url_for('equipment.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/equipment' in request.path %}active{% endif %}">Equipamentos</a>
+                        <a href="{{ url_for('services.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/services' in request.path %}active{% endif %}">Serviços</a>
+                        {% if has_license_feature('maintenance') %}
+                        <a href="{{ url_for('maintenance.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/maintenance' in request.path %}active{% endif %}">Manutenção</a>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="flex items-center flex-nowrap justify-center gap-x-1 min-w-0">
+                        {% if current_user.permission_level == 'secretary' %}
                         <a href="{{ url_for('secretary.dashboard') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('secretary.dashboard') %}active{% endif %}">Dashboard</a>
                         {% else %}
                         <a href="{{ url_for('tech.dashboard') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('tech.dashboard') %}active{% endif %}">Meu Dashboard</a>
@@ -141,8 +155,11 @@
                         <a href="{{ url_for('clients.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/clients' in request.path %}active{% endif %}">Clientes</a>
                         <a href="{{ url_for('equipment.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/equipment' in request.path %}active{% endif %}">Equipamentos</a>
                         <a href="{{ url_for('services.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/services' in request.path %}active{% endif %}">Serviços</a>
+                        {% if has_license_feature('maintenance') %}
                         <a href="{{ url_for('maintenance.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/maintenance' in request.path %}active{% endif %}">Manutenção</a>
+                        {% endif %}
                     </div>
+                    {% endif %}
                     <div class="flex items-center border-l border-gray-200 border-opacity-30 pl-4 gap-2 flex-shrink-0">
                         <!-- Notifications Bell -->
                         {% if alerts and alerts.total_count > 0 %}
@@ -271,7 +288,12 @@
                 <a href="{{ url_for('admin.dashboard') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Dashboard Admin</a>
                 <a href="{{ url_for('tech.list_technicians') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Funcionários</a>
                 <a href="{{ url_for('admin.settings') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Configurações</a>
+            {% if has_license_feature('audit') %}
+            <a href="{{ url_for('admin.audit_logs') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Logs de Auditoria</a>
+            {% endif %}
+                {% if has_license_feature('reports') %}
                 <a href="{{ url_for('reports.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Relatórios</a>
+                {% endif %}
                 {% elif current_user.permission_level == 'secretary' %}
                 <a href="{{ url_for('secretary.dashboard') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Dashboard</a>
                 {% else %}
@@ -280,7 +302,9 @@
                 <a href="{{ url_for('clients.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Clientes</a>
                 <a href="{{ url_for('equipment.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Equipamentos</a>
                 <a href="{{ url_for('services.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Serviços</a>
+                {% if has_license_feature('maintenance') %}
                 <a href="{{ url_for('maintenance.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Manutenção</a>
+                {% endif %}
             </div>
             <div class="pt-4 pb-3 border-t border-gray-200 bg-gray-50">
                 <div class="flex items-center px-5 gap-3">
@@ -537,7 +561,27 @@
 
 
     <!-- Main Content -->
-    <main class="flex-grow max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 w-full">
+    <main class="flex-grow max-w-7xl mx-auto py-6 pb-28 sm:pb-6 sm:px-6 lg:px-8 w-full">
+        {% if current_user and license_state and license_state.status in ['expiring', 'expired', 'invalid', 'inactive'] %}
+        <div class="px-4 sm:px-0 mb-4">
+            <div class="rounded-2xl border px-4 py-4 shadow-sm backdrop-blur-sm {% if license_state.severity == 'danger' %}border-red-200 bg-red-50/95 text-red-900{% elif license_state.severity == 'warning' %}border-amber-200 bg-amber-50/95 text-amber-900{% else %}border-blue-200 bg-blue-50/95 text-blue-900{% endif %}">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.22em]">Licenciamento</p>
+                        <p class="mt-1 text-sm font-semibold">{{ license_state.message }}</p>
+                        {% if license_state.limit_issues %}
+                        <p class="mt-2 text-xs opacity-80">{{ license_state.limit_issues|join(' ') }}</p>
+                        {% endif %}
+                    </div>
+                    {% if current_user.permission_level == 'admin' %}
+                    <a href="{{ url_for('admin.settings') }}" class="inline-flex items-center justify-center rounded-lg border border-current/15 px-4 py-2 text-xs font-semibold transition hover:bg-white/50">
+                        Revisar licença
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
         {% block content %}
         <div class="px-4 py-6 sm:px-0">
             <div class="border-4 border-dashed border-gray-200 rounded-lg h-96 flex items-center justify-center">
@@ -620,6 +664,18 @@
                 });
             }
         }
+
+        document.querySelectorAll('.flash-message[data-auto-dismiss]').forEach((message) => {
+            const delay = Number(message.dataset.autoDismiss || '5000');
+
+            window.setTimeout(() => {
+                message.classList.add('opacity-0', '-translate-y-2');
+
+                window.setTimeout(() => {
+                    message.remove();
+                }, 500);
+            }, delay);
+        });
     </script>
     <script src="https://unpkg.com/slim-select@latest/dist/slimselect.min.js"></script>
     {% block scripts %}{% endblock %}

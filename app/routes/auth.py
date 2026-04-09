@@ -4,7 +4,10 @@ from flask_jwt_extended import create_access_token, set_access_cookies, unset_jw
 from itsdangerous import URLSafeTimedSerializer
 from app.utils.email import send_password_reset_email
 from app.utils.audit import log_login, log_logout
+from app.utils.license import evaluate_license, get_license_record, log_license_event
+from app.utils.security import is_password_strong, PASSWORD_POLICY_MESSAGE
 from app import db
+from app import limiter
 from datetime import datetime
 
 auth_bp = Blueprint('auth', __name__)
@@ -26,6 +29,7 @@ def confirm_reset_token(token, expiration=3600):
     return email
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
+@limiter.limit('5 per minute', methods=['POST'])
 def login():
     if request.method == 'POST':
         email = request.form.get('email')
@@ -37,6 +41,21 @@ def login():
                 flash('Sua conta está inativa. Contate o administrador.', 'danger')
                 # Log failed login attempt (inactive user)
                 log_login(user.id, success=False, details={'reason': 'inactive_account'})
+                return redirect(url_for('auth.login'))
+
+            license_state = evaluate_license(get_license_record(create=False))
+            if license_state['blocking'] and user.permission_level != 'admin':
+                flash('O acesso operacional está bloqueado por licença ausente, expirada ou inválida. Contate o administrador.', 'danger')
+                log_license_event(
+                    'LICENSE_LOGIN_BLOCKED',
+                    details={
+                        'status': license_state['status'],
+                        'message': license_state['message'],
+                        'email': user.email,
+                    },
+                    status='error',
+                    explicit_user_id=user.id,
+                )
                 return redirect(url_for('auth.login'))
 
             access_token = create_access_token(identity=str(user.id))
@@ -75,6 +94,7 @@ def logout():
     return resp
 
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
+@limiter.limit('3 per 15 minutes', methods=['POST'])
 def forgot_password():
     if request.method == 'POST':
         email = request.form.get('email')
@@ -113,6 +133,7 @@ def forgot_password():
     return render_template('auth/forgot_password.html')
 
 @auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
+@limiter.limit('5 per 15 minutes', methods=['POST'])
 def reset_password(token):
     email = confirm_reset_token(token)
     if not email:
@@ -130,6 +151,10 @@ def reset_password(token):
         
         if password != confirm_password:
             flash('As senhas não coincidem.', 'danger')
+            return render_template('auth/reset_password.html', token=token)
+
+        if not is_password_strong(password):
+            flash(PASSWORD_POLICY_MESSAGE, 'danger')
             return render_template('auth/reset_password.html', token=token)
             
         user.set_password(password)

@@ -1,0 +1,15 @@
+[Unit]
+Description=Pronto Ar Gunicorn Service
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/pro-ar_refrigeracao
+EnvironmentFile=/var/www/pro-ar_refrigeracao/.env
+ExecStart=/var/www/pro-ar_refrigeracao/.venv/bin/gunicorn -c /var/www/pro-ar_refrigeracao/gunicorn.conf.py wsgi:app
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

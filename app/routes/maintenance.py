@@ -5,12 +5,13 @@ from app.models.user import User
 from app import db
 from datetime import datetime
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.utils.decorators import roles_required, get_technician_client_ids
+from app.utils.decorators import license_feature_required, roles_required, get_technician_client_ids
 
 maint_bp = Blueprint('maintenance', __name__)
 
 @maint_bp.route('/')
 @roles_required('admin', 'secretary', 'technician')
+@license_feature_required('maintenance')
 def index():
     # Get current user
     current_user_id = get_jwt_identity()
@@ -39,6 +40,7 @@ def index():
 
 @maint_bp.route('/add', methods=['GET', 'POST'])
 @roles_required('admin', 'secretary')
+@license_feature_required('maintenance')
 def add():
     equipments = Equipment.query.all()
 
@@ -64,6 +66,7 @@ def add():
 
 @maint_bp.route('/<int:schedule_id>/complete', methods=['POST'])
 @roles_required('admin', 'technician')
+@license_feature_required('maintenance')
 def complete(schedule_id):
     schedule = MaintenanceSchedule.query.get_or_404(schedule_id)
     schedule.last_maintenance_date = datetime.utcnow()

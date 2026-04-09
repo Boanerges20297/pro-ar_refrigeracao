@@ -5,7 +5,7 @@ from app.models.user import User
 from app import db
 import json
 
-def log_action(action, resource_type, resource_id=None, resource_name=None, status='success', details=None):
+def log_action(action, resource_type, resource_id=None, resource_name=None, status='success', details=None, explicit_user_id=None):
     """
     Log an action to the AuditLog table.
     
@@ -18,10 +18,19 @@ def log_action(action, resource_type, resource_id=None, resource_name=None, stat
         details (dict): Additional context information to store
     """
     try:
-        user_id = get_jwt_identity()
+        user_id = explicit_user_id
+        if user_id is None:
+            try:
+                user_id = get_jwt_identity()
+            except Exception:
+                user_id = None
+
         if not user_id:
             # For login/logout or unauthenticated actions, user_id might be None temporarily
             return
+
+        if isinstance(user_id, str) and user_id.isdigit():
+            user_id = int(user_id)
         
         ip_address = request.remote_addr if request else None
         user_agent = request.headers.get('User-Agent', '')[:255] if request else None

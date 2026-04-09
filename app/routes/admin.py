@@ -1,7 +1,8 @@
 import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
-from flask_jwt_extended import jwt_required
-from app.utils.decorators import roles_required, permission_level_required
+from flask_jwt_extended import get_jwt_identity, jwt_required
+from app.utils.decorators import license_feature_required, roles_required, permission_level_required
+from app.utils.license import activate_license_key, evaluate_license, get_instance_fingerprint, get_license_record, revalidate_license
 from app.models.workorder import WorkOrder
 from app.models.maintenance import MaintenanceSchedule
 from app.models.user import User
@@ -115,11 +116,41 @@ def settings():
         flash('Configurações atualizadas com sucesso!', 'success')
         return redirect(url_for('admin.settings'))
 
-    return render_template('admin/settings.html', config=config)
+    license_record = get_license_record(create=True)
+    license_state = evaluate_license(license_record)
+    return render_template(
+        'admin/settings.html',
+        config=config,
+        license_record=license_record,
+        license_state=license_state,
+        license_instance_fingerprint=get_instance_fingerprint(),
+    )
+
+
+@admin_bp.route('/license', methods=['POST'])
+@permission_level_required('admin')
+def activate_license():
+    license_key = (request.form.get('license_key') or '').strip()
+    if not license_key:
+        flash('Informe uma chave de licença para ativar ou renovar.', 'danger')
+        return redirect(url_for('admin.settings'))
+
+    state = activate_license_key(license_key, explicit_user_id=int(get_jwt_identity()))
+    flash(state['message'], 'success' if state['valid'] and not state['blocking'] else 'danger')
+    return redirect(url_for('admin.settings'))
+
+
+@admin_bp.route('/license/revalidate', methods=['POST'])
+@permission_level_required('admin')
+def validate_license():
+    state = revalidate_license(explicit_user_id=int(get_jwt_identity()))
+    flash(state['message'], 'success' if state['valid'] and not state['blocking'] else state['flash_category'])
+    return redirect(url_for('admin.settings'))
 
 
 @admin_bp.route('/audit-logs', methods=['GET'])
 @permission_level_required('admin')
+@license_feature_required('audit')
 def audit_logs():
     """Visualizar logs de auditoria - APENAS ADMIN"""
     page = request.args.get('page', 1, type=int)
@@ -174,6 +205,7 @@ def audit_logs():
 
 @admin_bp.route('/audit-logs/stats')
 @permission_level_required('admin')
+@license_feature_required('audit')
 def audit_logs_stats():
     """Estatísticas de auditoria - APENAS ADMIN"""
     # Total logs
@@ -218,6 +250,7 @@ def audit_logs_stats():
 
 @admin_bp.route('/audit-logs/export')
 @permission_level_required('admin')
+@license_feature_required('audit')
 def audit_logs_export():
     """Exportar logs de auditoria como CSV - APENAS ADMIN"""
     import csv

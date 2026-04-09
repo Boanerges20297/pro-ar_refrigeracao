@@ -9,7 +9,7 @@
 {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
         {% for category, message in messages %}
-            <div class="mb-4 text-sm {% if category == 'danger' %}text-red-600 bg-red-100{% else %}text-green-600 bg-green-100{% endif %} p-2 rounded">
+            <div class="flash-message mb-4 rounded p-2 text-sm transition-all duration-500 {% if category == 'danger' %}text-red-600 bg-red-100{% else %}text-green-600 bg-green-100{% endif %}" data-auto-dismiss="5000">
                 {{ message }}
             </div>
         {% endfor %}
@@ -301,6 +301,109 @@
             </div>
         </div>
     </form>
+    </div>
+</div>
+
+<div class="mt-8 bg-white shadow overflow-hidden sm:rounded-lg max-w-3xl mx-auto p-6">
+    <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-6">
+        <div>
+            <h3 class="text-lg font-medium text-gray-900">Licença de Uso</h3>
+            <p class="text-sm text-gray-500">Ative, renove e confira o status operacional da instância.</p>
+        </div>
+        <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold {{ license_state.badge_classes }}">
+            {{ license_state.status_label }}
+        </span>
+    </div>
+
+    <div class="rounded-2xl border px-5 py-5 mb-6 {% if license_state.severity == 'danger' %}border-red-200 bg-red-50{% elif license_state.severity == 'warning' %}border-amber-200 bg-amber-50{% else %}border-emerald-200 bg-emerald-50{% endif %}">
+        <p class="text-sm font-semibold text-gray-900">{{ license_state.message }}</p>
+        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
+            <div>
+                <span class="block text-xs font-semibold uppercase tracking-wide text-gray-500">Empresa licenciada</span>
+                <span>{{ license_state.company_name or 'Não informada' }}</span>
+            </div>
+            <div>
+                <span class="block text-xs font-semibold uppercase tracking-wide text-gray-500">ID desta instalação</span>
+                <span class="break-all font-mono text-xs">{{ license_instance_fingerprint }}</span>
+            </div>
+            <div>
+                <span class="block text-xs font-semibold uppercase tracking-wide text-gray-500">Tipo de licença</span>
+                <span>{{ license_state.license_type_label }}</span>
+            </div>
+            <div>
+                <span class="block text-xs font-semibold uppercase tracking-wide text-gray-500">Emitida em</span>
+                <span>{{ license_state.issued_at.strftime('%d/%m/%Y %H:%M') if license_state.issued_at else 'Não informado' }}</span>
+            </div>
+            <div>
+                <span class="block text-xs font-semibold uppercase tracking-wide text-gray-500">Expira em</span>
+                <span>{{ license_state.expires_at.strftime('%d/%m/%Y %H:%M') if license_state.expires_at else 'Não se aplica' }}</span>
+            </div>
+            <div>
+                <span class="block text-xs font-semibold uppercase tracking-wide text-gray-500">Última validação</span>
+                <span>{{ license_state.last_validated_at.strftime('%d/%m/%Y %H:%M') if license_state.last_validated_at else 'Ainda não validada' }}</span>
+            </div>
+            <div>
+                <span class="block text-xs font-semibold uppercase tracking-wide text-gray-500">Dias restantes</span>
+                <span>{{ license_state.days_remaining if license_state.days_remaining is not none else 'Perpétua' }}</span>
+            </div>
+        </div>
+
+        <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+            <div class="rounded-xl bg-white/70 border border-gray-200 px-4 py-3">
+                <span class="block text-xs font-semibold uppercase tracking-wide text-gray-500">Usuários ativos</span>
+                <span class="text-lg font-bold text-gray-900">{{ license_state.current_counts.total }}</span>
+                <span class="block text-xs text-gray-500">Limite: {{ license_state.limits.max_users if license_state.limits.max_users is not none else 'Livre' }}</span>
+            </div>
+            <div class="rounded-xl bg-white/70 border border-gray-200 px-4 py-3">
+                <span class="block text-xs font-semibold uppercase tracking-wide text-gray-500">Administradores</span>
+                <span class="text-lg font-bold text-gray-900">{{ license_state.current_counts.admin }}</span>
+                <span class="block text-xs text-gray-500">Limite: {{ license_state.limits.max_admin_users if license_state.limits.max_admin_users is not none else 'Livre' }}</span>
+            </div>
+            <div class="rounded-xl bg-white/70 border border-gray-200 px-4 py-3">
+                <span class="block text-xs font-semibold uppercase tracking-wide text-gray-500">Secretárias</span>
+                <span class="text-lg font-bold text-gray-900">{{ license_state.current_counts.secretary }}</span>
+                <span class="block text-xs text-gray-500">Limite: {{ license_state.limits.max_secretary_users if license_state.limits.max_secretary_users is not none else 'Livre' }}</span>
+            </div>
+        </div>
+
+        {% if license_state.limit_issues %}
+        <div class="mt-4 rounded-xl border border-red-200 bg-white/80 px-4 py-3 text-sm text-red-800">
+            {{ license_state.limit_issues|join(' ') }}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="grid grid-cols-1 gap-6">
+        <form method="POST" action="{{ url_for('admin.activate_license') }}" class="rounded-2xl border border-gray-200 p-5 bg-gray-50">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="flex items-center justify-between gap-3 mb-3">
+                <div>
+                    <h4 class="text-sm font-semibold text-gray-900">Ativar ou renovar licença</h4>
+                    <p class="text-xs text-gray-500">Cole a chave assinada emitida para esta empresa/instância.</p>
+                </div>
+            </div>
+            <label for="license_key" class="block text-sm font-medium text-gray-700 mb-2">Chave da licença</label>
+            <textarea id="license_key" name="license_key" rows="5" required class="block w-full rounded-xl border border-gray-300 px-3 py-3 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-primary" placeholder="Cole aqui o token completo da licença..."></textarea>
+            <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p class="text-xs text-gray-500">Use o ID acima ao solicitar uma licença nova ou transferir a instalação.</p>
+                <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90">
+                    Salvar licença
+                </button>
+            </div>
+        </form>
+
+        <form method="POST" action="{{ url_for('admin.validate_license') }}" class="rounded-2xl border border-gray-200 p-5 bg-white">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h4 class="text-sm font-semibold text-gray-900">Revalidar licença salva</h4>
+                    <p class="text-xs text-gray-500">Executa a verificação da chave atual, atualiza vencimento e eventuais alertas de bloqueio.</p>
+                </div>
+                <button type="submit" class="inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
+                    Revalidar agora
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 

@@ -187,16 +187,16 @@ document.getElementById('print-confirm-modal').addEventListener('click', functio
                             {% if wo.photo_before %}
                             <div class="flex flex-col flex-shrink-0">
                                 <span class="text-[10px] text-gray-400 mb-1 uppercase font-bold">Antes</span>
-                                <a href="{{ wo.photo_before }}" target="_blank">
-                                    <img src="{{ wo.photo_before }}" class="h-16 w-16 object-cover rounded shadow-sm hover:opacity-80 border border-gray-200">
+                                <a href="{{ workorder_photo_url(wo.photo_before) }}" target="_blank">
+                                    <img src="{{ workorder_photo_url(wo.photo_before) }}" class="h-16 w-16 object-cover rounded shadow-sm hover:opacity-80 border border-gray-200">
                                 </a>
                             </div>
                             {% endif %}
                             {% if wo.photo_after %}
                             <div class="flex flex-col flex-shrink-0">
                                 <span class="text-[10px] text-gray-400 mb-1 uppercase font-bold">Depois</span>
-                                <a href="{{ wo.photo_after }}" target="_blank">
-                                    <img src="{{ wo.photo_after }}" class="h-16 w-16 object-cover rounded shadow-sm hover:opacity-80 border border-gray-200">
+                                <a href="{{ workorder_photo_url(wo.photo_after) }}" target="_blank">
+                                    <img src="{{ workorder_photo_url(wo.photo_after) }}" class="h-16 w-16 object-cover rounded shadow-sm hover:opacity-80 border border-gray-200">
                                 </a>
                             </div>
                             {% endif %}

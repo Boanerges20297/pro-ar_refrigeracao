@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
-from app.utils.decorators import roles_required
+from app.utils.decorators import license_feature_required, roles_required
 from app.models.workorder import WorkOrder
 from app.models.client import Client
 from app.models.service import ServiceCatalog
@@ -12,6 +12,7 @@ reports_bp = Blueprint('reports', __name__)
 @reports_bp.route('/')
 @reports_bp.route('/index')
 @roles_required('admin')
+@license_feature_required('reports')
 def index():
     return render_template('reports/index.html')
 
@@ -33,6 +34,7 @@ def get_date_range():
 
 @reports_bp.route('/finance')
 @roles_required('admin')
+@license_feature_required('reports')
 def finance():
     start_date, end_date, start_str, end_str = get_date_range()
     
@@ -57,6 +59,7 @@ def finance():
 
 @reports_bp.route('/clients')
 @roles_required('admin')
+@license_feature_required('reports')
 def clients():
     start_date, end_date, start_str, end_str = get_date_range()
     
@@ -83,6 +86,7 @@ def clients():
 
 @reports_bp.route('/services')
 @roles_required('admin')
+@license_feature_required('reports')
 def services():
     start_date, end_date, start_str, end_str = get_date_range()
     

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login do Painel de Licenças</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: linear-gradient(135deg, #0f172a, #1e293b); color: #0f172a; margin: 0; }
+        .wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+        .card { background: #fff; width: 100%; max-width: 420px; border-radius: 18px; padding: 28px; box-shadow: 0 20px 60px rgba(0,0,0,0.25); }
+        h1 { margin: 0 0 8px; font-size: 1.5rem; }
+        p { margin: 0 0 20px; color: #475569; }
+        label { display: block; font-size: 0.9rem; font-weight: 700; margin-bottom: 8px; }
+        input { width: 100%; box-sizing: border-box; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 12px; }
+        button { width: 100%; margin-top: 16px; padding: 12px 14px; border: 0; border-radius: 12px; background: #0f766e; color: #fff; font-weight: 700; cursor: pointer; }
+        .error { margin-bottom: 16px; padding: 12px 14px; border-radius: 12px; background: #fef2f2; color: #b91c1c; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <form class="card" method="post" action="/admin/login">
+            <h1>Painel de Licenças</h1>
+            <p>Entre com o token administrativo configurado na API.</p>
+            {% if error %}
+            <div class="error">{{ error }}</div>
+            {% endif %}
+            <label for="api_token">Token administrativo</label>
+            <input id="api_token" name="api_token" type="password" required>
+            <button type="submit">Entrar</button>
+        </form>
+    </div>
+</body>
+</html>

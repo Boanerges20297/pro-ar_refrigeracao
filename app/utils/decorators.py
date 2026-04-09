@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import redirect, url_for, flash
+from flask import g, redirect, url_for, flash
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
 from app.models.user import User
 
@@ -39,6 +39,39 @@ def permission_level_required(*levels):
 
 # Alias for backwards compatibility for now, so we don't break everything instantly
 roles_required = permission_level_required
+
+
+def license_feature_required(feature_name):
+    def wrapper(fn):
+        @wraps(fn)
+        def decorator(*args, **kwargs):
+            try:
+                verify_jwt_in_request(optional=False)
+            except Exception:
+                flash("Por favor, faça login para acessar esta página.", "danger")
+                return redirect(url_for("auth.login"))
+
+            from app.utils.license import evaluate_license, get_license_record, has_license_feature
+
+            current_user_id = get_jwt_identity()
+            user = User.query.get(current_user_id)
+            state = getattr(g, 'license_state', None) or evaluate_license(get_license_record(create=False))
+
+            if has_license_feature(feature_name, state):
+                return fn(*args, **kwargs)
+
+            flash("Este recurso não está disponível no plano atual da licença.", "warning")
+
+            if user and user.permission_level == 'admin':
+                return redirect(url_for('admin.settings'))
+            if user and user.permission_level == 'secretary':
+                return redirect(url_for('secretary.dashboard'))
+            if user and user.permission_level == 'user':
+                return redirect(url_for('tech.dashboard'))
+            return redirect(url_for('auth.login'))
+
+        return decorator
+    return wrapper
 
 
 def get_technician_client_ids(technician_id):

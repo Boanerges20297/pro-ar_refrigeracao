@@ -5,6 +5,8 @@ from app.models.maintenance import MaintenanceSchedule
 from app import db
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.utils.decorators import roles_required
+from app.utils.license import check_user_limit
+from app.utils.security import is_password_strong, PASSWORD_POLICY_MESSAGE
 from datetime import datetime, timedelta
 
 tech_bp = Blueprint('tech', __name__)
@@ -46,7 +48,17 @@ def list_technicians():
     technicians = User.query.all() # Fetch all employees
     return render_template('technician/list.html', technicians=technicians)
 
-import re
+def normalize_job_title(permission_level, job_title, other_job_title=None):
+    if permission_level == 'secretary':
+        return 'Atendente'
+
+    if job_title == 'Outros':
+        return other_job_title or 'Outros'
+
+    if job_title:
+        return job_title
+
+    return 'Técnico'
 
 @tech_bp.route('/add', methods=['GET', 'POST'])
 @roles_required('admin')
@@ -58,17 +70,20 @@ def add_technician():
         specialty = request.form.get('specialty')
         is_active = request.form.get('is_active') == 'on'
         permission_level = request.form.get('permission_level', 'user')
-        job_title = request.form.get('job_title')
-        
-        if job_title == 'Outros':
-             job_title = request.form.get('other_job_title', 'Outros')
-             
-        if not job_title:
-             job_title = 'Técnico'
+        job_title = normalize_job_title(
+            permission_level,
+            request.form.get('job_title'),
+            request.form.get('other_job_title')
+        )
 
         # Backend validation for password
-        if not re.match(r"^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$", password):
-            flash('A senha deve ter no mínimo 8 caracteres, incluindo letras e números.', 'danger')
+        if not is_password_strong(password):
+            flash(PASSWORD_POLICY_MESSAGE, 'danger')
+            return render_template('technician/add.html')
+
+        limit_error = check_user_limit(permission_level=permission_level, is_active=is_active)
+        if limit_error:
+            flash(limit_error, 'danger')
             return render_template('technician/add.html')
 
         user = User(name=name, email=email, role='technician', permission_level=permission_level, job_title=job_title, specialty=specialty, is_active=is_active)
@@ -90,20 +105,23 @@ def edit_technician(user_id):
         user.specialty = request.form.get('specialty')
         user.is_active = request.form.get('is_active') == 'on'
         user.permission_level = request.form.get('permission_level', 'user')
-        
-        job_title = request.form.get('job_title')
-        if job_title:
-             if job_title == 'Outros':
-                 user.job_title = request.form.get('other_job_title', 'Outros')
-             else:
-                 user.job_title = job_title
+        user.job_title = normalize_job_title(
+            user.permission_level,
+            request.form.get('job_title'),
+            request.form.get('other_job_title')
+        )
 
         password = request.form.get('password')
         if password: # only update if a new password was provided
-            if not re.match(r"^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$", password):
-                flash('A senha deve ter no mínimo 8 caracteres, incluindo letras e números.', 'danger')
+            if not is_password_strong(password):
+                flash(PASSWORD_POLICY_MESSAGE, 'danger')
                 return render_template('technician/edit.html', user=user)
             user.set_password(password)
+
+        limit_error = check_user_limit(permission_level=user.permission_level, existing_user=user, is_active=user.is_active)
+        if limit_error:
+            flash(limit_error, 'danger')
+            return render_template('technician/edit.html', user=user)
 
         db.session.commit()
         flash('Funcionário atualizado com sucesso!', 'success')

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Administrativo de Licenças</title>
+    <style>
+        :root { color-scheme: light; }
+        body { margin: 0; font-family: Arial, sans-serif; background: #f8fafc; color: #0f172a; }
+        .container { max-width: 1180px; margin: 0 auto; padding: 24px; }
+        .topbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 24px; }
+        .topbar a { color: #0f766e; text-decoration: none; font-weight: 700; }
+        .grid { display: grid; grid-template-columns: 380px 1fr; gap: 24px; }
+        .card { background: #fff; border-radius: 18px; box-shadow: 0 12px 40px rgba(15,23,42,0.08); padding: 22px; }
+        .card h2 { margin-top: 0; }
+        label { display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 6px; }
+        input, select, textarea { width: 100%; box-sizing: border-box; margin-bottom: 14px; padding: 11px 12px; border: 1px solid #cbd5e1; border-radius: 12px; }
+        button { border: 0; border-radius: 12px; background: #0f766e; color: #fff; padding: 11px 16px; font-weight: 700; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+        th { font-size: 0.8rem; text-transform: uppercase; color: #64748b; }
+        .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
+        .active { background: #dcfce7; color: #166534; }
+        .revoked { background: #fee2e2; color: #991b1b; }
+        .issued-box, .error-box { margin-bottom: 16px; padding: 14px; border-radius: 14px; }
+        .issued-box { background: #ecfeff; color: #155e75; }
+        .error-box { background: #fef2f2; color: #b91c1c; }
+        .token { font-family: Consolas, monospace; font-size: 0.8rem; word-break: break-all; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; }
+        .plan-list { margin: 0; padding-left: 18px; color: #475569; }
+        .small { font-size: 0.8rem; color: #64748b; }
+        @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    {% set plan_labels = {'basic': 'Básico', 'premium': 'Premium', 'custom': 'Personalizado'} %}
+    {% set license_type_labels = {'perpetual': 'Perpétua', 'subscription': 'Assinatura'} %}
+    {% set status_labels = {'active': 'Ativa', 'trial': 'Teste', 'revoked': 'Revogada'} %}
+    {% set feature_labels = {
+        'reports': 'Relatórios',
+        'audit': 'Auditoria',
+        'maintenance': 'Manutenção',
+        'branding': 'Personalização visual',
+        'email': 'E-mail'
+    } %}
+    <div class="container">
+        <div class="topbar">
+            <div>
+                <h1 style="margin: 0 0 6px;">Painel de Licenças</h1>
+                <div class="small">Emissão, listagem e revogação de licenças comerciais.</div>
+            </div>
+            <a href="/admin/logout">Sair</a>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>Emitir licença</h2>
+                {% if error %}
+                <div class="error-box">{{ error }}</div>
+                {% endif %}
+                {% if issued_license %}
+                <div class="issued-box">
+                    <strong>Licença emitida:</strong> {{ issued_license.payload.license_id }}
+                    <div class="token" style="margin-top:10px;">{{ issued_license.license_key }}</div>
+                </div>
+                {% endif %}
+                <form method="post" action="/admin/licenses/issue">
+                    <label>Empresa</label>
+                    <input name="company_name" required>
+
+                    <label>ID da instalação</label>
+                    <input name="instance_fingerprint" placeholder="inst_xxxxx ou * para licença aberta">
+
+                    <label>Plano</label>
+                    <select name="plan">
+                        <option value="basic">Básico</option>
+                        <option value="premium">Premium</option>
+                    </select>
+
+                    <label>Tipo de licença</label>
+                    <select name="license_type">
+                        <option value="perpetual">Perpétua</option>
+                        <option value="subscription">Assinatura</option>
+                    </select>
+
+                    <label>Duração em dias</label>
+                    <input name="duration_days" type="number" placeholder="Somente para assinatura">
+
+                    <label>Máximo de usuários</label>
+                    <input name="max_users" type="number">
+
+                    <label>Máximo de administradores</label>
+                    <input name="max_admin_users" type="number">
+
+                    <label>Máximo de secretárias</label>
+                    <input name="max_secretary_users" type="number">
+
+                    <button type="submit">Emitir licença</button>
+                </form>
+
+                <h3 style="margin-top:24px;">Planos</h3>
+                <p class="small"><strong>Básico:</strong> operação principal sem módulos premium.</p>
+                <p class="small"><strong>Premium:</strong></p>
+                <ul class="plan-list">
+                    {% for feature in plans['premium'] %}
+                    <li>{{ feature_labels.get(feature, feature) }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="card">
+                <h2>Licenças emitidas</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Empresa</th>
+                            <th>Plano</th>
+                            <th>Status</th>
+                            <th>Instalação</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for license in licenses %}
+                        <tr>
+                            <td>{{ license.license_id }}</td>
+                            <td>
+                                <strong>{{ license.company_name }}</strong><br>
+                                <span class="small">Emitida em {{ license.issued_at.strftime('%d/%m/%Y %H:%M') }}</span>
+                            </td>
+                            <td>{{ plan_labels.get(license.metadata.get('plan', 'custom'), license.metadata.get('plan', 'custom')) }}</td>
+                            <td>
+                                <span class="badge {% if license.status == 'revoked' %}revoked{% else %}active{% endif %}">{{ status_labels.get(license.status, license.status) }}</span><br>
+                                <span class="small">{{ license_type_labels.get(license.license_type, license.license_type) }}</span>
+                            </td>
+                            <td><span class="small">{{ license.instance_fingerprint or '*' }}</span></td>
+                            <td>
+                                {% if license.status != 'revoked' %}
+                                <form method="post" action="/admin/licenses/{{ license.license_id }}/revoke">
+                                    <input name="reason" placeholder="Motivo da revogação" required>
+                                    <button type="submit" style="margin-top:8px;background:#b91c1c;">Revogar</button>
+                                </form>
+                                {% else %}
+                                <span class="small">{{ license.revocation_reason or 'Revogada' }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app, send_from_directory, abort
 from app.models.workorder import WorkOrder
 from app.models.client import Client
 from app.models.equipment import Equipment
@@ -17,18 +17,53 @@ from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle, Image
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+from sqlalchemy import or_
 
 services_bp = Blueprint('services', __name__)
 
 from sqlalchemy import func
 
+
+def get_current_user():
+    current_user_id = get_jwt_identity()
+    return User.query.get(current_user_id) if current_user_id else None
+
+
+def can_access_workorder_photo(user, workorder):
+    if not user:
+        return False
+
+    if user.permission_level in ['admin', 'secretary']:
+        return True
+
+    return workorder.technician_id == user.id
+
+
+@services_bp.route('/uploads/work-orders/<path:filename>')
+@roles_required('admin', 'secretary', 'technician')
+def workorder_photo(filename):
+    normalized_filename = filename.replace('\\', '/').lstrip('/')
+    if '..' in normalized_filename:
+        abort(404)
+
+    workorder = WorkOrder.query.filter(
+        or_(
+            WorkOrder.photo_before == normalized_filename,
+            WorkOrder.photo_after == normalized_filename,
+        )
+    ).first_or_404()
+
+    user = get_current_user()
+    if not can_access_workorder_photo(user, workorder):
+        abort(403)
+
+    return send_from_directory(current_app.config['UPLOAD_ROOT'], normalized_filename)
+
 @services_bp.route('/')
 @roles_required('admin', 'secretary', 'technician')
 def index():
     """Mostrar ordens de serviço agrupadas por cliente com os últimos 5 de cada"""
-    # Get current user
-    current_user_id = get_jwt_identity()
-    current_user = User.query.get(current_user_id) if current_user_id else None
+    current_user = get_current_user()
     
     # Check if user is technician
     is_technician = current_user and current_user.permission_level == 'user'
@@ -123,10 +158,10 @@ def add():
         photo_after_path = None
         
         if photo_before_file and photo_before_file.filename:
-            photo_before_path = save_and_resize_image(photo_before_file, 'uploads/work_orders')
+            photo_before_path = save_and_resize_image(photo_before_file, 'work_orders')
             
         if photo_after_file and photo_after_file.filename:
-            photo_after_path = save_and_resize_image(photo_after_file, 'uploads/work_orders')
+            photo_after_path = save_and_resize_image(photo_after_file, 'work_orders')
 
         wo = WorkOrder(
             client_id=client_id,
@@ -148,9 +183,7 @@ def add():
 @services_bp.route('/edit/<int:id>', methods=['GET', 'POST'])
 @roles_required('admin', 'secretary', 'technician')
 def edit(id):
-    # Get current user
-    current_user_id = get_jwt_identity()
-    current_user = User.query.get(current_user_id) if current_user_id else None
+    current_user = get_current_user()
     
     wo = WorkOrder.query.get_or_404(id)
     
@@ -176,6 +209,7 @@ def edit(id):
         # For now, let's allow all fields for both, but focus on photos and status.
         wo.status = request.form.get('status')
         wo.description = request.form.get('description')
+        raw_total_value = request.form.get('total_value')
         
         try:
             wo.total_value = round(float(raw_total_value), 2) if raw_total_value else 0.0
@@ -191,10 +225,10 @@ def edit(id):
         photo_after_file = request.files.get('photo_after')
         
         if photo_before_file and photo_before_file.filename:
-            wo.photo_before = save_and_resize_image(photo_before_file, 'uploads/work_orders')
+            wo.photo_before = save_and_resize_image(photo_before_file, 'work_orders')
             
         if photo_after_file and photo_after_file.filename:
-            wo.photo_after = save_and_resize_image(photo_after_file, 'uploads/work_orders')
+            wo.photo_after = save_and_resize_image(photo_after_file, 'work_orders')
 
         db.session.commit()
         flash(f'Ordem de Serviço #{id} atualizada com sucesso!', 'success')
@@ -206,9 +240,7 @@ def edit(id):
 @roles_required('admin', 'secretary', 'technician')
 def history():
     """Visualizar histórico completo de ordens de serviço com paginação"""
-    # Get current user
-    current_user_id = get_jwt_identity()
-    current_user = User.query.get(current_user_id) if current_user_id else None
+    current_user = get_current_user()
     
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 10, type=int)
@@ -260,9 +292,7 @@ def history():
 @roles_required('admin', 'secretary', 'technician')
 def export_pdf():
     """Gerar relatório em PDF das ordens de serviço"""
-    # Get current user
-    current_user_id = get_jwt_identity()
-    current_user = User.query.get(current_user_id) if current_user_id else None
+    current_user = get_current_user()
     
     # Mapeamento de status para português
     status_translations = {

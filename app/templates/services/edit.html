@@ -94,7 +94,7 @@
                         <label for="photo_before" class="block text-sm font-medium text-gray-700">Foto ANTES do Serviço</label>
                         {% if wo.photo_before %}
                         <div class="mb-2">
-                            <img src="{{ wo.photo_before }}" class="h-24 w-24 object-cover rounded border">
+                            <img src="{{ workorder_photo_url(wo.photo_before) }}" class="h-24 w-24 object-cover rounded border">
                             <p class="text-[10px] text-gray-500">Foto atual. Faça upload de uma nova para substituir.</p>
                         </div>
                         {% endif %}
@@ -105,7 +105,7 @@
                         <label for="photo_after" class="block text-sm font-medium text-gray-700">Foto DEPOIS do Serviço</label>
                         {% if wo.photo_after %}
                         <div class="mb-2">
-                            <img src="{{ wo.photo_after }}" class="h-24 w-24 object-cover rounded border">
+                            <img src="{{ workorder_photo_url(wo.photo_after) }}" class="h-24 w-24 object-cover rounded border">
                             <p class="text-[10px] text-gray-500">Foto atual. Faça upload de uma nova para substituir.</p>
                         </div>
                         {% endif %}

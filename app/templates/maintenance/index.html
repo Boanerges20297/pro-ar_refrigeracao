@@ -13,7 +13,7 @@
 {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
         {% for category, message in messages %}
-            <div class="mb-4 text-sm {% if category == 'danger' %}text-red-600 bg-red-100{% else %}text-green-600 bg-green-100{% endif %} p-3 rounded">
+            <div class="flash-message mb-4 rounded p-3 text-sm transition-all duration-500 {% if category == 'danger' %}text-red-600 bg-red-100{% else %}text-green-600 bg-green-100{% endif %}" data-auto-dismiss="5000">
                 {{ message }}
             </div>
         {% endfor %}

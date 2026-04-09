@@ -5,7 +5,10 @@ from app.models.equipment import Equipment
 from app.models.service import ServiceCatalog
 from app.models.workorder import WorkOrder
 from app.models.config import AppConfig
+from app.models.license import License
+from app.utils.license import get_instance_fingerprint
 from datetime import datetime, timedelta
+from license_api.security import ensure_keypair, sign_payload
 import random
 
 def seed_database():
@@ -26,6 +29,42 @@ def seed_database():
             text_color='#111827'
         )
         db.session.add(config)
+        db.session.commit()
+
+        print("Seeding License...")
+        ensure_keypair()
+        trial_issued_at = datetime.utcnow()
+        trial_expires_at = trial_issued_at + timedelta(days=365)
+        trial_payload = {
+            'license_id': 'lic_seed_trial',
+            'company_name': config.company_name,
+            'status': 'trial',
+            'license_type': 'subscription',
+            'issued_at': trial_issued_at.isoformat(),
+            'expires_at': trial_expires_at.isoformat(),
+            'max_users': 12,
+            'max_admin_users': 2,
+            'max_secretary_users': 3,
+            'instance_fingerprint': get_instance_fingerprint(),
+            'features': ['reports', 'audit', 'maintenance', 'branding', 'email'],
+            'metadata': {'plan': 'premium'},
+        }
+        license_record = License(
+            license_key=sign_payload(trial_payload),
+            status='active',
+            company_name=config.company_name,
+            instance_fingerprint=trial_payload['instance_fingerprint'],
+            issued_at=trial_issued_at,
+            activated_at=trial_issued_at,
+            expires_at=trial_expires_at,
+            last_validated_at=trial_issued_at,
+            last_validation_status='active',
+            max_users=trial_payload['max_users'],
+            max_admin_users=trial_payload['max_admin_users'],
+            max_secretary_users=trial_payload['max_secretary_users'],
+            feature_flags='["reports", "audit", "maintenance", "branding", "email"]',
+        )
+        db.session.add(license_record)
 
         print("Seeding Users...")
         admin = User(name='Administrador', email='admin@prontoar.com', role='admin')

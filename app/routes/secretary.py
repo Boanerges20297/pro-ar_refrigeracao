@@ -242,7 +242,7 @@ def conclude_workorder(wo_id):
             }
         )
         
-        flash(f"Ordem de serviço {wo_id} concluída!", "success")
+        flash(f"Serviço #{wo_id} encerrado com sucesso.", "success")
     
     except Exception as e:
         flash(f"Erro ao concluir: {str(e)}", "danger")
