@@ -58,12 +58,10 @@
                         <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">OS #</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Data</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Equipamento</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Série</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Serviço</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Técnico</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                        {% if current_user.permission_level == 'admin' %}
-                        <th scope="col" class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Valor</th>
-                        {% endif %}
                         <th scope="col" class="relative px-4 py-3"><span class="sr-only">Ações</span></th>
                     </tr>
                 </thead>
@@ -78,7 +76,10 @@
                             {{ wo.equipment.name if wo.equipment else 'Geral' }}
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-600">
-                            {{ wo.service_id }}
+                            {{ wo.equipment.serial_number if wo.equipment and wo.equipment.serial_number else '-' }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-600">
+                            {{ wo.service_type.name if wo.service_type else '-' }}
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-600">
                             {{ wo.technician.name if wo.technician else '-' }}
@@ -94,15 +95,17 @@
                             <span class="px-2 py-1 inline-flex text-[10px] font-bold rounded-full bg-gray-100 text-gray-800">{{ wo.status }}</span>
                             {% endif %}
                         </td>
-                        {% if current_user.permission_level == 'admin' %}
-                        <td class="px-4 py-3 whitespace-nowrap text-right text-xs font-bold text-gray-900">
-                            R$ {{ "%.2f"|format(wo.total_value) }}
-                        </td>
-                        {% endif %}
                         <td class="px-4 py-3 whitespace-nowrap text-right">
-                            <a href="{{ url_for('services.edit', id=wo.id) }}" class="text-primary hover:text-blue-900 text-xs font-medium">
-                                <i class="fas fa-edit mr-1"></i>Editar
-                            </a>
+                            <div class="flex items-center justify-end gap-3">
+                                {% if wo.status == 'Completed' %}
+                                <a href="{{ url_for('services.receipt', id=wo.id) }}" target="_blank" rel="noopener noreferrer" class="text-gray-600 hover:text-gray-900 text-xs font-medium">
+                                    <i class="fas fa-file-signature mr-1"></i>Recibo
+                                </a>
+                                {% endif %}
+                                <a href="{{ url_for('services.edit', id=wo.id, return_to=request.full_path.rstrip('?')) }}" class="text-primary hover:text-blue-900 text-xs font-medium">
+                                    <i class="fas fa-edit mr-1"></i>Editar
+                                </a>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}

@@ -7,7 +7,7 @@
         <a href="{{ url_for('services.index') }}" class="w-full sm:w-auto bg-secondary hover:opacity-90 text-white font-bold py-2 px-4 rounded transition-all shadow-sm text-center text-sm">
             <i class="fas fa-arrow-left mr-2"></i>Voltar
         </a>
-        <a href="{% if selected_client_id %}{{ url_for('services.export_pdf', client_id=selected_client_id, status=selected_status) }}{% else %}{{ url_for('services.export_pdf') }}{% endif %}" class="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-all shadow-sm text-center text-sm">
+        <a href="{{ url_for('services.export_pdf', client_id=selected_client_id, equipment_id=selected_equipment_id, status=selected_status) }}" class="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-all shadow-sm text-center text-sm">
             <i class="fas fa-file-pdf mr-2"></i>Gerar PDF
         </a>
     </div>
@@ -26,11 +26,11 @@
 <!-- Filtros -->
 <div class="bg-white shadow rounded-lg p-4 sm:p-6 mb-6 border border-gray-100">
     <form method="GET" class="space-y-4">
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <!-- Filtro por Cliente -->
             <div>
                 <label for="client_id" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Empresa</label>
-                <select name="client_id" id="client_id" class="w-full bg-white border border-gray-300 text-gray-700 text-sm rounded-md focus:ring-primary focus:border-primary p-2">
+                <select name="client_id" id="client_id" class="w-full bg-white border border-gray-300 text-gray-700 text-sm rounded-md focus:ring-primary focus:border-primary p-2" onchange="handleClientChange(this.value)">
                     <option value="">Todas as Empresas</option>
                     {% for client in clients %}
                     <option value="{{ client.id }}" {% if request.args.get('client_id')|int == client.id %}selected{% endif %}>
@@ -38,6 +38,29 @@
                     </option>
                     {% endfor %}
                 </select>
+            </div>
+
+            <div>
+                <div class="flex items-end gap-2">
+                    <div class="flex-1">
+                        <label for="equipment_id" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Aparelho</label>
+                        <select name="equipment_id" id="equipment_id" class="w-full bg-white border border-gray-300 text-gray-700 text-sm rounded-md focus:ring-primary focus:border-primary p-2" {% if not selected_client_id %}disabled{% endif %}>
+                            {% if not selected_client_id %}
+                            <option value="">Escolha uma empresa primeiro</option>
+                            {% else %}
+                            <option value="">Todos os aparelhos da empresa</option>
+                            {% for equipment in available_equipments %}
+                            <option value="{{ equipment.id }}" {% if selected_equipment_id == equipment.id %}selected{% endif %}>
+                                {{ equipment.name }}{% if equipment.serial_number %} (SN: {{ equipment.serial_number }}){% endif %}
+                            </option>
+                            {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+                    <button type="button" id="equipment_modal_trigger" onclick="openEquipmentModal()" class="shrink-0 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-md px-3 py-2 transition-all {% if not selected_client_id %}opacity-60 cursor-not-allowed{% endif %}" {% if not selected_client_id %}disabled{% endif %}>
+                        <i class="fas fa-list mr-1"></i>Modal
+                    </button>
+                </div>
             </div>
 
             <!-- Filtro por Status -->
@@ -62,6 +85,10 @@
             </div>
         </div>
 
+        <p class="text-xs text-gray-500 -mt-1">
+            Ao escolher uma empresa, o sistema abre a lista de aparelhos cadastrados para refinar o histórico.
+        </p>
+
         <div class="flex flex-col sm:flex-row gap-2">
             <button type="submit" class="flex-1 bg-primary hover:opacity-90 text-white font-bold py-2 px-4 rounded transition-all shadow-sm text-center">
                 <i class="fas fa-filter mr-2"></i>Filtrar
@@ -83,7 +110,7 @@
                     <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Empresa</th>
                     <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Data</th>
                     <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Equipamento</th>
-                    <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Técnico</th>
+                    <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Técnico Responsável</th>
                     <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
                     {% if current_user.permission_level == 'admin' %}
                     <th scope="col" class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Valor</th>
@@ -124,9 +151,16 @@
                     </td>
                     {% endif %}
                     <td class="px-4 py-3 whitespace-nowrap text-right">
-                        <a href="{{ url_for('services.edit', id=wo.id) }}" class="text-primary hover:text-blue-900 text-xs font-medium">
-                            <i class="fas fa-edit mr-1"></i>Editar
-                        </a>
+                        <div class="flex items-center justify-end gap-3">
+                            {% if wo.status == 'Completed' %}
+                            <a href="{{ url_for('services.receipt', id=wo.id) }}" target="_blank" rel="noopener noreferrer" class="text-gray-600 hover:text-gray-900 text-xs font-medium">
+                                <i class="fas fa-file-signature mr-1"></i>Recibo
+                            </a>
+                            {% endif %}
+                            <a href="{{ url_for('services.edit', id=wo.id, return_to=request.full_path.rstrip('?')) }}" class="text-primary hover:text-blue-900 text-xs font-medium">
+                                <i class="fas fa-edit mr-1"></i>Editar
+                            </a>
+                        </div>
                     </td>
                 </tr>
                 {% else %}
@@ -154,7 +188,7 @@
             <nav class="flex items-center justify-center gap-1" aria-label="Pagination">
                 <!-- Botão Anterior -->
                 {% if pagination.has_prev %}
-                <a href="?page={{ pagination.prev_num }}&per_page={{ per_page }}{% if selected_client_id %}&client_id={{ selected_client_id }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}" 
+                <a href="?page={{ pagination.prev_num }}&per_page={{ per_page }}{% if selected_client_id %}&client_id={{ selected_client_id }}{% endif %}{% if selected_equipment_id %}&equipment_id={{ selected_equipment_id }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}" 
                    class="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 transition-all">
                     <i class="fas fa-chevron-left"></i> Anterior
                 </a>
@@ -167,7 +201,7 @@
                 <!-- Números de Página -->
                 {% for p in pagination.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=0) %}
                     {% if p %}
-                        <a href="?page={{ p }}&per_page={{ per_page }}{% if selected_client_id %}&client_id={{ selected_client_id }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}"
+                        <a href="?page={{ p }}&per_page={{ per_page }}{% if selected_client_id %}&client_id={{ selected_client_id }}{% endif %}{% if selected_equipment_id %}&equipment_id={{ selected_equipment_id }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}"
                            class="px-2 py-1 border rounded text-xs font-medium transition-all {% if p == pagination.page %}bg-primary text-white border-primary{% else %}border-gray-300 text-gray-700 bg-white hover:bg-gray-50{% endif %}">
                             {{ p }}
                         </a>
@@ -178,7 +212,7 @@
 
                 <!-- Botão Próximo -->
                 {% if pagination.has_next %}
-                <a href="?page={{ pagination.next_num }}&per_page={{ per_page }}{% if selected_client_id %}&client_id={{ selected_client_id }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}"
+                <a href="?page={{ pagination.next_num }}&per_page={{ per_page }}{% if selected_client_id %}&client_id={{ selected_client_id }}{% endif %}{% if selected_equipment_id %}&equipment_id={{ selected_equipment_id }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}"
                    class="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 transition-all">
                     Próximo <i class="fas fa-chevron-right"></i>
                 </a>
@@ -193,4 +227,157 @@
     </div>
 </div>
 
+<div id="equipmentModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-16 mx-auto p-4 sm:p-5 border w-full sm:w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white mx-4 sm:mx-auto">
+        <div class="flex justify-between items-center pb-3 mb-4 border-b border-gray-200">
+            <div>
+                <h3 class="text-lg sm:text-xl font-bold text-gray-900" id="modalTitle">Selecionar aparelho</h3>
+                <p class="text-xs text-gray-500 mt-1">Escolha um aparelho da empresa para aplicar o filtro.</p>
+            </div>
+            <button type="button" onclick="closeEquipmentModal()" class="text-gray-400 hover:text-gray-500 flex-shrink-0">
+                <i class="fas fa-times text-2xl"></i>
+            </button>
+        </div>
+        <div class="mt-4" id="modalContent">
+            <div class="flex justify-center py-10">
+                <i class="fas fa-spinner fa-spin text-3xl text-primary"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+const equipmentModal = document.getElementById('equipmentModal');
+const clientSelect = document.getElementById('client_id');
+const equipmentSelect = document.getElementById('equipment_id');
+const equipmentModalTrigger = document.getElementById('equipment_modal_trigger');
+const modalContent = document.getElementById('modalContent');
+const modalTitle = document.getElementById('modalTitle');
+
+function updateEquipmentTriggerState() {
+    const hasClient = Boolean(clientSelect.value);
+    equipmentSelect.disabled = !hasClient;
+    equipmentModalTrigger.disabled = !hasClient;
+    equipmentModalTrigger.classList.toggle('opacity-60', !hasClient);
+    equipmentModalTrigger.classList.toggle('cursor-not-allowed', !hasClient);
+
+    if (!hasClient) {
+        equipmentSelect.innerHTML = '<option value="">Escolha uma empresa primeiro</option>';
+    }
+}
+
+function populateEquipmentSelect(equipments, selectedId = '') {
+    if (!clientSelect.value) {
+        equipmentSelect.innerHTML = '<option value="">Escolha uma empresa primeiro</option>';
+        return;
+    }
+
+    let html = '<option value="">Todos os aparelhos da empresa</option>';
+    equipments.forEach(eq => {
+        const label = `${eq.name}${eq.serial_number ? ` (SN: ${eq.serial_number})` : ''}`;
+        const isSelected = String(selectedId) === String(eq.id) ? 'selected' : '';
+        html += `<option value="${eq.id}" ${isSelected}>${label}</option>`;
+    });
+    equipmentSelect.innerHTML = html;
+}
+
+function setEquipmentSelection(equipmentId) {
+    equipmentSelect.value = equipmentId || '';
+    closeEquipmentModal();
+}
+
+function selectEquipmentFromButton(button) {
+    setEquipmentSelection(button.dataset.equipmentId || '');
+}
+
+function handleClientChange(clientId) {
+    if (!clientId) {
+        updateEquipmentTriggerState();
+        return;
+    }
+
+    updateEquipmentTriggerState();
+    openEquipmentModal(clientId);
+}
+
+function openEquipmentModal(clientId = clientSelect.value) {
+    if (!clientId) {
+        return;
+    }
+
+    equipmentModal.classList.remove('hidden');
+    modalContent.innerHTML = '<div class="flex justify-center py-10"><i class="fas fa-spinner fa-spin text-3xl text-primary"></i></div>';
+
+    fetch(`/clients/api/${clientId}/equipment`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Erro ao carregar equipamentos');
+            }
+            return response.json();
+        })
+        .then(data => {
+            modalTitle.innerText = `Aparelhos - ${data.client_name}`;
+            populateEquipmentSelect(data.equipments, equipmentSelect.value);
+
+            let html = `
+                <div class="space-y-3">
+                    <button type="button" onclick="setEquipmentSelection('')" class="w-full text-left border border-primary/20 bg-blue-50 hover:bg-blue-100 rounded-lg px-4 py-3 transition-all">
+                        <span class="block text-sm font-semibold text-primary">Todos os aparelhos da empresa</span>
+                        <span class="block text-xs text-gray-600 mt-1">Mantém o filtro pela empresa sem restringir a um aparelho específico.</span>
+                    </button>
+            `;
+
+            if (data.equipments.length === 0) {
+                html += '<p class="text-center py-6 text-gray-500">Esta empresa não possui aparelhos cadastrados.</p>';
+            } else {
+                html += '<div class="max-h-[26rem] overflow-y-auto space-y-2 pr-1">';
+
+                data.equipments.forEach(eq => {
+                    const serial = eq.serial_number ? `SN: ${eq.serial_number}` : 'Sem número de série';
+                    const location = eq.location || 'Local não informado';
+                    const brand = eq.brand || 'Marca não informada';
+                    const model = eq.model || 'Modelo não informado';
+
+                    html += `
+                        <button type="button" data-equipment-id="${eq.id}" onclick="selectEquipmentFromButton(this)" class="w-full text-left border border-gray-200 hover:border-primary hover:bg-gray-50 rounded-lg px-4 py-3 transition-all">
+                            <span class="block text-sm font-semibold text-gray-900">${eq.name}</span>
+                            <span class="block text-xs text-gray-500 mt-1">${brand} • ${model}</span>
+                            <span class="block text-xs text-gray-500 mt-1">${serial} • ${location}</span>
+                        </button>
+                    `;
+                });
+
+                html += '</div>';
+            }
+
+            html += '</div>';
+            modalContent.innerHTML = html;
+        })
+        .catch(() => {
+            modalContent.innerHTML = '<p class="text-center py-10 text-red-500">Erro ao carregar aparelhos da empresa.</p>';
+        });
+}
+
+function closeEquipmentModal() {
+    equipmentModal.classList.add('hidden');
+}
+
+window.addEventListener('click', function(event) {
+    if (event.target === equipmentModal) {
+        closeEquipmentModal();
+    }
+});
+
+window.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape' && !equipmentModal.classList.contains('hidden')) {
+        closeEquipmentModal();
+    }
+});
+
+updateEquipmentTriggerState();
+</script>
 {% endblock %}

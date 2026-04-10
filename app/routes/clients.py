@@ -65,6 +65,15 @@ def edit(id):
 @roles_required('admin', 'secretary', 'technician')
 def api_get_equipment(client_id):
     client = Client.query.get_or_404(client_id)
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id) if current_user_id else None
+
+    is_technician = current_user and current_user.permission_level == 'user'
+    if is_technician:
+        client_ids = get_technician_client_ids(current_user.id)
+        if client.id not in client_ids:
+            return jsonify({'message': 'Acesso negado.'}), 403
+
     equipments = []
     for eq in client.equipments:
         equipments.append({

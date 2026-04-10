@@ -5,7 +5,7 @@
     <h2 class="text-2xl font-bold text-gray-800">Editar Ordem de Serviço (OS) #{{ wo.id }}</h2>
 </div>
 
-{% if wo.status == 'Completed' and current_user.permission_level == 'user' %}
+{% if wo.status == 'Completed' and current_user.permission_level == 'user' and not prompt_receipt %}
 <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
     <p class="text-red-700 font-medium"><i class="fas fa-lock mr-2"></i> Este serviço foi concluído e não pode ser alterado.</p>
 </div>
@@ -14,6 +14,7 @@
 <div class="bg-white shadow overflow-hidden sm:rounded-lg max-w-4xl mx-auto p-6">
     <form method="POST" action="{{ url_for('services.edit', id=wo.id) }}" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="return_to" value="{{ return_to }}">
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
@@ -117,7 +118,7 @@
             {% endif %}
 
             <div class="md:col-span-2 flex justify-end mt-4">
-                <a href="{{ url_for('services.index') }}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mr-3">
+                <a href="{{ return_to or url_for('services.index') }}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mr-3">
                     Cancelar
                 </a>
                 <button type="submit" class="bg-primary border border-transparent rounded-md shadow-sm py-2 px-4 inline-flex justify-center text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {% if current_user.permission_level == 'user' and wo.status == 'Completed' %}disabled{% endif %}>
@@ -127,10 +128,30 @@
         </div>
     </form>
 </div>
+
+{% if prompt_receipt %}
+<div id="receiptPromptModal" class="fixed inset-0 z-50 overflow-y-auto bg-gray-900/60 p-4">
+    <div class="flex min-h-[calc(100vh-2rem)] items-center justify-center">
+        <div class="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div class="px-5 py-5 border-b border-gray-100 sm:px-6">
+            <h3 class="text-xl font-bold text-gray-900">Serviço Concluído</h3>
+            <p class="mt-2 text-sm text-gray-500">Deseja imprimir o recibo?</p>
+        </div>
+        <div class="flex flex-col gap-3 px-5 py-5 sm:flex-row sm:justify-end sm:px-6">
+            <button type="button" onclick="closeReceiptPrompt()" class="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-700 font-semibold hover:bg-gray-50 sm:w-auto">Agora não</button>
+            <button type="button" onclick="printReceiptAndReturn()" class="w-full rounded-lg bg-primary px-4 py-2 text-center font-semibold text-white hover:opacity-90 sm:w-auto">Imprimir Recibo</button>
+        </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
+const receiptUrl = {{ url_for('services.receipt', id=wo.id)|tojson }};
+const returnToUrl = {{ (return_to or url_for('services.index'))|tojson }};
+
 function checkFileSize(input) {
     if (input.files && input.files[0]) {
         const fileSize = input.files[0].size / 1024 / 1024; // in MB
@@ -138,6 +159,15 @@ function checkFileSize(input) {
             alert(`A imagem selecionada possui ${fileSize.toFixed(2)}MB. \n\nO sistema irá redimensioná-la automaticamente para economizar espaço, mas recomendamos o uso de imagens menores para um upload mais rápido.`);
         }
     }
+}
+
+function closeReceiptPrompt() {
+    window.location.href = returnToUrl;
+}
+
+function printReceiptAndReturn() {
+    window.open(receiptUrl, '_blank', 'noopener,noreferrer');
+    window.location.href = returnToUrl;
 }
 </script>
 {% endblock %}

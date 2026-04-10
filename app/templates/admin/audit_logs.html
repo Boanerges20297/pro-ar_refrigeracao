@@ -50,7 +50,7 @@
                     {% for action_tuple in actions %}
                     {% set action_name = action_tuple[0] %}
                     <option value="{{ action_name }}" {% if action_name == action_filter %}selected{% endif %}>
-                        {{ action_name }}
+                        {{ action_labels.get(action_name, action_name.replace('_', ' ').title()) }}
                     </option>
                     {% endfor %}
                 </select>
@@ -64,7 +64,7 @@
                     {% for resource_tuple in resource_types %}
                     {% set resource_name = resource_tuple[0] %}
                     <option value="{{ resource_name }}" {% if resource_name == resource_type_filter %}selected{% endif %}>
-                        {{ resource_name }}
+                        {{ resource_labels.get(resource_name, resource_name) }}
                     </option>
                     {% endfor %}
                 </select>
@@ -115,18 +115,13 @@
             </thead>
             <tbody>
                 {% for log in logs %}
-                <tr class="border-b hover:bg-gray-50 transition">
+                <tr class="border-b hover:bg-gray-50 transition cursor-pointer audit-log-row" data-log-id="{{ log.id }}">
                     <td class="px-6 py-4 text-sm text-gray-700">
                         <i class="fas fa-clock mr-2 text-gray-400"></i>
-                        {{ log.timestamp.strftime('%d/%m/%Y %H:%M:%S') }}
+                        {{ log.timestamp_label }}
                     </td>
                     <td class="px-6 py-4 text-sm text-gray-700">
-                        {% set user = users|selectattr('id', 'equalto', log.user_id)|first %}
-                        {% if user %}
-                        <strong>{{ user.name }}</strong>
-                        {% else %}
-                        <span class="text-gray-400">Desconhecido</span>
-                        {% endif %}
+                        <strong>{{ log.user_name }}</strong>
                     </td>
                     <td class="px-6 py-4 text-sm">
                         <span class="inline-block px-3 py-1 rounded-full text-xs font-medium
@@ -137,12 +132,12 @@
                             {% elif log.action == 'DELETE' %}bg-red-100 text-red-800
                             {% else %}bg-purple-100 text-purple-800
                             {% endif %}">
-                            {{ log.action }}
+                            {{ log.action_label }}
                         </span>
                     </td>
                     <td class="px-6 py-4 text-sm text-gray-700">
                         <div>
-                            <strong>{{ log.resource_type }}</strong>
+                            <strong>{{ log.resource_label }}</strong>
                             {% if log.resource_id %}
                             <br><span class="text-xs text-gray-500">#{{ log.resource_id }}</span>
                             {% endif %}
@@ -208,4 +203,87 @@
     </div>
     {% endif %}
 </div>
+
+{% if logs %}
+<div id="auditLogModal" class="hidden fixed inset-0 z-50 bg-gray-900/60 p-4">
+    <div class="mx-auto mt-10 w-full max-w-3xl rounded-2xl bg-white shadow-2xl overflow-hidden">
+        <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+            <div>
+                <h3 class="text-xl font-bold text-gray-900">Detalhes do Registro</h3>
+                <p class="text-sm text-gray-500">Informações completas da ação auditada.</p>
+            </div>
+            <button type="button" onclick="closeAuditLogDetails()" class="text-gray-400 hover:text-gray-700">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div class="max-h-[75vh] overflow-y-auto px-6 py-5">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6" id="auditLogMeta"></div>
+            <div class="rounded-xl border border-gray-200 overflow-hidden">
+                <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                    <h4 class="font-semibold text-gray-800">Detalhamento</h4>
+                </div>
+                <div id="auditLogDetails" class="divide-y divide-gray-100"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+{{ super() }}
+<script type="application/json" id="auditLogsData">{{ logs|tojson }}</script>
+<script>
+const auditLogsData = JSON.parse(document.getElementById('auditLogsData').textContent);
+
+document.querySelectorAll('.audit-log-row').forEach((row) => {
+    row.addEventListener('click', () => {
+        openAuditLogDetails(Number(row.dataset.logId));
+    });
+});
+
+function openAuditLogDetails(logId) {
+    const log = auditLogsData.find(item => item.id === logId);
+    if (!log) {
+        return;
+    }
+
+    const modal = document.getElementById('auditLogModal');
+    const meta = document.getElementById('auditLogMeta');
+    const details = document.getElementById('auditLogDetails');
+
+    meta.innerHTML = `
+        <div class="rounded-xl bg-gray-50 border border-gray-200 p-4"><span class="block text-xs uppercase tracking-wider text-gray-500 mb-1">Usuário</span><strong class="text-gray-900">${log.user_name}</strong></div>
+        <div class="rounded-xl bg-gray-50 border border-gray-200 p-4"><span class="block text-xs uppercase tracking-wider text-gray-500 mb-1">Ação</span><strong class="text-gray-900">${log.action_label}</strong></div>
+        <div class="rounded-xl bg-gray-50 border border-gray-200 p-4"><span class="block text-xs uppercase tracking-wider text-gray-500 mb-1">Recurso</span><strong class="text-gray-900">${log.resource_label}${log.resource_id ? ' #' + log.resource_id : ''}</strong></div>
+        <div class="rounded-xl bg-gray-50 border border-gray-200 p-4"><span class="block text-xs uppercase tracking-wider text-gray-500 mb-1">Status</span><strong class="text-gray-900">${log.status === 'success' ? 'Sucesso' : 'Erro'}</strong></div>
+        <div class="rounded-xl bg-gray-50 border border-gray-200 p-4"><span class="block text-xs uppercase tracking-wider text-gray-500 mb-1">Data/Hora</span><strong class="text-gray-900">${log.timestamp_label}</strong></div>
+        <div class="rounded-xl bg-gray-50 border border-gray-200 p-4"><span class="block text-xs uppercase tracking-wider text-gray-500 mb-1">IP / Navegador</span><strong class="text-gray-900">${log.ip_address || 'N/A'}</strong><span class="block text-xs text-gray-500 mt-1">${log.user_agent || 'Não informado'}</span></div>
+    `;
+
+    if (!log.details_rows.length) {
+        details.innerHTML = '<div class="px-4 py-6 text-sm text-gray-500">Nenhum detalhe adicional foi registrado para esta ação.</div>';
+    } else {
+        details.innerHTML = log.details_rows.map(row => `
+            <div class="px-4 py-3 grid grid-cols-1 md:grid-cols-[220px,1fr] gap-2">
+                <strong class="text-sm text-gray-700">${row.label}</strong>
+                <span class="text-sm text-gray-600 break-words">${row.value}</span>
+            </div>
+        `).join('');
+    }
+
+    modal.classList.remove('hidden');
+}
+
+function closeAuditLogDetails() {
+    document.getElementById('auditLogModal').classList.add('hidden');
+}
+
+window.addEventListener('click', function(event) {
+    const modal = document.getElementById('auditLogModal');
+    if (event.target === modal) {
+        closeAuditLogDetails();
+    }
+});
+</script>
+{% endblock %}
+{% endif %}
 {% endblock %}

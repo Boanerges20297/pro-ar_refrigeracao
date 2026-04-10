@@ -33,6 +33,23 @@
         nav.app-navbar .nav-user-role { color: var(--navbar-link); opacity: 0.65; }
         nav.app-navbar .nav-logout { color: var(--navbar-link); opacity: 0.75; border-color: color-mix(in srgb, var(--navbar-link) 25%, transparent); }
         nav.app-navbar .nav-logout:hover { opacity: 1; color: #ef4444; border-color: #fca5a5; }
+        nav.app-navbar .brand-logo-shell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 4rem;
+            width: 4rem;
+            border-radius: 9999px;
+            background: color-mix(in srgb, white 92%, var(--navbar-bg) 8%);
+            border: 2px solid color-mix(in srgb, var(--navbar-bg) 72%, white 28%);
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+            overflow: hidden;
+        }
+        nav.app-navbar .brand-logo-shell img {
+            height: 82%;
+            width: 82%;
+            object-fit: contain;
+        }
     </style>
     {% else %}
     <style>
@@ -53,6 +70,23 @@
         nav.app-navbar a.nav-link { color: var(--navbar-link) !important; }
         nav.app-navbar a.nav-link:hover { color: var(--primary-color) !important; }
         nav.app-navbar .brand-name { color: var(--primary-color); }
+        nav.app-navbar .brand-logo-shell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 4rem;
+            width: 4rem;
+            border-radius: 9999px;
+            background: rgba(255,255,255,0.95);
+            border: 2px solid rgba(255,255,255,0.6);
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+            overflow: hidden;
+        }
+        nav.app-navbar .brand-logo-shell img {
+            height: 82%;
+            width: 82%;
+            object-fit: contain;
+        }
     </style>
     {% endif %}
     <style>
@@ -118,7 +152,7 @@
             <div class="flex items-center justify-between min-h-[4rem] py-2 gap-4">
                 <!-- Brand -->
                 <div class="flex items-center gap-2 flex-shrink-0 whitespace-nowrap">
-                    <div class="h-16 flex-shrink-0 bg-transparent">
+                    <div class="brand-logo-shell flex-shrink-0">
                         <img class="h-full w-auto object-contain" src="{{ app_config.logo_path if app_config.logo_path else 'https://ui-avatars.com/api/?name=Pronto+Ar&background=3b82f6&color=fff' }}" alt="Logo">
                     </div>
                     <span class="brand-name font-bold text-base leading-tight">{{ app_config.company_name if app_config else 'Pronto Ar Refrigeração' }}</span>
@@ -170,83 +204,6 @@
                                     {{ alerts.total_count }}
                                 </span>
                             </button>
-                            
-                            <!-- Dropdown de Notificações -->
-                            <div id="notificationsDropdown" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-2xl border border-gray-200 z-50 max-h-96 overflow-y-auto">
-                                <div class="px-4 py-3 border-b border-gray-100 bg-gray-50">
-                                    <h3 class="text-sm font-bold text-gray-900">Suas Notificações</h3>
-                                </div>
-                                
-                                <!-- Serviços para Hoje -->
-                                {% if alerts.services_today %}
-                                <div class="px-4 py-3 border-b border-gray-100">
-                                    <p class="text-xs font-bold text-blue-700 mb-2">📅 SERVIÇOS PARA HOJE ({{ alerts.services_today|length }})</p>
-                                    {% for service in alerts.services_today[:3] %}
-                                    <div class="text-xs text-gray-700 bg-blue-50 p-2 rounded mb-1">
-                                        <span class="font-semibold">OS #{{ service.id }}</span> - {{ service.client.name }}
-                                    </div>
-                                    {% endfor %}
-                                    {% if alerts.services_today|length > 3 %}
-                                    <p class="text-xs text-gray-500 mt-1">+ {{ alerts.services_today|length - 3 }} mais</p>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
-                                
-                                <!-- Serviços Atrasados -->
-                                {% if alerts.overdue_services %}
-                                <div class="px-4 py-3 border-b border-gray-100">
-                                    <p class="text-xs font-bold text-red-700 mb-2">⚠️ SERVIÇOS ATRASADOS ({{ alerts.overdue_services|length }})</p>
-                                    {% for service in alerts.overdue_services[:3] %}
-                                    <div class="text-xs text-gray-700 bg-red-50 p-2 rounded mb-1">
-                                        <span class="font-semibold">OS #{{ service.id }}</span> - {{ service.client.name }}
-                                    </div>
-                                    {% endfor %}
-                                    {% if alerts.overdue_services|length > 3 %}
-                                    <p class="text-xs text-gray-500 mt-1">+ {{ alerts.overdue_services|length - 3 }} mais</p>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
-                                
-                                <!-- Manutenção Atrasada -->
-                                {% if alerts.overdue_maintenance %}
-                                <div class="px-4 py-3 border-b border-gray-100">
-                                    <p class="text-xs font-bold text-orange-700 mb-2">🔧 MANUTENÇÃO ATRASADA ({{ alerts.overdue_maintenance|length }})</p>
-                                    {% for maint in alerts.overdue_maintenance[:3] %}
-                                    <div class="text-xs text-gray-700 bg-orange-50 p-2 rounded mb-1">
-                                        <span class="font-semibold">{{ maint.equipment.name }}</span> - {{ maint.equipment.owner.name }}
-                                    </div>
-                                    {% endfor %}
-                                    {% if alerts.overdue_maintenance|length > 3 %}
-                                    <p class="text-xs text-gray-500 mt-1">+ {{ alerts.overdue_maintenance|length - 3 }} mais</p>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
-                                
-                                <!-- Manutenção Próxima -->
-                                {% if alerts.upcoming_maintenance %}
-                                <div class="px-4 py-3 border-b border-gray-100">
-                                    <p class="text-xs font-bold text-yellow-700 mb-2">⏱️ PRÓXIMOS 7 DIAS ({{ alerts.upcoming_maintenance|length }})</p>
-                                    {% for maint in alerts.upcoming_maintenance[:3] %}
-                                    <div class="text-xs text-gray-700 bg-yellow-50 p-2 rounded mb-1">
-                                        <span class="font-semibold">{{ maint.equipment.name }}</span> - {{ maint.next_maintenance_date.strftime('%d/%m/%Y') }}
-                                    </div>
-                                    {% endfor %}
-                                    {% if alerts.upcoming_maintenance|length > 3 %}
-                                    <p class="text-xs text-gray-500 mt-1">+ {{ alerts.upcoming_maintenance|length - 3 }} mais</p>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
-                                
-                                <div class="px-4 py-2 bg-gray-50 border-t border-gray-100 text-center">
-                                    {% if current_user.permission_level == 'admin' %}
-                                    <a href="{{ url_for('admin.dashboard') }}" class="text-xs text-primary hover:text-blue-900 font-medium">Ver Dashboard Completo →</a>
-                                    {% elif current_user.permission_level == 'secretary' %}
-                                    <a href="{{ url_for('secretary.dashboard') }}" class="text-xs text-primary hover:text-blue-900 font-medium">Ver Dashboard →</a>
-                                    {% else %}
-                                    <a href="{{ url_for('tech.dashboard') }}" class="text-xs text-primary hover:text-blue-900 font-medium">Ver Dashboard →</a>
-                                    {% endif %}
-                                </div>
-                            </div>
                         </div>
                         {% endif %}
                         
@@ -323,6 +280,207 @@
         </div>
         {% endif %}
     </nav>
+
+    {% if current_user and alerts and alerts.total_count > 0 %}
+    <div id="notificationsModal" class="hidden fixed inset-0 z-[60] overflow-y-auto bg-gray-900/60 p-3 sm:p-4">
+        <div class="mx-auto mt-3 flex min-h-[calc(100vh-1.5rem)] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl sm:mt-8 sm:min-h-0 sm:max-h-[86vh]">
+            <div class="flex flex-col gap-4 border-b border-gray-100 px-4 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-8">
+                <div class="min-w-0">
+                    <p class="text-xs font-bold uppercase tracking-[0.22em] text-red-500">Central de Alertas</p>
+                    <h3 class="mt-1 text-xl font-bold text-gray-900 sm:text-2xl">
+                        {% if current_user.permission_level == 'user' %}
+                        Seus serviços em atraso
+                        {% else %}
+                        Histórico de atrasos e pendências
+                        {% endif %}
+                    </h3>
+                    <p class="mt-2 text-sm text-gray-500">
+                        {% if current_user.permission_level == 'admin' %}
+                            Histórico vivo dos atrasos operacionais, com técnico responsável, datas e impacto diário.
+                        {% elif current_user.permission_level == 'secretary' %}
+                            Histórico dos atrasos, atendimentos do dia e ordens sem técnico para agir rapidamente.
+                        {% else %}
+                            Histórico dos seus serviços em atraso, com prioridade por dias vencidos.
+                        {% endif %}
+                    </p>
+                </div>
+                <button type="button" onclick="toggleNotifications(false)" class="self-end rounded-full p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 sm:self-auto">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <div class="overflow-y-auto px-4 py-5 sm:px-8 sm:py-6">
+                <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <div class="rounded-2xl border border-red-100 bg-red-50 p-4">
+                        <span class="block text-xs font-bold uppercase tracking-[0.18em] text-red-500">Serviços em atraso</span>
+                        <strong class="mt-2 block text-3xl font-bold text-red-700">{{ alerts.overdue_services|length }}</strong>
+                    </div>
+                    {% if current_user.permission_level != 'user' %}
+                    <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                        <span class="block text-xs font-bold uppercase tracking-[0.18em] text-blue-500">Serviços para hoje</span>
+                        <strong class="mt-2 block text-3xl font-bold text-blue-700">{{ alerts.services_today|length }}</strong>
+                    </div>
+                    <div class="rounded-2xl border border-orange-100 bg-orange-50 p-4">
+                        <span class="block text-xs font-bold uppercase tracking-[0.18em] text-orange-500">Manutenções atrasadas</span>
+                        <strong class="mt-2 block text-3xl font-bold text-orange-700">{{ alerts.overdue_maintenance|length }}</strong>
+                    </div>
+                    <div class="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+                        <span class="block text-xs font-bold uppercase tracking-[0.18em] text-amber-500">Sem técnico</span>
+                        <strong class="mt-2 block text-3xl font-bold text-amber-700">{{ alerts.pending_assignment|length }}</strong>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if current_user.permission_level == 'user' %}
+                <section class="rounded-3xl border border-red-100 bg-gradient-to-br from-red-50 via-white to-amber-50 p-6 shadow-sm">
+                    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="flex items-start gap-4">
+                            <div class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-600 shadow-inner sm:h-14 sm:w-14">
+                                <i class="fas fa-triangle-exclamation text-2xl"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h4 class="text-lg font-bold text-gray-900">Atenção às suas ordens</h4>
+                                <p class="mt-1 max-w-2xl text-sm leading-6 text-gray-600">Você tem serviços em atraso ou pendentes verifique.</p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="toggleNotifications(false)" class="inline-flex w-full items-center justify-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 sm:w-auto">
+                            Fechar aviso
+                        </button>
+                    </div>
+                </section>
+                {% else %}
+                <section class="mb-6 rounded-3xl border border-red-100 bg-white shadow-sm overflow-hidden">
+                    <div class="border-b border-red-100 bg-red-50 px-5 py-4">
+                        <h4 class="text-lg font-bold text-red-800">Serviços em Atraso</h4>
+                        <p class="text-sm text-red-600">Lista priorizada por atendimento vencido.</p>
+                    </div>
+                    {% if alerts.overdue_services_details %}
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-white">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">OS</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Cliente</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Equipamento</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Serviço</th>
+                                    {% if current_user.permission_level != 'user' %}
+                                    <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Técnico</th>
+                                    {% endif %}
+                                    <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Data</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Dias em atraso</th>
+                                    <th class="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-gray-500">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                {% for item in alerts.overdue_services_details %}
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-4 py-3 font-bold text-gray-900">#{{ item.id }}</td>
+                                    <td class="px-4 py-3 text-gray-700">{{ item.client_name }}</td>
+                                    <td class="px-4 py-3 text-gray-700">{{ item.equipment_name }}</td>
+                                    <td class="px-4 py-3 text-gray-600">{{ item.service_name }}</td>
+                                    {% if current_user.permission_level != 'user' %}
+                                    <td class="px-4 py-3 text-gray-600">{{ item.technician_name }}</td>
+                                    {% endif %}
+                                    <td class="px-4 py-3 text-gray-600">{{ item.scheduled_date.strftime('%d/%m/%Y %H:%M') if item.scheduled_date else '-' }}</td>
+                                    <td class="px-4 py-3">
+                                        <span class="inline-flex rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700">{{ item.days_overdue }} dia(s)</span>
+                                    </td>
+                                    <td class="px-4 py-3 text-right">
+                                        <a href="{{ item.edit_url }}" class="text-primary hover:text-blue-900 font-semibold">Abrir</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="px-5 py-8 text-sm text-gray-500">Nenhum serviço em atraso no momento.</div>
+                    {% endif %}
+                </section>
+
+                {% if current_user.permission_level != 'user' %}
+                <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                    <section class="rounded-3xl border border-blue-100 bg-white shadow-sm overflow-hidden">
+                        <div class="border-b border-blue-100 bg-blue-50 px-5 py-4">
+                            <h4 class="text-lg font-bold text-blue-800">Serviços do Dia</h4>
+                            <p class="text-sm text-blue-600">Atendimentos programados para hoje.</p>
+                        </div>
+                        {% if alerts.services_today_details %}
+                        <div class="divide-y divide-gray-100">
+                            {% for item in alerts.services_today_details %}
+                            <div class="px-5 py-4">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <p class="text-sm font-bold text-gray-900">OS #{{ item.id }} · {{ item.client_name }}</p>
+                                        <p class="mt-1 text-sm text-gray-600">{{ item.equipment_name }} · {{ item.technician_name }}</p>
+                                    </div>
+                                    <span class="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">{{ item.scheduled_date.strftime('%H:%M') if item.scheduled_date else '-' }}</span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="px-5 py-8 text-sm text-gray-500">Nenhum atendimento programado para hoje.</div>
+                        {% endif %}
+                    </section>
+
+                    <section class="rounded-3xl border border-amber-100 bg-white shadow-sm overflow-hidden">
+                        <div class="border-b border-amber-100 bg-amber-50 px-5 py-4">
+                            <h4 class="text-lg font-bold text-amber-800">Ordens Sem Técnico</h4>
+                            <p class="text-sm text-amber-600">Atendimentos que ainda exigem distribuição.</p>
+                        </div>
+                        {% if alerts.pending_assignment_details %}
+                        <div class="divide-y divide-gray-100">
+                            {% for item in alerts.pending_assignment_details %}
+                            <div class="px-5 py-4">
+                                <p class="text-sm font-bold text-gray-900">OS #{{ item.id }} · {{ item.client_name }}</p>
+                                <p class="mt-1 text-sm text-gray-600">{{ item.service_name }} · {{ item.equipment_name }}</p>
+                                <p class="mt-1 text-xs text-gray-500">Data prevista: {{ item.scheduled_date.strftime('%d/%m/%Y %H:%M') if item.scheduled_date else '-' }}</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="px-5 py-8 text-sm text-gray-500">Nenhuma ordem pendente de atribuição.</div>
+                        {% endif %}
+                    </section>
+
+                    {% if alerts.overdue_maintenance_details %}
+                    <section class="xl:col-span-2 rounded-3xl border border-orange-100 bg-white shadow-sm overflow-hidden">
+                        <div class="border-b border-orange-100 bg-orange-50 px-5 py-4">
+                            <h4 class="text-lg font-bold text-orange-800">Manutenções Atrasadas</h4>
+                            <p class="text-sm text-orange-600">Itens preventivos vencidos que exigem reação imediata.</p>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-sm">
+                                <thead class="bg-white">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Cliente</th>
+                                        <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Equipamento</th>
+                                        <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Data prevista</th>
+                                        <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Dias em atraso</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    {% for item in alerts.overdue_maintenance_details %}
+                                    <tr>
+                                        <td class="px-4 py-3 text-gray-700">{{ item.client_name }}</td>
+                                        <td class="px-4 py-3 text-gray-700">{{ item.equipment_name }}</td>
+                                        <td class="px-4 py-3 text-gray-600">{{ item.scheduled_date.strftime('%d/%m/%Y') if item.scheduled_date else '-' }}</td>
+                                        <td class="px-4 py-3"><span class="inline-flex rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700">{{ item.days_overdue }} dia(s)</span></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Global Scanner Modal -->
     <div id="global-scanner-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-[100]" style="display: none;">
@@ -651,19 +809,36 @@
             }
         }
 
-        function toggleNotifications() {
-            const dropdown = document.getElementById('notificationsDropdown');
-            if (dropdown) {
-                dropdown.classList.toggle('hidden');
-                // Fechar ao clicar fora
-                document.addEventListener('click', function closeDropdown(e) {
-                    if (!e.target.closest('.relative.group') && !dropdown.classList.contains('hidden')) {
-                        dropdown.classList.add('hidden');
-                        document.removeEventListener('click', closeDropdown);
-                    }
-                });
+        function toggleNotifications(forceState) {
+            const modal = document.getElementById('notificationsModal');
+            if (modal) {
+                const shouldOpen = typeof forceState === 'boolean' ? forceState : modal.classList.contains('hidden');
+                modal.classList.toggle('hidden', !shouldOpen);
             }
         }
+
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('notificationsModal');
+            if (modal && event.target === modal) {
+                toggleNotifications(false);
+            }
+        });
+
+        (function autoOpenAlertsOnLogin() {
+            const modal = document.getElementById('notificationsModal');
+            if (!modal) {
+                return;
+            }
+
+            const alertCount = Number('{{ alerts.total_count if alerts else 0 }}');
+            const currentUserId = '{{ current_user.id if current_user else "anonymous" }}';
+            const storageKey = `prontoar-alert-modal-opened-${currentUserId}`;
+
+            if (alertCount > 0 && !window.sessionStorage.getItem(storageKey)) {
+                window.sessionStorage.setItem(storageKey, '1');
+                window.setTimeout(() => toggleNotifications(true), 450);
+            }
+        })();
 
         document.querySelectorAll('.flash-message[data-auto-dismiss]').forEach((message) => {
             const delay = Number(message.dataset.autoDismiss || '5000');

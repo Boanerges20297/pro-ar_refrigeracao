@@ -1,3 +1,4 @@
+import json
 import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from flask_jwt_extended import get_jwt_identity, jwt_required
@@ -16,6 +17,98 @@ ALLOWED_LOGO_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp', 'svg'}
 MAX_LOGO_SIZE_BYTES = 2 * 1024 * 1024  # 2 MB
 
 admin_bp = Blueprint('admin', __name__)
+
+AUDIT_ACTION_LABELS = {
+    'LOGIN': 'Login',
+    'LOGOUT': 'Logout',
+    'CREATE': 'Criação',
+    'UPDATE': 'Alteração',
+    'DELETE': 'Exclusão',
+    'READ': 'Consulta',
+    'PASSWORD_RESET': 'Redefinição de Senha',
+    'LICENSE_KEY_CHANGED': 'Alteração de Licença',
+    'LICENSE_LOGIN_BLOCKED': 'Bloqueio por Licença',
+    'LICENSE_REVALIDATED': 'Revalidação de Licença',
+    'LICENSE_ACTIVATED': 'Ativação de Licença',
+}
+
+AUDIT_RESOURCE_LABELS = {
+    'WorkOrder': 'Ordem de Serviço',
+    'User': 'Usuário',
+    'Client': 'Cliente',
+    'Equipment': 'Equipamento',
+    'MaintenanceSchedule': 'Manutenção',
+    'ServiceCatalog': 'Serviço',
+    'License': 'Licença',
+}
+
+AUDIT_DETAIL_LABELS = {
+    'reason': 'Motivo',
+    'error': 'Erro',
+    'message': 'Mensagem',
+    'status_change': 'Mudança de Status',
+    'completed_by': 'Concluído Por',
+    'technician_changed': 'Técnico Alterado',
+    'date_changed': 'Data Alterada',
+    'new_technician_id': 'Novo Técnico',
+    'new_date': 'Nova Data',
+    'old_values': 'Valores Anteriores',
+    'new_values': 'Valores Novos',
+    'status': 'Status',
+    'description': 'Descrição',
+    'total_value': 'Valor Total',
+    'scheduled_date': 'Data Agendada',
+    'technician_id': 'Técnico',
+    'email': 'E-mail',
+    'expires_at': 'Expira em',
+    'company_name': 'Empresa',
+}
+
+
+def translate_audit_action(action):
+    return AUDIT_ACTION_LABELS.get(action, action.replace('_', ' ').title())
+
+
+def translate_resource_type(resource_type):
+    return AUDIT_RESOURCE_LABELS.get(resource_type, resource_type)
+
+
+def humanize_detail_value(value):
+    if isinstance(value, bool):
+        return 'Sim' if value else 'Não'
+    if value is None or value == '':
+        return '-'
+    return str(value)
+
+
+def normalize_audit_details(details):
+    if not details:
+        return []
+
+    parsed = details
+    if isinstance(details, str):
+        try:
+            parsed = json.loads(details)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return [{'label': 'Detalhes', 'value': details}]
+
+    if not isinstance(parsed, dict):
+        return [{'label': 'Detalhes', 'value': humanize_detail_value(parsed)}]
+
+    rows = []
+    for key, value in parsed.items():
+        label = AUDIT_DETAIL_LABELS.get(key, key.replace('_', ' ').title())
+        if isinstance(value, dict):
+            for subkey, subvalue in value.items():
+                sublabel = AUDIT_DETAIL_LABELS.get(subkey, subkey.replace('_', ' ').title())
+                rows.append({
+                    'label': f'{label} - {sublabel}',
+                    'value': humanize_detail_value(subvalue)
+                })
+        else:
+            rows.append({'label': label, 'value': humanize_detail_value(value)})
+
+    return rows
 
 @admin_bp.route('/dashboard')
 @roles_required('admin')
@@ -189,13 +282,36 @@ def audit_logs():
     all_users = User.query.order_by(User.name).all()
     actions_list = db.session.query(AuditLog.action).distinct().order_by(AuditLog.action).all()
     resource_types_list = db.session.query(AuditLog.resource_type).distinct().order_by(AuditLog.resource_type).all()
+
+    serialized_logs = []
+    user_lookup = {user.id: user for user in all_users}
+    for log in logs_page.items:
+        user = user_lookup.get(log.user_id)
+        serialized_logs.append({
+            'id': log.id,
+            'timestamp': log.timestamp.isoformat() if log.timestamp else None,
+            'timestamp_label': log.timestamp.strftime('%d/%m/%Y %H:%M:%S') if log.timestamp else '-',
+            'user_name': user.name if user else 'Desconhecido',
+            'action': log.action,
+            'action_label': translate_audit_action(log.action),
+            'resource_type': log.resource_type,
+            'resource_label': translate_resource_type(log.resource_type),
+            'resource_id': log.resource_id,
+            'resource_name': log.resource_name,
+            'status': log.status,
+            'ip_address': log.ip_address,
+            'user_agent': log.user_agent,
+            'details_rows': normalize_audit_details(log.details),
+        })
     
     return render_template('admin/audit_logs.html',
-                         logs=logs_page.items,
+                         logs=serialized_logs,
                          pagination=logs_page,
                          users=all_users,
                          actions=actions_list,
                          resource_types=resource_types_list,
+                         action_labels=AUDIT_ACTION_LABELS,
+                         resource_labels=AUDIT_RESOURCE_LABELS,
                          user_id_filter=user_id_filter,
                          action_filter=action_filter,
                          resource_type_filter=resource_type_filter,

@@ -10,6 +10,7 @@ from datetime import datetime
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.utils.decorators import roles_required, get_technician_client_ids
 from app.utils.images import save_and_resize_image
+from app.utils.audit import log_action
 import io
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -18,6 +19,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 from sqlalchemy import or_
+from xml.sax.saxutils import escape
 
 services_bp = Blueprint('services', __name__)
 
@@ -29,7 +31,35 @@ def get_current_user():
     return User.query.get(current_user_id) if current_user_id else None
 
 
+def get_status_label(status):
+    return {
+        'Completed': 'Concluída',
+        'Pending': 'Pendente',
+        'In Progress': 'Em Andamento'
+    }.get(status, status)
+
+
+def normalize_return_to(target):
+    if not target:
+        return None
+
+    if target.startswith('/') and not target.startswith('//'):
+        return target
+
+    return None
+
+
 def can_access_workorder_photo(user, workorder):
+    if not user:
+        return False
+
+    if user.permission_level in ['admin', 'secretary']:
+        return True
+
+    return workorder.technician_id == user.id
+
+
+def can_access_workorder(user, workorder):
     if not user:
         return False
 
@@ -58,6 +88,40 @@ def workorder_photo(filename):
         abort(403)
 
     return send_from_directory(current_app.config['UPLOAD_ROOT'], normalized_filename)
+
+
+@services_bp.route('/receipt/<int:id>')
+@roles_required('admin', 'secretary', 'technician')
+def receipt(id):
+    """Exibir recibo imprimível de uma ordem de serviço."""
+    current_user = get_current_user()
+    wo = WorkOrder.query.get_or_404(id)
+
+    if not can_access_workorder(current_user, wo):
+        abort(403)
+
+    config = AppConfig.query.first()
+    company_name = config.company_name if config and config.company_name else 'Pronto Ar Refrigeração'
+
+    company_responsible_name = '-'
+    company_responsible_role = 'Responsável da Empresa'
+    if wo.technician:
+        company_responsible_name = wo.technician.name
+        company_responsible_role = wo.technician.job_title or 'Técnico Responsável'
+    elif current_user:
+        company_responsible_name = current_user.name
+        company_responsible_role = current_user.job_title or 'Responsável da Empresa'
+
+    return render_template(
+        'services/receipt.html',
+        wo=wo,
+        config=config,
+        company_name=company_name,
+        company_responsible_name=company_responsible_name,
+        company_responsible_role=company_responsible_role,
+        issued_at=datetime.now(),
+        status_label=get_status_label(wo.status),
+    )
 
 @services_bp.route('/')
 @roles_required('admin', 'secretary', 'technician')
@@ -184,6 +248,8 @@ def add():
 @roles_required('admin', 'secretary', 'technician')
 def edit(id):
     current_user = get_current_user()
+    prompt_receipt_requested = request.method == 'GET' and request.args.get('prompt_receipt', type=int) == 1
+    return_to = normalize_return_to(request.values.get('return_to')) or request.referrer or url_for('services.index')
     
     wo = WorkOrder.query.get_or_404(id)
     
@@ -195,7 +261,7 @@ def edit(id):
             return redirect(url_for('services.index'))
         
         # Bloquear edição se o serviço for marcado como Concluído
-        if wo.status == 'Completed':
+        if wo.status == 'Completed' and not prompt_receipt_requested:
             flash('Não é possível editar um serviço já concluído.', 'danger')
             return redirect(url_for('services.index'))
     
@@ -205,6 +271,15 @@ def edit(id):
     technicians = User.query.filter_by(role='technician', is_active=True).all()
 
     if request.method == 'POST':
+        old_values = {
+            'status': wo.status,
+            'description': wo.description,
+            'total_value': wo.total_value,
+            'scheduled_date': wo.scheduled_date.isoformat() if wo.scheduled_date else None,
+            'technician_id': wo.technician_id,
+        }
+        previous_status = wo.status
+
         # Technician can only edit status, description and photos? 
         # For now, let's allow all fields for both, but focus on photos and status.
         wo.status = request.form.get('status')
@@ -231,10 +306,39 @@ def edit(id):
             wo.photo_after = save_and_resize_image(photo_after_file, 'work_orders')
 
         db.session.commit()
+        log_action(
+            action='UPDATE',
+            resource_type='WorkOrder',
+            resource_id=wo.id,
+            resource_name=f'WO-{wo.id}',
+            details={
+                'old_values': old_values,
+                'new_values': {
+                    'status': wo.status,
+                    'description': wo.description,
+                    'total_value': wo.total_value,
+                    'scheduled_date': wo.scheduled_date.isoformat() if wo.scheduled_date else None,
+                    'technician_id': wo.technician_id,
+                }
+            }
+        )
         flash(f'Ordem de Serviço #{id} atualizada com sucesso!', 'success')
+
+        if previous_status != 'Completed' and wo.status == 'Completed':
+            return redirect(url_for('services.edit', id=id, prompt_receipt=1, return_to=return_to))
+
         return redirect(url_for('services.index'))
 
-    return render_template('services/edit.html', wo=wo, clients=clients, equipments=equipments, services=services, technicians=technicians)
+    return render_template(
+        'services/edit.html',
+        wo=wo,
+        clients=clients,
+        equipments=equipments,
+        services=services,
+        technicians=technicians,
+        prompt_receipt=prompt_receipt_requested and wo.status == 'Completed',
+        return_to=return_to
+    )
 
 @services_bp.route('/history')
 @roles_required('admin', 'secretary', 'technician')
@@ -251,19 +355,42 @@ def history():
     
     # Filtros opcionais
     client_id = request.args.get('client_id', type=int)
+    equipment_id = request.args.get('equipment_id', type=int)
     status = request.args.get('status', type=str)
     
     # Check if user is technician
     is_technician = current_user and current_user.permission_level == 'user'
+    technician_client_ids = []
     
     query = WorkOrder.query
     
     # Técnico vê apenas seus próprios serviços
     if is_technician:
         query = query.filter_by(technician_id=current_user.id)
+        technician_client_ids = get_technician_client_ids(current_user.id)
     
     if client_id:
         query = query.filter_by(client_id=client_id)
+
+    available_equipments = []
+    if client_id:
+        if not is_technician or client_id in technician_client_ids:
+            available_equipments = Equipment.query.filter_by(client_id=client_id).order_by(Equipment.name.asc()).all()
+
+    selected_equipment = None
+    if equipment_id:
+        selected_equipment = Equipment.query.get(equipment_id)
+        if not selected_equipment:
+            equipment_id = None
+        elif client_id and selected_equipment.client_id != client_id:
+            equipment_id = None
+            selected_equipment = None
+        elif is_technician and selected_equipment.client_id not in technician_client_ids:
+            equipment_id = None
+            selected_equipment = None
+
+    if equipment_id:
+        query = query.filter_by(equipment_id=equipment_id)
     if status:
         query = query.filter_by(status=status)
     
@@ -273,9 +400,8 @@ def history():
     
     # Técnico vê apenas clientes que atendeu
     if is_technician:
-        client_ids = get_technician_client_ids(current_user.id)
-        if client_ids:
-            clients = Client.query.filter(Client.id.in_(client_ids)).all()
+        if technician_client_ids:
+            clients = Client.query.filter(Client.id.in_(technician_client_ids)).all()
         else:
             clients = []
     else:
@@ -285,7 +411,10 @@ def history():
                          pagination=pagination, 
                          per_page=per_page,
                          clients=clients,
+                         available_equipments=available_equipments,
                          selected_client_id=client_id,
+                         selected_equipment_id=equipment_id,
+                         selected_equipment=selected_equipment,
                          selected_status=status)
 
 @services_bp.route('/export-pdf')
@@ -294,18 +423,13 @@ def export_pdf():
     """Gerar relatório em PDF das ordens de serviço"""
     current_user = get_current_user()
     
-    # Mapeamento de status para português
-    status_translations = {
-        'Completed': 'Concluída',
-        'Pending': 'Pendente',
-        'In Progress': 'Em Andamento'
-    }
-    
     client_id = request.args.get('client_id', type=int)
+    equipment_id = request.args.get('equipment_id', type=int)
     status = request.args.get('status', type=str)
     
     # Check if user is technician
     is_technician = current_user and current_user.permission_level == 'user'
+    technician_client_ids = []
     
     # Construir query
     query = WorkOrder.query
@@ -313,9 +437,16 @@ def export_pdf():
     # Técnico vê apenas seus próprios serviços
     if is_technician:
         query = query.filter_by(technician_id=current_user.id)
+        technician_client_ids = get_technician_client_ids(current_user.id)
     
     if client_id:
         query = query.filter_by(client_id=client_id)
+
+    if equipment_id:
+        selected_equipment = Equipment.query.get(equipment_id)
+        if selected_equipment and (not client_id or selected_equipment.client_id == client_id):
+            if not is_technician or selected_equipment.client_id in technician_client_ids:
+                query = query.filter_by(equipment_id=equipment_id)
     if status:
         query = query.filter_by(status=status)
     
@@ -368,36 +499,125 @@ def export_pdf():
     # Data do relatório
     elements.append(Paragraph(f"<b>Data:</b> {datetime.now().strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
     elements.append(Spacer(1, 0.2*inch))
+
+    section_title_style = ParagraphStyle(
+        'SectionTitle',
+        parent=styles['Heading2'],
+        fontSize=13,
+        textColor=colors.HexColor('#111827'),
+        spaceAfter=6,
+        spaceBefore=6,
+        fontName='Helvetica-Bold'
+    )
+
+    summary_style = ParagraphStyle(
+        'Summary',
+        parent=styles['Normal'],
+        fontSize=9,
+        textColor=colors.HexColor('#374151'),
+        leading=12,
+    )
+
+    table_header_style = ParagraphStyle(
+        'PdfTableHeader',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=8,
+        leading=9,
+        alignment=TA_CENTER,
+        textColor=colors.whitesmoke,
+    )
+
+    table_cell_style = ParagraphStyle(
+        'PdfTableCell',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=7,
+        leading=8,
+        alignment=TA_LEFT,
+        wordWrap='CJK',
+        textColor=colors.HexColor('#111827'),
+    )
+
+    table_cell_center_style = ParagraphStyle(
+        'PdfTableCellCenter',
+        parent=table_cell_style,
+        alignment=TA_CENTER,
+    )
     
-    # Tabela de dados
+    # Tabelas agrupadas por cliente
     if work_orders:
-        data = [['ID', 'Cliente', 'Equipamento', 'Status', 'Data', 'Valor']]
-        
+        grouped_work_orders = {}
         for wo in work_orders:
-            # Traduzir status
-            status_pt = status_translations.get(wo.status, wo.status)
-            data.append([
-                str(wo.id),
-                wo.client.name if wo.client else '-',
-                wo.equipment.name if wo.equipment else 'Genérico',
-                status_pt,
-                wo.created_at.strftime('%d/%m/%Y'),
-                f'R$ {wo.total_value:.2f}'
-            ])
-        
-        table = Table(data, colWidths=[0.6*inch, 1.8*inch, 1.8*inch, 1.2*inch, 1.0*inch, 1.0*inch])
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3b82f6')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f3f4f6')]),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
-        ]))
-        elements.append(table)
+            client_name = wo.client.name if wo.client else 'Cliente não identificado'
+            grouped_work_orders.setdefault(client_name, []).append(wo)
+
+        ordered_clients = sorted(
+            grouped_work_orders.items(),
+            key=lambda item: item[1][0].created_at if item[1] else datetime.min,
+            reverse=True,
+        )
+
+        for index, (client_name, client_work_orders) in enumerate(ordered_clients):
+            elements.append(Paragraph(client_name, section_title_style))
+
+            data = [[
+                Paragraph('ID', table_header_style),
+                Paragraph('Equipamento', table_header_style),
+                Paragraph('Série', table_header_style),
+                Paragraph('Tipo/Serviço', table_header_style),
+                Paragraph('Status', table_header_style),
+                Paragraph('Data', table_header_style),
+                Paragraph('Valor', table_header_style),
+            ]]
+            total_value = 0.0
+
+            for wo in client_work_orders:
+                total_value += wo.total_value or 0.0
+                equipment_name = wo.equipment.name if wo.equipment else 'Genérico'
+                serial_number = wo.equipment.serial_number if wo.equipment and wo.equipment.serial_number else '-'
+                service_name = wo.service_type.name if wo.service_type else '-'
+                status_label = get_status_label(wo.status)
+                data.append([
+                    Paragraph(str(wo.id), table_cell_center_style),
+                    Paragraph(escape(equipment_name), table_cell_style),
+                    Paragraph(escape(serial_number), table_cell_style),
+                    Paragraph(escape(service_name), table_cell_style),
+                    Paragraph(escape(status_label), table_cell_center_style),
+                    Paragraph(wo.created_at.strftime('%d/%m/%Y'), table_cell_center_style),
+                    Paragraph(f'R$ {wo.total_value:.2f}', table_cell_center_style),
+                ])
+
+            table = Table(
+                data,
+                colWidths=[0.4*inch, 1.35*inch, 0.85*inch, 1.2*inch, 0.9*inch, 0.75*inch, 0.7*inch],
+                repeatRows=1
+            )
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3b82f6')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 7),
+                ('TOPPADDING', (0, 0), (-1, 0), 7),
+                ('GRID', (0, 0), (-1, -1), 0.75, colors.HexColor('#9ca3af')),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9fafb')]),
+                ('LEFTPADDING', (0, 0), (-1, -1), 4),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+                ('TOPPADDING', (0, 1), (-1, -1), 5),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 5),
+                ('ALIGN', (1, 1), (3, -1), 'LEFT'),
+            ]))
+            elements.append(table)
+            elements.append(Spacer(1, 0.12*inch))
+            elements.append(Paragraph(
+                f"<b>Subtotal do cliente:</b> {len(client_work_orders)} serviços realizados | <b>Total em OS:</b> R$ {total_value:.2f}",
+                summary_style,
+            ))
+
+            if index < len(ordered_clients) - 1:
+                elements.append(Spacer(1, 0.2*inch))
     else:
         elements.append(Paragraph("<i>Nenhuma ordem de serviço encontrada</i>", styles['Normal']))
     
