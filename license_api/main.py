@@ -24,7 +24,8 @@ templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / 'tem
 @app.on_event("startup")
 def startup():
     ensure_keypair()
-    Base.metadata.create_all(bind=engine)
+    if settings.auto_create_schema:
+        Base.metadata.create_all(bind=engine)
 
 
 def require_api_token(x_api_token: str = Header(default="")):

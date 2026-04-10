@@ -113,20 +113,58 @@ def normalize_audit_details(details):
 @admin_bp.route('/dashboard')
 @roles_required('admin')
 def dashboard():
+    today = datetime.utcnow().date()
+    selected_period = request.args.get('period', 'month').strip().lower()
+    start_date_raw = request.args.get('start_date', '').strip()
+    end_date_raw = request.args.get('end_date', '').strip()
+
+    if selected_period == 'today':
+        start_date = today
+        end_date = today
+    elif selected_period == 'last_30_days':
+        start_date = today - timedelta(days=29)
+        end_date = today
+    elif selected_period == 'year':
+        start_date = today.replace(month=1, day=1)
+        end_date = today
+    elif start_date_raw and end_date_raw:
+        try:
+            start_date = datetime.strptime(start_date_raw, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_raw, '%Y-%m-%d').date()
+            selected_period = 'custom'
+        except ValueError:
+            start_date = today.replace(day=1)
+            end_date = today
+            selected_period = 'month'
+    else:
+        start_date = today.replace(day=1)
+        end_date = today
+        selected_period = 'month'
+
+    if start_date > end_date:
+        start_date, end_date = end_date, start_date
+
+    period_start = datetime.combine(start_date, datetime.min.time())
+    period_end = datetime.combine(end_date + timedelta(days=1), datetime.min.time())
+    workorder_period_filters = [
+        WorkOrder.created_at >= period_start,
+        WorkOrder.created_at < period_end,
+    ]
+
     # Metrics
-    total_os = WorkOrder.query.count()
-    completed_os = WorkOrder.query.filter_by(status='Completed').count()
-    pending_os = WorkOrder.query.filter_by(status='Pending').count()
+    total_os = WorkOrder.query.filter(*workorder_period_filters).count()
+    completed_os = WorkOrder.query.filter(*workorder_period_filters, WorkOrder.status == 'Completed').count()
+    pending_os = WorkOrder.query.filter(*workorder_period_filters, WorkOrder.status == 'Pending').count()
 
     # Financials
-    total_revenue = db.session.query(func.sum(WorkOrder.total_value)).filter(WorkOrder.status == 'Completed').scalar() or 0.0
-    pending_revenue = db.session.query(func.sum(WorkOrder.total_value)).filter(WorkOrder.status != 'Completed').scalar() or 0.0
+    total_revenue = db.session.query(func.sum(WorkOrder.total_value)).filter(*workorder_period_filters, WorkOrder.status == 'Completed').scalar() or 0.0
+    pending_revenue = db.session.query(func.sum(WorkOrder.total_value)).filter(*workorder_period_filters, WorkOrder.status != 'Completed').scalar() or 0.0
 
     # Technicians Performance
     techs = User.query.filter_by(role='technician').all()
     tech_performance = []
     for tech in techs:
-        tech_os_count = WorkOrder.query.filter_by(technician_id=tech.id).count()
+        tech_os_count = WorkOrder.query.filter(*workorder_period_filters, WorkOrder.technician_id == tech.id).count()
         tech_performance.append({
             'name': tech.name,
             'specialty': tech.specialty,
@@ -134,7 +172,6 @@ def dashboard():
         })
 
     # Alertas
-    today = datetime.utcnow().date()
     tomorrow = today + timedelta(days=1)
     in_7_days = today + timedelta(days=7)
     
@@ -171,6 +208,9 @@ def dashboard():
                            total_revenue=total_revenue,
                            pending_revenue=pending_revenue,
                            tech_performance=tech_performance,
+                           selected_period=selected_period,
+                           selected_start_date=start_date.isoformat(),
+                           selected_end_date=end_date.isoformat(),
                            services_today=services_today,
                            overdue_services=overdue_services,
                            overdue_maintenance=overdue_maintenance,

@@ -26,6 +26,11 @@ def ensure_keypair() -> tuple[Path, Path]:
     private_path = settings.private_key_path
     public_path = settings.public_key_path
 
+    if settings.private_key_pem or settings.public_key_pem:
+        if not settings.private_key_pem or not settings.public_key_pem:
+            raise RuntimeError("LICENSE_PRIVATE_KEY_PEM and LICENSE_PUBLIC_KEY_PEM must be provided together")
+        return private_path, public_path
+
     if private_path.exists() and public_path.exists():
         return private_path, public_path
 
@@ -52,11 +57,17 @@ def ensure_keypair() -> tuple[Path, Path]:
 
 
 def load_private_key() -> Ed25519PrivateKey:
+    if settings.private_key_pem:
+        return serialization.load_pem_private_key(settings.private_key_pem.encode("utf-8"), password=None)
+
     ensure_keypair()
     return serialization.load_pem_private_key(settings.private_key_path.read_bytes(), password=None)
 
 
 def load_public_key() -> Ed25519PublicKey:
+    if settings.public_key_pem:
+        return serialization.load_pem_public_key(settings.public_key_pem.encode("utf-8"))
+
     ensure_keypair()
     return serialization.load_pem_public_key(settings.public_key_path.read_bytes())
 

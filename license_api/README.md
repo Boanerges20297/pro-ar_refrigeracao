@@ -18,6 +18,9 @@ Ela emite a licenca com chave privada Ed25519 e o sistema do cliente deve valida
 - revogacao administrativa
 - token administrativo simples por header `X-API-Token`
 - painel web em `/admin` para emitir, listar e revogar licencas
+- suporte a PostgreSQL por `LICENSE_API_DATABASE_URL`
+- suporte a chaves PEM por variaveis de ambiente
+- migrations proprias com Alembic em `license_api/migrations/`
 
 ## Estrutura
 
@@ -25,6 +28,7 @@ Ela emite a licenca com chave privada Ed25519 e o sistema do cliente deve valida
 - `service.py`: regras de negocio
 - `security.py`: assinatura e verificacao
 - `models.py`: tabela das licencas emitidas
+- `migrations/`: migrations da API
 - `keys/`: par de chaves gerado no primeiro startup
 - `data/`: banco sqlite da API
 
@@ -39,6 +43,20 @@ c:/Users/Boanerges/Desktop/Projetos/pro-ar_refrigeracao/.venv/Scripts/python.exe
 ```powershell
 $env:LICENSE_API_TOKEN = "troque-isto"
 c:/Users/Boanerges/Desktop/Projetos/pro-ar_refrigeracao/.venv/Scripts/python.exe -m uvicorn license_api.main:app --reload --port 8010
+```
+
+## Migrations
+
+Para ambiente PostgreSQL, aplique o schema com Alembic:
+
+```powershell
+c:/Users/Boanerges/Desktop/Projetos/pro-ar_refrigeracao/.venv/Scripts/python.exe -m alembic -c license_api/alembic.ini upgrade head
+```
+
+Em producao, prefira desligar a criacao automatica de tabelas:
+
+```env
+LICENSE_API_AUTO_CREATE_SCHEMA=false
 ```
 
 ## Endpoints
@@ -161,4 +179,5 @@ Content-Type: application/json
 
 - esta API ainda usa um token administrativo simples; para producao, o ideal e colocar HTTPS, rotacao de token e autentificacao mais forte
 - a chave privada nunca deve ser distribuida para o cliente
-- o arquivo de chave publica pode ser embutido no app Flask ou distribuido via variavel de ambiente
+- a chave publica pode ser embutida no app Flask por arquivo ou pela variavel `LICENSE_PUBLIC_KEY_PEM`
+- no Render, prefira `LICENSE_PRIVATE_KEY_PEM` e `LICENSE_PUBLIC_KEY_PEM` para nao depender do filesystem efemero

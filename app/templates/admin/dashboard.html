@@ -6,6 +6,38 @@
     <p class="text-gray-600">Visão geral financeira e de serviços da empresa.</p>
 </div>
 
+<div class="mb-8 rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-sm backdrop-blur-sm sm:p-5">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+            <h3 class="text-lg font-bold text-gray-900">Filtro de Período</h3>
+            <p class="text-sm text-gray-500">As estatísticas e gráficos abaixo são atualizados pelo intervalo selecionado.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <a href="{{ url_for('admin.dashboard', period='today') }}" class="rounded-full px-3 py-2 text-xs font-semibold transition {% if selected_period == 'today' %}bg-gray-900 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">Hoje</a>
+            <a href="{{ url_for('admin.dashboard', period='month') }}" class="rounded-full px-3 py-2 text-xs font-semibold transition {% if selected_period == 'month' %}bg-gray-900 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">Mês Atual</a>
+            <a href="{{ url_for('admin.dashboard', period='last_30_days') }}" class="rounded-full px-3 py-2 text-xs font-semibold transition {% if selected_period == 'last_30_days' %}bg-gray-900 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">Últimos 30 dias</a>
+            <a href="{{ url_for('admin.dashboard', period='year') }}" class="rounded-full px-3 py-2 text-xs font-semibold transition {% if selected_period == 'year' %}bg-gray-900 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">Ano Atual</a>
+        </div>
+    </div>
+
+    <form method="GET" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+        <input type="hidden" name="period" value="custom">
+        <div>
+            <label for="start_date" class="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-gray-500">Data inicial</label>
+            <input type="date" id="start_date" name="start_date" value="{{ selected_start_date }}" class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
+        </div>
+        <div>
+            <label for="end_date" class="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-gray-500">Data final</label>
+            <input type="date" id="end_date" name="end_date" value="{{ selected_end_date }}" class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-700 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
+        </div>
+        <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90">
+            <i class="fas fa-filter mr-2"></i>Atualizar
+        </button>
+    </form>
+
+    <p class="mt-3 text-xs text-gray-500">Período ativo: <span class="font-semibold text-gray-700">{{ selected_start_date }}</span> até <span class="font-semibold text-gray-700">{{ selected_end_date }}</span>.</p>
+</div>
+
 <!-- Seção de Alertas -->
 {% if services_today or overdue_services or overdue_maintenance or upcoming_maintenance %}
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -119,62 +151,59 @@
 </div>
 
 <!-- Visual Charts -->
-<div class="bg-white rounded-lg shadow p-6 mb-8">
-    <h3 class="text-lg font-bold text-gray-800 border-b pb-2 mb-4">Indicadores de Serviço</h3>
-    <div class="h-64 flex justify-center w-full relative">
-        <canvas id="osChart"></canvas>
+<div class="grid grid-cols-1 xl:grid-cols-5 gap-8 mb-8">
+    <div class="bg-white rounded-lg shadow p-6 xl:col-span-3">
+        <div class="flex flex-col gap-1 border-b pb-2 mb-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+                <h3 class="text-lg font-bold text-gray-800">Indicadores de Serviço</h3>
+                <p class="text-sm text-gray-500">Distribuição atual entre ordens concluídas e pendentes.</p>
+            </div>
+        </div>
+        <div class="h-72 flex justify-center w-full relative">
+            <canvas id="osChart"></canvas>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6 xl:col-span-2">
+        <div class="flex flex-col gap-1 border-b pb-2 mb-4">
+            <h3 class="text-lg font-bold text-gray-800">Desempenho por Técnico</h3>
+            <p class="text-sm text-gray-500">Volume de ordens atribuídas por técnico ativo.</p>
+        </div>
+        <div class="h-72 relative">
+            <canvas id="techPerformanceChart"></canvas>
+        </div>
     </div>
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-    <!-- Technician Performance -->
-    <div class="bg-white rounded-lg shadow p-6">
-        <h3 class="text-lg font-bold text-gray-800 border-b pb-2 mb-4">Desempenho por Técnico (OS Atribuídas)</h3>
-        <ul class="divide-y divide-gray-200">
-            {% for tech in tech_performance %}
-            <li class="py-3 flex justify-between items-center">
-                <div class="flex items-center">
-                    <div class="bg-gray-200 rounded-full h-10 w-10 flex items-center justify-center text-gray-600 font-bold mr-3">
-                        {{ tech.name[0].upper() }}
-                    </div>
-                    <div>
-                        <p class="text-sm font-medium text-gray-900">{{ tech.name }}</p>
-                        <p class="text-xs text-gray-500">{{ tech.specialty or 'Geral' }}</p>
-                    </div>
-                </div>
-                <div class="text-right">
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {{ tech.os_count }} OS
-                    </span>
-                </div>
-            </li>
-            {% else %}
-            <li class="py-3 text-sm text-gray-500 text-center">Nenhum técnico para exibir.</li>
-            {% endfor %}
-        </ul>
-    </div>
-
-    <!-- Quick Actions -->
-    <div class="bg-white rounded-lg shadow p-6">
-        <h3 class="text-lg font-bold text-gray-800 border-b pb-2 mb-4">Ações Rápidas</h3>
-        <div class="grid grid-cols-2 gap-4">
-            <a href="{{ url_for('services.add') }}" class="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                <i class="fas fa-plus-circle text-3xl text-primary mb-2"></i>
-                <span class="text-sm font-medium text-gray-700">Nova OS</span>
-            </a>
-            <a href="{{ url_for('clients.add') }}" class="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                <i class="fas fa-user-plus text-3xl text-primary mb-2"></i>
-                <span class="text-sm font-medium text-gray-700">Novo Cliente</span>
-            </a>
-            <a href="{{ url_for('equipment.add') }}" class="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                <i class="fas fa-tools text-3xl text-primary mb-2"></i>
-                <span class="text-sm font-medium text-gray-700">Novo Equipamento</span>
-            </a>
-            <a href="{{ url_for('admin.settings') }}" class="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                <i class="fas fa-cog text-3xl text-primary mb-2"></i>
-                <span class="text-sm font-medium text-gray-700">Configurações</span>
-            </a>
+<!-- Quick Actions -->
+<div class="bg-white rounded-lg shadow p-6">
+    <div class="flex flex-col gap-1 border-b pb-2 mb-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+            <h3 class="text-lg font-bold text-gray-800">Ações Rápidas</h3>
+            <p class="text-sm text-gray-500">Atalhos administrativos para as operações mais frequentes.</p>
         </div>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <a href="{{ url_for('services.add') }}" class="flex min-h-[148px] flex-col items-center justify-center rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-blue-50 p-6 text-center transition hover:-translate-y-1 hover:shadow-md">
+            <i class="fas fa-plus-circle mb-3 text-4xl text-primary"></i>
+            <span class="text-base font-semibold text-gray-800">Nova OS</span>
+            <span class="mt-2 text-sm text-gray-500">Abra rapidamente uma nova ordem de serviço.</span>
+        </a>
+        <a href="{{ url_for('clients.add') }}" class="flex min-h-[148px] flex-col items-center justify-center rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-indigo-50 p-6 text-center transition hover:-translate-y-1 hover:shadow-md">
+            <i class="fas fa-user-plus mb-3 text-4xl text-primary"></i>
+            <span class="text-base font-semibold text-gray-800">Novo Cliente</span>
+            <span class="mt-2 text-sm text-gray-500">Cadastre uma nova empresa ou contratante.</span>
+        </a>
+        <a href="{{ url_for('equipment.add') }}" class="flex min-h-[148px] flex-col items-center justify-center rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-cyan-50 p-6 text-center transition hover:-translate-y-1 hover:shadow-md">
+            <i class="fas fa-tools mb-3 text-4xl text-primary"></i>
+            <span class="text-base font-semibold text-gray-800">Novo Equipamento</span>
+            <span class="mt-2 text-sm text-gray-500">Inclua aparelhos e séries no cadastro técnico.</span>
+        </a>
+        <a href="{{ url_for('admin.settings') }}" class="flex min-h-[148px] flex-col items-center justify-center rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-emerald-50 p-6 text-center transition hover:-translate-y-1 hover:shadow-md">
+            <i class="fas fa-cog mb-3 text-4xl text-primary"></i>
+            <span class="text-base font-semibold text-gray-800">Configurações</span>
+            <span class="mt-2 text-sm text-gray-500">Ajuste identidade visual, licença e preferências.</span>
+        </a>
     </div>
 </div>
 
@@ -200,9 +229,65 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                cutout: '56%',
                 plugins: {
                     legend: {
                         position: 'right',
+                    }
+                }
+            }
+        });
+
+        const techCtx = document.getElementById('techPerformanceChart').getContext('2d');
+        const technicianLabels = {{ tech_performance | map(attribute='name') | list | tojson }};
+        const technicianCounts = {{ tech_performance | map(attribute='os_count') | list | tojson }};
+
+        new Chart(techCtx, {
+            type: 'bar',
+            data: {
+                labels: technicianLabels,
+                datasets: [{
+                    label: 'OS atribuídas',
+                    data: technicianCounts,
+                    backgroundColor: ['#0ea5e9', '#10b981', '#f59e0b', '#6366f1', '#ef4444', '#14b8a6'],
+                    borderRadius: 12,
+                    borderSkipped: false,
+                    maxBarThickness: 48
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `OS atribuídas: ${context.raw}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: '#475569'
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0,
+                            color: '#64748b'
+                        },
+                        grid: {
+                            color: 'rgba(148, 163, 184, 0.18)'
+                        }
                     }
                 }
             }

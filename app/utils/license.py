@@ -66,6 +66,10 @@ def _coerce_limit(value):
 
 
 def _load_public_key():
+    public_key_pem = current_app.config.get('LICENSE_PUBLIC_KEY_PEM')
+    if public_key_pem:
+        return serialization.load_pem_public_key(public_key_pem.encode('utf-8'))
+
     public_key_path = current_app.config.get('LICENSE_PUBLIC_KEY_PATH')
     if not public_key_path:
         return None

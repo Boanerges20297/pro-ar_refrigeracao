@@ -58,6 +58,14 @@ def create_app(config_class=Config):
         engine_options = app.config.setdefault('SQLALCHEMY_ENGINE_OPTIONS', {})
         connect_args = engine_options.setdefault('connect_args', {})
         connect_args.setdefault('timeout', app.config['SQLITE_BUSY_TIMEOUT_MS'] / 1000)
+    elif app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgresql'):
+        engine_options = app.config.setdefault('SQLALCHEMY_ENGINE_OPTIONS', {})
+        engine_options.setdefault('pool_pre_ping', True)
+        engine_options.setdefault('pool_recycle', app.config['DATABASE_POOL_RECYCLE_SECONDS'])
+
+        if app.config.get('DATABASE_SSLMODE'):
+            connect_args = engine_options.setdefault('connect_args', {})
+            connect_args.setdefault('sslmode', app.config['DATABASE_SSLMODE'])
 
     app.config.setdefault('RATELIMIT_STORAGE_URI', app.config.get('RATELIMIT_STORAGE_URI', 'memory://'))
 

@@ -9,12 +9,27 @@ def env_bool(name, default=False):
     return value.strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
+def normalize_database_url(url):
+    if not url:
+        return url
+
+    if url.startswith('postgres://'):
+        return f"postgresql+psycopg://{url[len('postgres://') :]}"
+
+    if url.startswith('postgresql://') and '+psycopg' not in url:
+        return f"postgresql+psycopg://{url[len('postgresql://') :]}"
+
+    return url
+
+
 class Config:
     # Use environment variables for secrets, fallback to secure random string for dev
     SECRET_KEY = os.environ.get('SECRET_KEY') or os.urandom(32).hex()
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///pronto_ar.db'
+    SQLALCHEMY_DATABASE_URI = normalize_database_url(os.environ.get('DATABASE_URL') or 'sqlite:///pronto_ar.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLITE_BUSY_TIMEOUT_MS = int(os.environ.get('SQLITE_BUSY_TIMEOUT_MS', '30000'))
+    DATABASE_SSLMODE = os.environ.get('DATABASE_SSLMODE') or None
+    DATABASE_POOL_RECYCLE_SECONDS = int(os.environ.get('DATABASE_POOL_RECYCLE_SECONDS', '1800'))
     UPLOAD_ROOT = os.environ.get('UPLOAD_ROOT', 'uploads')
     MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', str(8 * 1024 * 1024)))
     RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', 'memory://')
@@ -25,6 +40,7 @@ class Config:
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or os.urandom(32).hex()
     LICENSE_SIGNING_SECRET = os.environ.get('LICENSE_SIGNING_SECRET') or SECRET_KEY
     LICENSE_PUBLIC_KEY_PATH = os.environ.get('LICENSE_PUBLIC_KEY_PATH', os.path.join('license_api', 'keys', 'ed25519_public.pem'))
+    LICENSE_PUBLIC_KEY_PEM = os.environ.get('LICENSE_PUBLIC_KEY_PEM') or None
     LICENSE_WARNING_DAYS = int(os.environ.get('LICENSE_WARNING_DAYS', '15'))
     LICENSE_GRACE_DAYS = int(os.environ.get('LICENSE_GRACE_DAYS', '7'))
     LICENSE_INSTANCE_ID = os.environ.get('LICENSE_INSTANCE_ID') or None
