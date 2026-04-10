@@ -10,6 +10,21 @@
     {% endif %}
 </div>
 
+<form method="GET" action="{{ url_for('maintenance.index') }}" class="mb-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+    <div class="flex flex-col gap-3 md:flex-row md:items-center">
+        <div class="relative flex-1">
+            <i class="fas fa-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400"></i>
+            <input type="text" name="search" value="{{ search or '' }}" placeholder="Buscar por cliente, equipamento, série ou observação" class="w-full rounded-xl border border-gray-300 bg-white py-3 pl-10 pr-4 text-sm text-gray-900 shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-blue-100">
+        </div>
+        <div class="flex gap-2">
+            <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90">Filtrar</button>
+            {% if search %}
+            <a href="{{ url_for('maintenance.index') }}" class="inline-flex items-center justify-center rounded-xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">Limpar</a>
+            {% endif %}
+        </div>
+    </div>
+</form>
+
 {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
         {% for category, message in messages %}
@@ -61,14 +76,18 @@
                     </td>
                     <td class="px-4 py-3 whitespace-nowrap text-right">
                         {% if sched.is_active %}
-                        <form action="{{ url_for('maintenance.complete', schedule_id=sched.id) }}" method="POST" class="inline">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="text-primary hover:text-blue-900 text-xs font-medium" title="Marcar como Concluída">
-                                <i class="fas fa-check-circle mr-1"></i>Fechar
-                            </button>
-                        </form>
+                        <a href="{{ url_for('maintenance.open_workorder', schedule_id=sched.id) }}" class="text-primary hover:text-blue-900 text-xs font-medium" title="Abrir OS de manutenção">
+                            <i class="fas fa-clipboard-list mr-1"></i>{% if sched.work_order %}Abrir OS #{{ sched.work_order.id }}{% else %}Abrir OS{% endif %}
+                        </a>
                         {% else %}
-                        <span class="text-gray-400 text-xs"><i class="fas fa-check-circle mr-1"></i>Fechado</span>
+                        <div class="flex items-center justify-end gap-3">
+                            <span class="text-gray-400 text-xs"><i class="fas fa-check-circle mr-1"></i>Concluída</span>
+                            {% if sched.work_order %}
+                            <a href="{{ url_for('services.receipt', id=sched.work_order.id) }}" class="text-primary hover:text-blue-900 text-xs font-medium" target="_blank" rel="noopener noreferrer">
+                                <i class="fas fa-file-invoice mr-1"></i>Recibo
+                            </a>
+                            {% endif %}
+                        </div>
                         {% endif %}
                     </td>
                 </tr>
@@ -76,7 +95,7 @@
                 <tr>
                     <td colspan="6" class="px-4 py-8 text-center text-gray-500">
                         <i class="fas fa-calendar-times text-4xl text-gray-200 mb-3 block"></i>
-                        Nenhum agendamento cadastrado
+                        {% if search %}Nenhum agendamento encontrado para o filtro informado.{% else %}Nenhum agendamento cadastrado{% endif %}
                     </td>
                 </tr>
                 {% endfor %}
@@ -130,15 +149,19 @@
         <!-- Footer com Ação -->
         <div class="px-4 py-3 bg-gray-50 border-t border-gray-100">
             {% if sched.is_active %}
-            <form action="{{ url_for('maintenance.complete', schedule_id=sched.id) }}" method="POST" class="w-full">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="w-full text-center text-primary hover:text-blue-900 text-xs font-bold py-2 px-3 rounded bg-blue-50 hover:bg-blue-100 transition-all">
-                    <i class="fas fa-check-circle mr-1"></i>Marcar como Concluída
-                </button>
-            </form>
+            <a href="{{ url_for('maintenance.open_workorder', schedule_id=sched.id) }}" class="block w-full text-center text-primary hover:text-blue-900 text-xs font-bold py-2 px-3 rounded bg-blue-50 hover:bg-blue-100 transition-all">
+                <i class="fas fa-clipboard-list mr-1"></i>{% if sched.work_order %}Abrir OS #{{ sched.work_order.id }}{% else %}Abrir OS de Manutenção{% endif %}
+            </a>
             {% else %}
-            <div class="w-full text-center text-gray-400 text-xs font-medium py-2 px-3">
-                <i class="fas fa-check-circle mr-1"></i>Agendamento Fechado
+            <div class="flex items-center justify-center gap-4 w-full text-center text-xs font-medium py-2 px-3">
+                <span class="text-gray-400">
+                    <i class="fas fa-check-circle mr-1"></i>Agendamento Concluído
+                </span>
+                {% if sched.work_order %}
+                <a href="{{ url_for('services.receipt', id=sched.work_order.id) }}" class="text-primary hover:text-blue-900" target="_blank" rel="noopener noreferrer">
+                    <i class="fas fa-file-invoice mr-1"></i>Recibo
+                </a>
+                {% endif %}
             </div>
             {% endif %}
         </div>
@@ -146,7 +169,7 @@
     {% else %}
     <div class="bg-white shadow rounded-lg p-8 sm:p-12 text-center border border-dashed border-gray-300">
         <i class="fas fa-calendar-times text-6xl text-gray-200 mb-4"></i>
-        <p class="text-gray-500 text-base">Nenhum agendamento cadastrado</p>
+        <p class="text-gray-500 text-base">{% if search %}Nenhum agendamento encontrado para o filtro informado.{% else %}Nenhum agendamento cadastrado{% endif %}</p>
         {% if current_user.permission_level in ['admin', 'secretary'] %}
         <a href="{{ url_for('maintenance.add') }}" class="mt-4 inline-block bg-primary text-white py-2 px-6 rounded hover:opacity-90">
             <i class="fas fa-plus mr-2"></i>Criar Primeiro Agendamento

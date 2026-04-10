@@ -3,7 +3,22 @@
 {% block content %}
 
 <style>
+    .report-shell {
+        background:
+            radial-gradient(circle at top right, rgba(37, 99, 235, 0.10), transparent 28%),
+            linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+    }
+
+    .report-table th {
+        letter-spacing: 0.08em;
+    }
+
     @media print {
+        @page {
+            size: A4;
+            margin: 12mm;
+        }
+
         nav, .nav, footer, .fab-scanner, #fab-help, #fab-scanner, .print-hide {
             display: none !important;
         }
@@ -18,79 +33,166 @@
             max-width: 100% !important;
             width: 100% !important;
         }
+        .report-shell {
+            background: white !important;
+        }
         .report-container {
             box-shadow: none !important;
             border: none !important;
             width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
         }
         h1, h2, h3, p, td, th {
             color: black !important;
         }
+        .report-header {
+            background: white !important;
+            color: black !important;
+            border: 1px solid #cbd5e1 !important;
+            padding: 0 0 16px 0 !important;
+        }
+        .report-logo {
+            background: white !important;
+            border: 1px solid #cbd5e1 !important;
+            box-shadow: none !important;
+        }
+        .report-kicker,
+        .report-title,
+        .report-subtitle,
+        .report-meta p,
+        .report-meta span {
+            color: black !important;
+        }
+        .report-meta {
+            background: white !important;
+            border: 1px solid #cbd5e1 !important;
+        }
+        .report-metrics {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 10px !important;
+            margin-top: 16px !important;
+        }
+        .metric-card {
+            background: white !important;
+            border: 1px solid #cbd5e1 !important;
+            padding: 12px !important;
+            break-inside: avoid;
+        }
+        .metric-card p,
+        .metric-card div {
+            color: black !important;
+        }
+        .report-section {
+            margin-top: 16px !important;
+            border: 1px solid #cbd5e1 !important;
+        }
+        .report-section-header {
+            padding: 10px 12px !important;
+        }
+        .report-section-header div:last-child {
+            color: #475569 !important;
+        }
+        .report-table th,
+        .report-table td {
+            padding: 8px 10px !important;
+            font-size: 11px !important;
+        }
     }
 </style>
 
-<div class="report-container bg-white shadow-sm sm:rounded-lg border border-gray-200 p-6 mb-8 max-w-6xl mx-auto mt-6">
-    
-    <!-- Cabeçalho & Botões -->
-    <div class="flex justify-between items-start mb-6 border-b pb-4">
-        <div class="flex items-center gap-4">
-            <img src="{{ app_config.logo_path if app_config and app_config.logo_path else 'https://ui-avatars.com/api/?name=Empresa&background=3b82f6&color=fff&rounded=true' }}" alt="Logo Empresa" class="h-16 w-auto object-contain max-w-[150px]">
-            <div>
-                <h2 class="text-2xl font-bold text-gray-800"><i class="fas fa-users text-primary mr-2"></i> Relatório de Clientes</h2>
-                <p class="text-sm text-gray-500 mt-1">Período de referência: <strong>{{ start_str | replace('-', '/') }}</strong> até <strong>{{ end_str | replace('-', '/') }}</strong></p>
+<div class="report-shell rounded-[2rem] p-4 sm:p-6">
+    <div class="report-container mx-auto mt-2 max-w-6xl overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+        <div class="report-header border-b border-slate-200 bg-slate-950 px-6 py-6 text-white sm:px-8">
+            <div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                <div class="flex items-start gap-4">
+                    <div class="report-logo flex h-20 w-20 items-center justify-center rounded-full bg-white px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] ring-1 ring-slate-200/80">
+                        <img src="{{ app_config.logo_path if app_config and app_config.logo_path else 'https://ui-avatars.com/api/?name=Empresa&background=0f172a&color=fff&rounded=true' }}" alt="Logo Empresa" class="max-h-12 w-auto object-contain max-w-[120px]">
+                    </div>
+                    <div>
+                        <p class="report-kicker text-xs font-semibold uppercase tracking-[0.28em] text-slate-300">Relatório Executivo</p>
+                        <h2 class="report-title mt-2 text-2xl font-bold text-white">Clientes</h2>
+                        <p class="report-subtitle mt-2 text-sm text-slate-300">Leitura comercial da carteira atendida, expansão de base e concentração de faturamento.</p>
+                    </div>
+                </div>
+                <div class="report-meta rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">
+                    <p><span class="font-semibold text-white">Período:</span> {{ period_label }}</p>
+                    <p class="mt-1"><span class="font-semibold text-white">Emitido em:</span> {{ generated_at_label }}</p>
+                </div>
             </div>
         </div>
-        <div class="print-hide flex gap-2">
-            <a href="{{ url_for('reports.index') }}" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 shadow-sm flex items-center gap-1">
-                <i class="fas fa-arrow-left"></i> Voltar
+
+        <div class="print-hide flex flex-col gap-2 border-b border-slate-200 bg-slate-50 px-6 py-4 sm:flex-row sm:justify-end sm:px-8">
+            <a href="{{ url_for('reports.index') }}" class="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
+                <i class="fas fa-arrow-left mr-2"></i>Voltar
             </a>
-            <button onclick="window.print()" class="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-primary hover:opacity-90 shadow-sm flex items-center gap-2">
-                <i class="fas fa-print"></i> Imprimir
+            <button onclick="window.print()" class="inline-flex items-center justify-center rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800">
+                <i class="fas fa-print mr-2"></i>Imprimir
             </button>
         </div>
-    </div>
 
-    <!-- Indicadores -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-5">
-            <h4 class="text-sm font-semibold text-blue-700 mb-1 uppercase tracking-wider">Top Clientes Atendidos</h4>
-            <div class="text-3xl font-black text-blue-800">{{ client_stats|length }}</div>
-            <p class="text-xs text-blue-600 mt-1">Total de clientes que realizaram serviços no período.</p>
-        </div>
-        <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-5">
-            <h4 class="text-sm font-semibold text-indigo-700 mb-1 uppercase tracking-wider">Novos Clientes Cadastrados</h4>
-            <div class="text-3xl font-black text-indigo-800">{{ new_clients_count }}</div>
-            <p class="text-xs text-indigo-600 mt-1">Base de clientes expandida entre as datas selecionadas.</p>
-        </div>
-    </div>
+        <div class="px-6 py-6 sm:px-8">
+            <div class="report-metrics grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div class="metric-card rounded-2xl border border-blue-200 bg-blue-50 p-5">
+                    <p class="text-xs font-semibold uppercase tracking-[0.22em] text-blue-700">Clientes Atendidos</p>
+                    <p class="mt-3 text-3xl font-black text-blue-800">{{ total_active_clients }}</p>
+                    <p class="mt-2 text-sm text-blue-700/80">Empresas com ordens executadas no período.</p>
+                </div>
+                <div class="metric-card rounded-2xl border border-indigo-200 bg-indigo-50 p-5">
+                    <p class="text-xs font-semibold uppercase tracking-[0.22em] text-indigo-700">Novos Cadastros</p>
+                    <p class="mt-3 text-3xl font-black text-indigo-800">{{ new_clients_count }}</p>
+                    <p class="mt-2 text-sm text-indigo-700/80">Expansão da base comercial no intervalo.</p>
+                </div>
+                <div class="metric-card rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+                    <p class="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700">Valor Movimentado</p>
+                    <p class="mt-3 text-3xl font-black text-emerald-700">R$ {{ "%.2f"|format(total_generated)|replace('.', ',') }}</p>
+                    <p class="mt-2 text-sm text-emerald-700/80">Faturamento gerado pela carteira listada.</p>
+                </div>
+                <div class="metric-card rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                    <p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Cliente Líder</p>
+                    <p class="mt-3 text-lg font-black text-slate-900">{{ top_client.name if top_client else '-' }}</p>
+                    <p class="mt-2 text-sm text-slate-500">{% if top_client %}R$ {{ "%.2f"|format(top_client.total_spent)|replace('.', ',') }} no período.{% else %}Sem movimentação registrada.{% endif %}</p>
+                </div>
+            </div>
 
-    <!-- Tabela -->
-    <h3 class="text-lg font-bold text-gray-800 mb-3 border-b-2 border-gray-100 pb-2">Desempenho por Cliente (Ranking)</h3>
-    <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posição</th>
-                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome do Cliente</th>
-                    <th scope="col" class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Volume de OS</th>
-                    <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Valor Gerado (R$)</th>
-                </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-                {% for row in client_stats %}
-                <tr class="hover:bg-gray-50">
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 font-bold">#{{ loop.index }}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{{ row.name }}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-center">{{ row.os_count }}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-bold text-right">R$ {{ "%.2f"|format(row.total_spent)|replace('.', ',') }}</td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="4" class="px-4 py-8 text-center text-sm text-gray-500">Nenhum cliente atendeu ordens de serviço no período selecionado.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+            <div class="report-section mt-8 rounded-2xl border border-slate-200 bg-white">
+                <div class="report-section-header flex flex-col gap-2 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900">Ranking de Clientes</h3>
+                        <p class="text-sm text-slate-500">Prioriza clientes por valor total gerado no período selecionado.</p>
+                    </div>
+                    <div class="text-xs uppercase tracking-[0.2em] text-slate-400">Base comercial</div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="report-table min-w-full divide-y divide-slate-200">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th scope="col" class="px-4 py-3 text-left text-[11px] font-semibold uppercase text-slate-500">Posição</th>
+                                <th scope="col" class="px-4 py-3 text-left text-[11px] font-semibold uppercase text-slate-500">Cliente</th>
+                                <th scope="col" class="px-4 py-3 text-center text-[11px] font-semibold uppercase text-slate-500">Ordens</th>
+                                <th scope="col" class="px-4 py-3 text-right text-[11px] font-semibold uppercase text-slate-500">Valor Gerado</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 bg-white">
+                            {% for row in client_stats %}
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-slate-500">#{{ loop.index }}</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-slate-900">{{ row.name }}</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-center text-sm text-slate-700">{{ row.os_count }}</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-right text-sm font-bold text-slate-900">R$ {{ "%.2f"|format(row.total_spent)|replace('.', ',') }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="px-4 py-10 text-center text-sm text-slate-500">Nenhum cliente atendeu ordens de serviço no período selecionado.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 

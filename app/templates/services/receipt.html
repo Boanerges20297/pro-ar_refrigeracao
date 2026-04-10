@@ -150,8 +150,6 @@
             border-radius: 18px;
             padding: 18px 20px;
             background: var(--panel);
-                break-inside: avoid;
-                page-break-inside: avoid;
         }
 
         .card h2 {
@@ -180,8 +178,6 @@
             border-radius: 16px;
             padding: 16px 18px;
             background: #fff;
-                break-inside: avoid;
-                page-break-inside: avoid;
         }
 
         .summary-item span {
@@ -204,8 +200,6 @@
             margin-bottom: 20px;
             overflow: hidden;
             border-radius: 18px;
-                break-inside: avoid;
-                page-break-inside: avoid;
         }
 
         thead th {
@@ -234,8 +228,6 @@
             background: #fff;
             padding: 18px 20px;
             margin-bottom: 28px;
-                break-inside: avoid;
-                page-break-inside: avoid;
         }
 
         .receipt-note h3 {
@@ -255,8 +247,6 @@
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 36px;
             margin-top: 52px;
-                break-inside: avoid;
-                page-break-inside: avoid;
         }
 
         .signature {
@@ -281,9 +271,15 @@
         }
 
         @media print {
+            @page {
+                size: A4;
+                margin: 12mm;
+            }
+
             body {
                 background: #fff;
                 padding: 0;
+                font-size: 12px;
             }
 
             .toolbar {
@@ -298,48 +294,102 @@
 
             .hero,
             .content {
-                padding-left: 28px;
-                padding-right: 28px;
+                padding-left: 16px;
+                padding-right: 16px;
             }
 
-                .page,
-                .hero,
-                .hero-top,
-                .brand,
-                .meta,
-                .content,
-                .grid,
-                .summary,
-                .summary-item,
-                .card,
-                .receipt-note,
-                table,
-                thead,
-                tbody,
-                tbody tr,
-                .signatures,
-                .signature {
-                    break-inside: avoid-page;
-                    page-break-inside: avoid;
-                }
+            .page {
+                overflow: visible;
+            }
 
-                .grid {
-                    grid-template-columns: repeat(2, minmax(0, 1fr));
-                    gap: 14px;
-                }
+            .hero {
+                padding-top: 18px;
+                padding-bottom: 18px;
+            }
 
-                .summary {
-                    grid-template-columns: repeat(2, minmax(0, 1fr));
-                    gap: 12px;
-                }
+            .content {
+                padding-top: 18px;
+                padding-bottom: 20px;
+            }
 
-                .summary-item strong {
-                    font-size: 18px;
-                }
+            .hero-top {
+                gap: 16px;
+            }
 
-                .signatures {
-                    margin-top: 28px;
-                }
+            .brand img {
+                width: 58px;
+                height: 58px;
+                border-radius: 14px;
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+
+            .subtitle {
+                font-size: 12px;
+                margin-top: 8px;
+            }
+
+            .meta {
+                min-width: 220px;
+                padding: 14px 16px;
+            }
+
+            .meta-row {
+                font-size: 11px;
+                padding: 5px 0;
+            }
+
+            .grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px;
+                break-inside: auto;
+            }
+
+            .card,
+            .summary-item,
+            .receipt-note,
+            .signatures,
+            .signature,
+            tr,
+            td,
+            th {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+
+            .summary {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 10px;
+            }
+
+            .summary-item {
+                padding: 12px 14px;
+            }
+
+            .summary-item strong {
+                font-size: 16px;
+            }
+
+            thead {
+                display: table-header-group;
+            }
+
+            tbody,
+            table {
+                break-inside: auto;
+                page-break-inside: auto;
+            }
+
+            .receipt-note {
+                margin-bottom: 18px;
+            }
+
+            .signatures {
+                margin-top: 18px;
+                gap: 24px;
+            }
         }
 
         @media (max-width: 900px) {

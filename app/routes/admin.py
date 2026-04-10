@@ -11,6 +11,7 @@ from app.models.config import AppConfig
 from app.models.audit_log import AuditLog
 from app import db
 from sqlalchemy import func
+from sqlalchemy import or_
 from datetime import datetime, timedelta
 
 ALLOWED_LOGO_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp', 'svg'}
@@ -155,6 +156,7 @@ def dashboard():
     total_os = WorkOrder.query.filter(*workorder_period_filters).count()
     completed_os = WorkOrder.query.filter(*workorder_period_filters, WorkOrder.status == 'Completed').count()
     pending_os = WorkOrder.query.filter(*workorder_period_filters, WorkOrder.status == 'Pending').count()
+    in_progress_os = WorkOrder.query.filter(*workorder_period_filters, WorkOrder.status == 'In Progress').count()
 
     # Financials
     total_revenue = db.session.query(func.sum(WorkOrder.total_value)).filter(*workorder_period_filters, WorkOrder.status == 'Completed').scalar() or 0.0
@@ -187,6 +189,25 @@ def dashboard():
         WorkOrder.scheduled_date < datetime.combine(today, datetime.min.time()),
         WorkOrder.status.in_(['Pending', 'In Progress'])
     ).all()
+    overdue_services_count = len(overdue_services)
+
+    pending_on_time_os = WorkOrder.query.filter(
+        *workorder_period_filters,
+        WorkOrder.status == 'Pending',
+        or_(
+            WorkOrder.scheduled_date.is_(None),
+            WorkOrder.scheduled_date >= datetime.combine(today, datetime.min.time())
+        )
+    ).count()
+
+    in_progress_on_time_os = WorkOrder.query.filter(
+        *workorder_period_filters,
+        WorkOrder.status == 'In Progress',
+        or_(
+            WorkOrder.scheduled_date.is_(None),
+            WorkOrder.scheduled_date >= datetime.combine(today, datetime.min.time())
+        )
+    ).count()
     
     # Manutenção atrasada
     overdue_maintenance = MaintenanceSchedule.query.filter(
@@ -205,6 +226,10 @@ def dashboard():
                            total_os=total_os,
                            completed_os=completed_os,
                            pending_os=pending_os,
+                           in_progress_os=in_progress_os,
+                           pending_on_time_os=pending_on_time_os,
+                           in_progress_on_time_os=in_progress_on_time_os,
+                           overdue_services_count=overdue_services_count,
                            total_revenue=total_revenue,
                            pending_revenue=pending_revenue,
                            tech_performance=tech_performance,

@@ -78,9 +78,10 @@
             <div>
                 <label for="per_page" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Itens por Página</label>
                 <select name="per_page" id="per_page" class="w-full bg-white border border-gray-300 text-gray-700 text-sm rounded-md focus:ring-primary focus:border-primary p-2">
-                    <option value="10" {% if request.args.get('per_page')|int == 10 %}selected{% endif %}>10 por página</option>
-                    <option value="20" {% if request.args.get('per_page')|int == 20 %}selected{% endif %}>20 por página</option>
-                    <option value="50" {% if request.args.get('per_page')|int == 50 %}selected{% endif %}>50 por página</option>
+                    <option value="5" {% if per_page == 5 %}selected{% endif %}>5 por página</option>
+                    <option value="10" {% if per_page == 10 %}selected{% endif %}>10 por página</option>
+                    <option value="20" {% if per_page == 20 %}selected{% endif %}>20 por página</option>
+                    <option value="50" {% if per_page == 50 %}selected{% endif %}>50 por página</option>
                 </select>
             </div>
         </div>

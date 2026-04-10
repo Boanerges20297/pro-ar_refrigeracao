@@ -5,6 +5,7 @@ from app.models.user import User
 from app import db
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.utils.decorators import roles_required, get_technician_client_ids
+from sqlalchemy import or_
 
 clients_bp = Blueprint('clients', __name__)
 
@@ -14,22 +15,35 @@ def index():
     # Get current user
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id) if current_user_id else None
+    search = (request.args.get('search') or '').strip()
     
     # Check if user is technician
     is_technician = current_user and current_user.permission_level == 'user'
+
+    query = Client.query
     
     if is_technician:
         # Técnico vê apenas clientes que atendeu
         client_ids = get_technician_client_ids(current_user.id)
         if client_ids:
-            clients = Client.query.filter(Client.id.in_(client_ids)).all()
+            query = query.filter(Client.id.in_(client_ids))
         else:
-            clients = []
-    else:
-        # Admin e Secretary veem todos os clientes
-        clients = Client.query.all()
+            query = query.filter(Client.id == None)
+
+    if search:
+        search_term = f'%{search}%'
+        query = query.filter(
+            or_(
+                Client.name.ilike(search_term),
+                Client.email.ilike(search_term),
+                Client.phone.ilike(search_term),
+                Client.address.ilike(search_term),
+            )
+        )
+
+    clients = query.order_by(Client.name.asc()).all()
     
-    return render_template('clients/index.html', clients=clients)
+    return render_template('clients/index.html', clients=clients, search=search)
 
 @clients_bp.route('/add', methods=['GET', 'POST'])
 @roles_required('admin', 'secretary')

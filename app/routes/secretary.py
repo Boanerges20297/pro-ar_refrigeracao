@@ -11,6 +11,7 @@ from app.models.config import AppConfig
 from app import db
 from sqlalchemy import func
 from datetime import datetime, timedelta
+from app.utils.maintenance import sync_schedule_with_workorder
 
 secretary_bp = Blueprint('secretary', __name__)
 
@@ -227,6 +228,7 @@ def conclude_workorder(wo_id):
         old_status = workorder.status
         workorder.status = 'Completed'
         workorder.completed_date = datetime.utcnow()
+        sync_schedule_with_workorder(workorder, previous_status=old_status)
         
         db.session.commit()
         

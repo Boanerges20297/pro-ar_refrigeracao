@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from app.models.user import User
 from app.models.workorder import WorkOrder
 from app.models.maintenance import MaintenanceSchedule
@@ -7,9 +7,39 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.utils.decorators import roles_required
 from app.utils.license import check_user_limit
 from app.utils.security import is_password_strong, PASSWORD_POLICY_MESSAGE
+from app.utils.email import send_dynamic_email
+from app.utils.audit import log_action
 from datetime import datetime, timedelta
+from sqlalchemy import or_
 
 tech_bp = Blueprint('tech', __name__)
+
+
+def send_staff_message(recipients, subject, message_body, sender_name):
+    sent_count = 0
+    failed_recipients = []
+
+    for recipient in recipients:
+        success, error_message = send_dynamic_email(
+            to_email=recipient.email,
+            subject=subject,
+            template='email/staff_message.html',
+            recipient=recipient,
+            sender_name=sender_name,
+            message_subject=subject,
+            message_body=message_body,
+        )
+
+        if success:
+            sent_count += 1
+        else:
+            failed_recipients.append({
+                'name': recipient.name,
+                'email': recipient.email,
+                'error': error_message,
+            })
+
+    return sent_count, failed_recipients
 
 @tech_bp.route('/dashboard')
 @roles_required('technician', 'admin') # Admins can also see tech dash
@@ -42,11 +72,141 @@ def dashboard():
                            in_progress_my_os=in_progress_my_os,
                            overdue_services=overdue_services)
 
+
+@tech_bp.route('/assignments/status')
+@roles_required('technician')
+def assignment_status():
+    current_user_id = get_jwt_identity()
+    user = User.query.get_or_404(current_user_id)
+
+    active_workorders = WorkOrder.query.filter(
+        WorkOrder.technician_id == user.id,
+        WorkOrder.status.in_(['Pending', 'In Progress'])
+    ).order_by(WorkOrder.scheduled_date.asc(), WorkOrder.id.asc()).all()
+
+    return jsonify({
+        'workorders': [
+            {
+                'id': workorder.id,
+                'client_name': workorder.client.name if workorder.client else '-',
+                'service_name': workorder.service_type.name if getattr(workorder, 'service_type', None) else '-',
+                'edit_url': url_for('services.edit', id=workorder.id, return_to=url_for('tech.dashboard')),
+            }
+            for workorder in active_workorders
+        ]
+    })
+
 @tech_bp.route('/list')
 @roles_required('admin')
 def list_technicians():
-    technicians = User.query.all() # Fetch all employees
-    return render_template('technician/list.html', technicians=technicians)
+    search = (request.args.get('search') or '').strip()
+    query = User.query
+
+    if search:
+        search_term = f'%{search}%'
+        query = query.filter(
+            or_(
+                User.name.ilike(search_term),
+                User.email.ilike(search_term),
+                User.job_title.ilike(search_term),
+                User.specialty.ilike(search_term),
+                User.permission_level.ilike(search_term),
+            )
+        )
+
+    technicians = query.order_by(User.name.asc()).all()
+    return render_template('technician/list.html', technicians=technicians, search=search)
+
+
+@tech_bp.route('/message/<int:user_id>', methods=['GET', 'POST'])
+@roles_required('admin')
+def message_user(user_id):
+    current_user = User.query.get_or_404(get_jwt_identity())
+    user = User.query.get_or_404(user_id)
+
+    if request.method == 'POST':
+        subject = (request.form.get('subject') or '').strip()
+        message_body = (request.form.get('message') or '').strip()
+
+        if not subject or not message_body:
+            flash('Informe o assunto e a mensagem para continuar.', 'danger')
+            return render_template(
+                'technician/message_form.html',
+                mode='single',
+                recipient=user,
+                form_subject=subject,
+                form_message=message_body,
+            )
+
+        sent_count, failed_recipients = send_staff_message([user], subject, message_body, current_user.name)
+        if sent_count:
+            log_action(
+                action='MESSAGE_SENT',
+                resource_type='User',
+                resource_id=user.id,
+                resource_name=user.email,
+                details={'scope': 'single', 'subject': subject, 'recipient_email': user.email}
+            )
+            flash(f'Mensagem enviada para {user.name}.', 'success')
+            return redirect(url_for('tech.list_technicians'))
+
+        flash(f"Não foi possível enviar a mensagem para {user.name}: {failed_recipients[0]['error']}", 'danger')
+
+    return render_template('technician/message_form.html', mode='single', recipient=user)
+
+
+@tech_bp.route('/message-all', methods=['GET', 'POST'])
+@roles_required('admin')
+def message_all_users():
+    current_user = User.query.get_or_404(get_jwt_identity())
+    recipients = User.query.filter(
+        User.is_active == True,
+        User.permission_level.in_(['admin', 'user'])
+    ).order_by(User.name.asc()).all()
+
+    if request.method == 'POST':
+        subject = (request.form.get('subject') or '').strip()
+        message_body = (request.form.get('message') or '').strip()
+
+        if not subject or not message_body:
+            flash('Informe o assunto e a mensagem para continuar.', 'danger')
+            return render_template(
+                'technician/message_form.html',
+                mode='all',
+                recipients=recipients,
+                form_subject=subject,
+                form_message=message_body,
+            )
+
+        if not recipients:
+            flash('Nenhum usuário ativo com permissão admin ou user foi encontrado.', 'danger')
+            return redirect(url_for('tech.list_technicians'))
+
+        sent_count, failed_recipients = send_staff_message(recipients, subject, message_body, current_user.name)
+
+        if sent_count:
+            log_action(
+                action='MESSAGE_SENT',
+                resource_type='User',
+                details={
+                    'scope': 'broadcast',
+                    'subject': subject,
+                    'sent_count': sent_count,
+                    'failed_count': len(failed_recipients),
+                }
+            )
+
+        if failed_recipients:
+            flash(
+                f'Mensagem enviada para {sent_count} usuário(s). Falha em {len(failed_recipients)} envio(s).',
+                'danger'
+            )
+        else:
+            flash(f'Mensagem enviada para {sent_count} usuário(s).', 'success')
+
+        return redirect(url_for('tech.list_technicians'))
+
+    return render_template('technician/message_form.html', mode='all', recipients=recipients)
 
 def normalize_job_title(permission_level, job_title, other_job_title=None):
     if permission_level == 'secretary':

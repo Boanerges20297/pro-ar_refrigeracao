@@ -10,6 +10,7 @@ from datetime import datetime
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.utils.decorators import roles_required, get_technician_client_ids
 from app.utils.images import save_and_resize_image
+from app.utils.maintenance import sync_schedule_with_workorder
 from app.utils.audit import log_action
 import io
 from reportlab.lib.pagesizes import letter, A4
@@ -128,9 +129,35 @@ def receipt(id):
 def index():
     """Mostrar ordens de serviço agrupadas por cliente com os últimos 5 de cada"""
     current_user = get_current_user()
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    search = (request.args.get('search') or '').strip()
+
+    if per_page not in [1, 10, 20]:
+        per_page = 10
     
     # Check if user is technician
     is_technician = current_user and current_user.permission_level == 'user'
+    filtered_client_ids = None
+
+    if search:
+        search_term = f'%{search}%'
+        matching_workorders_query = WorkOrder.query.join(WorkOrder.client).outerjoin(WorkOrder.equipment).outerjoin(WorkOrder.service_type).outerjoin(WorkOrder.technician)
+
+        if is_technician:
+            matching_workorders_query = matching_workorders_query.filter(WorkOrder.technician_id == current_user.id)
+
+        matching_workorders = matching_workorders_query.filter(
+            or_(
+                Client.name.ilike(search_term),
+                Equipment.name.ilike(search_term),
+                Equipment.serial_number.ilike(search_term),
+                ServiceCatalog.name.ilike(search_term),
+                User.name.ilike(search_term),
+                WorkOrder.description.ilike(search_term),
+            )
+        ).all()
+        filtered_client_ids = sorted({workorder.client_id for workorder in matching_workorders if workorder.client_id})
     
     if is_technician:
         # Técnico vê apenas seus próprios serviços
@@ -141,9 +168,17 @@ def index():
             WorkOrder.technician_id == current_user.id
         ).group_by(WorkOrder.client_id).subquery()
         
-        clients = Client.query.join(
+        clients_query = Client.query.join(
             tech_os_query, Client.id == tech_os_query.c.client_id
-        ).order_by(tech_os_query.c.latest_os.desc()).all()
+        )
+        if filtered_client_ids is not None:
+            if filtered_client_ids:
+                clients_query = clients_query.filter(Client.id.in_(filtered_client_ids))
+            else:
+                clients_query = clients_query.filter(Client.id == None)
+        clients_pagination = clients_query.order_by(tech_os_query.c.latest_os.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
     else:
         # Admin e Secretary veem todos os serviços
         # Subquery to get the latest OS date for each client
@@ -153,31 +188,92 @@ def index():
         ).group_by(WorkOrder.client_id).subquery()
 
         # Query clients who have OS, ordered by their latest OS date
-        clients = Client.query.join(
+        clients_query = Client.query.join(
             latest_os_subquery, Client.id == latest_os_subquery.c.client_id
-        ).order_by(latest_os_subquery.c.latest_os.desc()).all()
+        )
+        if filtered_client_ids is not None:
+            if filtered_client_ids:
+                clients_query = clients_query.filter(Client.id.in_(filtered_client_ids))
+            else:
+                clients_query = clients_query.filter(Client.id == None)
+        clients_pagination = clients_query.order_by(latest_os_subquery.c.latest_os.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
     
     # Para cada cliente, pegar apenas os últimos 5 OS
     clients_with_os = []
-    for client in clients:
+    for client in clients_pagination.items:
         if is_technician:
-            recent_os = WorkOrder.query.filter(
+            recent_os_query = WorkOrder.query.filter(
                 WorkOrder.client_id == client.id,
                 WorkOrder.technician_id == current_user.id
-            ).order_by(
+            )
+            if search:
+                search_term = f'%{search}%'
+                recent_os_query = recent_os_query.outerjoin(WorkOrder.equipment).outerjoin(WorkOrder.service_type).outerjoin(WorkOrder.technician).filter(
+                    or_(
+                        Equipment.name.ilike(search_term),
+                        Equipment.serial_number.ilike(search_term),
+                        ServiceCatalog.name.ilike(search_term),
+                        User.name.ilike(search_term),
+                        WorkOrder.description.ilike(search_term),
+                    )
+                )
+
+            recent_os = recent_os_query.order_by(
                 WorkOrder.created_at.desc()
             ).limit(5).all()
             
-            total_os = WorkOrder.query.filter(
+            total_os_query = WorkOrder.query.filter(
                 WorkOrder.client_id == client.id,
                 WorkOrder.technician_id == current_user.id
-            ).count()
+            )
+            if search:
+                search_term = f'%{search}%'
+                total_os_query = total_os_query.outerjoin(WorkOrder.equipment).outerjoin(WorkOrder.service_type).outerjoin(WorkOrder.technician).filter(
+                    or_(
+                        Equipment.name.ilike(search_term),
+                        Equipment.serial_number.ilike(search_term),
+                        ServiceCatalog.name.ilike(search_term),
+                        User.name.ilike(search_term),
+                        WorkOrder.description.ilike(search_term),
+                    )
+                )
+            total_os = total_os_query.count()
         else:
-            recent_os = WorkOrder.query.filter_by(client_id=client.id).order_by(
+            recent_os_query = WorkOrder.query.filter_by(client_id=client.id)
+            if search:
+                search_term = f'%{search}%'
+                recent_os_query = recent_os_query.outerjoin(WorkOrder.equipment).outerjoin(WorkOrder.service_type).outerjoin(WorkOrder.technician).filter(
+                    or_(
+                        Equipment.name.ilike(search_term),
+                        Equipment.serial_number.ilike(search_term),
+                        ServiceCatalog.name.ilike(search_term),
+                        User.name.ilike(search_term),
+                        WorkOrder.description.ilike(search_term),
+                    )
+                )
+
+            recent_os = recent_os_query.order_by(
                 WorkOrder.created_at.desc()
             ).limit(5).all()
             
-            total_os = WorkOrder.query.filter_by(client_id=client.id).count()
+            total_os_query = WorkOrder.query.filter_by(client_id=client.id)
+            if search:
+                search_term = f'%{search}%'
+                total_os_query = total_os_query.outerjoin(WorkOrder.equipment).outerjoin(WorkOrder.service_type).outerjoin(WorkOrder.technician).filter(
+                    or_(
+                        Equipment.name.ilike(search_term),
+                        Equipment.serial_number.ilike(search_term),
+                        ServiceCatalog.name.ilike(search_term),
+                        User.name.ilike(search_term),
+                        WorkOrder.description.ilike(search_term),
+                    )
+                )
+            total_os = total_os_query.count()
+
+        if search and not recent_os:
+            continue
         
         clients_with_os.append({
             'client': client,
@@ -186,7 +282,13 @@ def index():
             'has_more': total_os > 5
         })
     
-    return render_template('services/index.html', clients_with_os=clients_with_os)
+    return render_template(
+        'services/index.html',
+        clients_with_os=clients_with_os,
+        search=search,
+        pagination=clients_pagination,
+        per_page=per_page,
+    )
 
 @services_bp.route('/add', methods=['GET', 'POST'])
 @roles_required('admin', 'secretary')
@@ -291,6 +393,11 @@ def edit(id):
         except ValueError:
             pass
 
+        if wo.status == 'Completed' and previous_status != 'Completed':
+            wo.completed_date = datetime.utcnow()
+        elif wo.status != 'Completed' and previous_status == 'Completed':
+            wo.completed_date = None
+
         scheduled_date_str = request.form.get('scheduled_date')
         if scheduled_date_str:
             wo.scheduled_date = datetime.strptime(scheduled_date_str, '%Y-%m-%dT%H:%M')
@@ -304,6 +411,8 @@ def edit(id):
             
         if photo_after_file and photo_after_file.filename:
             wo.photo_after = save_and_resize_image(photo_after_file, 'work_orders')
+
+        sync_schedule_with_workorder(wo, previous_status=previous_status)
 
         db.session.commit()
         log_action(
@@ -347,11 +456,11 @@ def history():
     current_user = get_current_user()
     
     page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 10, type=int)
+    per_page = request.args.get('per_page', 5, type=int)
     
     # Validar per_page
-    if per_page not in [10, 20, 50]:
-        per_page = 10
+    if per_page not in [5, 10, 20, 50]:
+        per_page = 5
     
     # Filtros opcionais
     client_id = request.args.get('client_id', type=int)

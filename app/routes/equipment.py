@@ -10,6 +10,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.utils.decorators import roles_required, get_technician_client_ids
+from sqlalchemy import or_
 
 equip_bp = Blueprint('equipment', __name__)
 
@@ -19,22 +20,37 @@ def index():
     # Get current user
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id) if current_user_id else None
+    search = (request.args.get('search') or '').strip()
     
     # Check if user is technician
     is_technician = current_user and current_user.permission_level == 'user'
+
+    query = Equipment.query.join(Equipment.owner)
     
     if is_technician:
         # Técnico vê apenas equipamentos de clientes que atendeu
         client_ids = get_technician_client_ids(current_user.id)
         if client_ids:
-            equipments = Equipment.query.filter(Equipment.client_id.in_(client_ids)).all()
+            query = query.filter(Equipment.client_id.in_(client_ids))
         else:
-            equipments = []
-    else:
-        # Admin e Secretary veem todos os equipamentos
-        equipments = Equipment.query.all()
+            query = query.filter(Equipment.id == None)
+
+    if search:
+        search_term = f'%{search}%'
+        query = query.filter(
+            or_(
+                Client.name.ilike(search_term),
+                Equipment.name.ilike(search_term),
+                Equipment.brand.ilike(search_term),
+                Equipment.model.ilike(search_term),
+                Equipment.serial_number.ilike(search_term),
+                Equipment.location.ilike(search_term),
+            )
+        )
+
+    equipments = query.order_by(Client.name.asc(), Equipment.name.asc()).all()
     
-    return render_template('equipment/index.html', equipments=equipments)
+    return render_template('equipment/index.html', equipments=equipments, search=search)
 
 @equip_bp.route('/view/<serial_number>')
 @roles_required('admin', 'secretary', 'technician')

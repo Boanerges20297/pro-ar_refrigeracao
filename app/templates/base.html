@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     {% if app_config %}
     <style>
         :root {
@@ -817,6 +818,94 @@
             }
         }
 
+        function getTechnicianAssignmentStorageKey(currentUserId) {
+            return `prontoar-tech-known-assignments-${currentUserId}`;
+        }
+
+        function readKnownTechnicianAssignments(storageKey) {
+            try {
+                const rawValue = window.sessionStorage.getItem(storageKey);
+                const parsed = rawValue ? JSON.parse(rawValue) : [];
+                return Array.isArray(parsed) ? parsed.map((id) => Number(id)).filter((id) => Number.isInteger(id)) : [];
+            } catch (error) {
+                return [];
+            }
+        }
+
+        function writeKnownTechnicianAssignments(storageKey, assignmentIds) {
+            window.sessionStorage.setItem(storageKey, JSON.stringify(assignmentIds));
+        }
+
+        function startTechnicianAssignmentWatcher() {
+            const isTechnician = {{ 'true' if current_user and current_user.permission_level == 'user' else 'false' }};
+            if (!isTechnician) {
+                return;
+            }
+
+            const currentUserId = '{{ current_user.id if current_user else "anonymous" }}';
+            const storageKey = getTechnicianAssignmentStorageKey(currentUserId);
+            let isInitialSync = true;
+            let isAlertOpen = false;
+
+            const syncAssignments = async () => {
+                try {
+                    const response = await fetch('{{ url_for('tech.assignment_status') }}', {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const data = await response.json();
+                    const workorders = Array.isArray(data.workorders) ? data.workorders : [];
+                    const assignmentIds = workorders.map((workorder) => Number(workorder.id)).filter((id) => Number.isInteger(id));
+                    const knownIds = readKnownTechnicianAssignments(storageKey);
+
+                    if (isInitialSync) {
+                        writeKnownTechnicianAssignments(storageKey, assignmentIds);
+                        isInitialSync = false;
+                        return;
+                    }
+
+                    const newAssignments = workorders.filter((workorder) => !knownIds.includes(Number(workorder.id)));
+                    writeKnownTechnicianAssignments(storageKey, assignmentIds);
+
+                    if (!newAssignments.length || isAlertOpen || !window.Swal) {
+                        return;
+                    }
+
+                    const newestAssignment = newAssignments.sort((left, right) => Number(right.id) - Number(left.id))[0];
+                    isAlertOpen = true;
+
+                    const result = await window.Swal.fire({
+                        icon: 'warning',
+                        title: 'Atenção!',
+                        text: 'Uma nova OS foi atribuida a voce.',
+                        showCancelButton: true,
+                        confirmButtonText: 'Abrir OS',
+                        cancelButtonText: 'OK',
+                        confirmButtonColor: '{{ app_config.primary_color if app_config and app_config.primary_color else "#3b82f6" }}',
+                        cancelButtonColor: '#6b7280',
+                        allowOutsideClick: false,
+                    });
+
+                    if (result.isConfirmed && newestAssignment && newestAssignment.edit_url) {
+                        window.location.href = newestAssignment.edit_url;
+                    }
+                } catch (error) {
+                    console.error('Erro ao verificar novas OS atribuídas:', error);
+                } finally {
+                    isAlertOpen = false;
+                }
+            };
+
+            syncAssignments();
+            window.setInterval(syncAssignments, 20000);
+        }
+
         window.addEventListener('click', function(event) {
             const modal = document.getElementById('notificationsModal');
             if (modal && event.target === modal) {
@@ -824,20 +913,41 @@
             }
         });
 
-        (function autoOpenAlertsOnLogin() {
-            const modal = document.getElementById('notificationsModal');
-            if (!modal) {
+        (function showAlertsWarningOnSessionStart() {
+            const alertCount = Number('{{ alerts.total_count if alerts else 0 }}');
+            if (alertCount <= 0) {
                 return;
             }
 
-            const alertCount = Number('{{ alerts.total_count if alerts else 0 }}');
             const currentUserId = '{{ current_user.id if current_user else "anonymous" }}';
-            const storageKey = `prontoar-alert-modal-opened-${currentUserId}`;
+            const isTechnician = {{ 'true' if current_user and current_user.permission_level == 'user' else 'false' }};
+            const storageKey = `prontoar-alert-warning-shown-${currentUserId}`;
 
-            if (alertCount > 0 && !window.sessionStorage.getItem(storageKey)) {
-                window.sessionStorage.setItem(storageKey, '1');
-                window.setTimeout(() => toggleNotifications(true), 450);
+            if (window.sessionStorage.getItem(storageKey)) {
+                return;
             }
+
+            window.sessionStorage.setItem(storageKey, '1');
+
+            if (!window.Swal) {
+                return;
+            }
+
+            window.setTimeout(() => {
+                const alertTitle = 'Atenção aos Avisos!';
+                const alertText = isTechnician
+                    ? `Você possui serviço(s) pendente(s) ou em atraso. Clique no sininho para revisar seus atendimentos.`
+                    : `Existem ${alertCount} alerta(s) pendente(s). Clique no sininho para revisar quando quiser.`;
+
+                window.Swal.fire({
+                    icon: 'warning',
+                    title: alertTitle,
+                    text: alertText,
+                    confirmButtonText: 'Entendi',
+                    confirmButtonColor: '{{ app_config.primary_color if app_config and app_config.primary_color else "#3b82f6" }}',
+                    toast: false,
+                });
+            }, 300);
         })();
 
         document.querySelectorAll('.flash-message[data-auto-dismiss]').forEach((message) => {
@@ -851,6 +961,8 @@
                 }, 500);
             }, delay);
         });
+
+        startTechnicianAssignmentWatcher();
     </script>
     <script src="https://unpkg.com/slim-select@latest/dist/slimselect.min.js"></script>
     {% block scripts %}{% endblock %}
