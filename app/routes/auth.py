@@ -1,11 +1,17 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response, current_app, session
 from app.models.user import User
 from flask_jwt_extended import create_access_token, set_access_cookies, unset_jwt_cookies, jwt_required, get_jwt_identity
 from itsdangerous import URLSafeTimedSerializer
 from app.utils.email import send_password_reset_email
 from app.utils.audit import log_login, log_logout
 from app.utils.license import evaluate_license, get_license_record, log_license_event
-from app.utils.security import is_password_strong, PASSWORD_POLICY_MESSAGE
+from app.utils.security import (
+    is_password_strong,
+    PASSWORD_POLICY_MESSAGE,
+    build_password_version,
+    build_session_nonce,
+    build_user_agent_fingerprint,
+)
 from app import db
 from app import limiter
 from datetime import datetime
@@ -58,7 +64,20 @@ def login():
                 )
                 return redirect(url_for('auth.login'))
 
-            access_token = create_access_token(identity=str(user.id))
+            session_nonce = build_session_nonce()
+            session['jwt_session_nonce'] = session_nonce
+            session.modified = True
+
+            access_token = create_access_token(
+                identity=str(user.id),
+                additional_claims={
+                    'uid': str(user.id),
+                    'permission_level': user.permission_level,
+                    'pwdv': build_password_version(user.password_hash),
+                    'session_nonce': session_nonce,
+                    'ua_hash': build_user_agent_fingerprint(request.headers.get('User-Agent')),
+                },
+            )
 
             # Log successful login
             log_login(user.id, success=True)
@@ -81,13 +100,15 @@ def login():
 
     return render_template('auth/login.html')
 
-@auth_bp.route('/logout')
+@auth_bp.route('/logout', methods=['POST'])
 @jwt_required(optional=True)
 def logout():
     # Log logout action
     current_user_id = get_jwt_identity()
     if current_user_id:
         log_logout(int(current_user_id))
+
+    session.pop('jwt_session_nonce', None)
     
     resp = make_response(redirect(url_for('auth.login')))
     unset_jwt_cookies(resp)

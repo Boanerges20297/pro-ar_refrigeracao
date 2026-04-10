@@ -16,6 +16,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.exceptions import RequestEntityTooLarge
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from app.utils.security import build_password_version, build_user_agent_fingerprint, is_same_origin_request
 
 
 db = SQLAlchemy()
@@ -88,6 +89,15 @@ def create_app(config_class=Config):
     from flask_wtf.csrf import CSRFProtect
     csrf = CSRFProtect()
     csrf.init_app(app)
+    from flask import flash, g, make_response, redirect, request, session, url_for
+    from flask_jwt_extended import get_jwt, get_jwt_identity, unset_jwt_cookies, verify_jwt_in_request
+
+    def clear_auth_and_redirect(message, category='danger', endpoint='auth.login'):
+        session.pop('jwt_session_nonce', None)
+        flash(message, category)
+        response = make_response(redirect(url_for(endpoint)))
+        unset_jwt_cookies(response)
+        return response
 
     @app.errorhandler(RequestEntityTooLarge)
     def handle_file_too_large(error):
@@ -95,27 +105,77 @@ def create_app(config_class=Config):
         return redirect(request.referrer or url_for("main.index"))
 
     @app.before_request
-    def enforce_license_status():
-        from flask import g, request, session
-        from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
+    def enforce_same_origin_for_mutations():
+        endpoint = request.endpoint or ''
+        if request.method not in {'POST', 'PUT', 'PATCH', 'DELETE'}:
+            return None
 
+        if endpoint == 'static' or request.path.startswith('/static/'):
+            return None
+
+        if is_same_origin_request(
+            request.headers.get('Origin'),
+            request.headers.get('Referer'),
+            request.host_url,
+        ):
+            return None
+
+        app.logger.warning('Blocked cross-origin mutable request to %s from origin=%s referer=%s', request.path, request.headers.get('Origin'), request.headers.get('Referer'))
+        return clear_auth_and_redirect('Requisição bloqueada por política de segurança da aplicação.', 'danger')
+
+    @app.before_request
+    def enforce_authenticated_request_context():
         endpoint = request.endpoint or ''
         if endpoint == 'static' or request.path.startswith('/static/'):
             return None
 
+        g.current_user = None
+
+        try:
+            verify_jwt_in_request(optional=True)
+        except Exception:
+            return None
+
+        current_user_id = get_jwt_identity()
+        if not current_user_id:
+            return None
+
         from app.models.user import User
+
+        jwt_claims = get_jwt()
+        current_user = User.query.get(current_user_id)
+
+        if not current_user or not current_user.is_active:
+            return clear_auth_and_redirect('Sua sessão não é mais válida. Faça login novamente.', 'warning')
+
+        expected_password_version = build_password_version(current_user.password_hash)
+        expected_user_agent = build_user_agent_fingerprint(request.headers.get('User-Agent'))
+        session_nonce = session.get('jwt_session_nonce')
+
+        token_is_valid = all([
+            str(jwt_claims.get('uid')) == str(current_user.id),
+            jwt_claims.get('permission_level') == current_user.permission_level,
+            jwt_claims.get('pwdv') == expected_password_version,
+            jwt_claims.get('session_nonce') == session_nonce,
+            jwt_claims.get('ua_hash') == expected_user_agent,
+        ])
+
+        if not token_is_valid:
+            app.logger.warning('Blocked request with mismatched JWT context for user_id=%s path=%s', current_user.id, request.path)
+            return clear_auth_and_redirect('Sua sessão falhou na validação de segurança. Faça login novamente.', 'danger')
+
+        g.current_user = current_user
+
+    @app.before_request
+    def enforce_license_status():
+        endpoint = request.endpoint or ''
+        if endpoint == 'static' or request.path.startswith('/static/'):
+            return None
+
         from app.utils.license import evaluate_license, get_license_features, get_license_record, has_license_feature
 
         g.license_state = evaluate_license(get_license_record(create=True))
-
-        current_user = None
-        try:
-            verify_jwt_in_request(optional=True)
-            current_user_id = get_jwt_identity()
-            if current_user_id:
-                current_user = User.query.get(current_user_id)
-        except Exception:
-            current_user = None
+        current_user = getattr(g, 'current_user', None)
 
         if g.license_state['status'] in {'expiring', 'expired', 'invalid'}:
             last_notice_key = session.get('license_notice_key')
@@ -146,15 +206,11 @@ def create_app(config_class=Config):
             return redirect(url_for('admin.settings'))
 
         if current_user:
-            flash('A operação está bloqueada por licença expirada ou inválida. Contate o administrador.', 'danger')
-            return redirect(url_for('auth.logout'))
+            return clear_auth_and_redirect('A operação está bloqueada por licença expirada ou inválida. Contate o administrador.', 'danger')
 
         return None
 
     # Handle JWT errors globally
-    from flask import redirect, url_for, flash, request
-    from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
-
     @jwt.unauthorized_loader
     def unauthorized_callback(callback):
         # When no JWT is present
@@ -164,14 +220,12 @@ def create_app(config_class=Config):
     @jwt.expired_token_loader
     def expired_token_callback(jwt_header, jwt_payload):
         # When JWT has expired
-        flash("Sua sessão expirou. Por favor, faça login novamente.", "warning")
-        return redirect(url_for("auth.login"))
+        return clear_auth_and_redirect("Sua sessão expirou. Por favor, faça login novamente.", "warning")
 
     @jwt.invalid_token_loader
     def invalid_token_callback(error):
         # When JWT is invalid
-        flash("Sessão inválida. Por favor, faça login novamente.", "danger")
-        return redirect(url_for("auth.login"))
+        return clear_auth_and_redirect("Sessão inválida. Por favor, faça login novamente.", "danger")
 
     # Context processors for all templates
     @app.context_processor

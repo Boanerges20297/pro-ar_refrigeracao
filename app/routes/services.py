@@ -359,6 +359,8 @@ def edit(id):
     return_to = normalize_return_to(request.values.get('return_to')) or request.referrer or url_for('services.index')
     
     wo = WorkOrder.query.get_or_404(id)
+    is_admin = current_user and current_user.permission_level == 'admin'
+    is_completed_locked = wo.status == 'Completed' and not is_admin
     
     # Verificar se técnico tem acesso a este serviço
     is_technician = current_user and current_user.permission_level == 'user'
@@ -366,18 +368,17 @@ def edit(id):
         if wo.technician_id != current_user.id:
             flash('Você não tem permissão para editar este serviço.', 'danger')
             return redirect(url_for('services.index'))
-        
-        # Bloquear edição se o serviço for marcado como Concluído
-        if wo.status == 'Completed' and not prompt_receipt_requested:
-            flash('Não é possível editar um serviço já concluído.', 'danger')
-            return redirect(url_for('services.index'))
-    
+
     clients = Client.query.all()
     equipments = Equipment.query.all()
     services = ServiceCatalog.query.all()
     technicians = User.query.filter_by(role='technician', is_active=True).all()
 
     if request.method == 'POST':
+        if wo.status == 'Completed' and not is_admin:
+            flash('Apenas administradores podem alterar uma OS já concluída.', 'danger')
+            return redirect(return_to or url_for('services.index'))
+
         old_values = {
             'status': wo.status,
             'description': wo.description,
@@ -451,7 +452,8 @@ def edit(id):
         services=services,
         technicians=technicians,
         prompt_receipt=prompt_receipt_requested and wo.status == 'Completed',
-        return_to=return_to
+        return_to=return_to,
+        is_completed_locked=is_completed_locked
     )
 
 @services_bp.route('/history')

@@ -63,6 +63,15 @@ O Pronto Ar foi construído para controlar o ciclo completo de atendimento técn
 
 Além da operação técnica, a aplicação também contempla uma camada administrativa com painel, relatórios, configuração visual da empresa e monitoramento de atividades recentes.
 
+### Atualizações recentes
+
+- a listagem de serviços por cliente passou a exibir a coluna `Local / Setor`, usando a localização cadastrada no equipamento;
+- o campo de localização do equipamento foi consolidado como `Local / Setor / Filial`, podendo representar filial, setor interno ou ponto específico dentro da empresa;
+- o scanner mobile voltou ao modo simples de leitura por QR Code, com preferência pela câmera traseira e navegação direta para o equipamento lido;
+- a leitura de QR foi reforçada para aceitar número de série, ID interno do equipamento ou URL completa do QR;
+- ordens de serviço concluídas agora só podem ser alteradas por administradores;
+- a autenticação foi endurecida com vínculo do JWT ao usuário, à sessão ativa e ao contexto do navegador, além de bloqueio de requests mutáveis fora da origem da aplicação.
+
 ## Escopo Funcional
 
 ### Funcionalidades principais
@@ -71,8 +80,8 @@ Além da operação técnica, a aplicação também contempla uma camada adminis
 |---|---|
 | Autenticação | Login com JWT em cookie HttpOnly e proteção CSRF por Flask-WTF |
 | Clientes | Cadastro, edição, listagem e consulta de equipamentos por cliente |
-| Equipamentos | Cadastro, edição, visualização detalhada, QR Code e histórico associado |
-| Ordens de Serviço | Criação, edição, histórico, agrupamento por cliente, exportação PDF e acompanhamento por status |
+| Equipamentos | Cadastro, edição, visualização detalhada, QR Code, leitura por câmera traseira e histórico associado |
+| Ordens de Serviço | Criação, edição, histórico, agrupamento por cliente com local/setor, exportação PDF e acompanhamento por status |
 | Manutenção | Agendamento preventivo, listagem, fechamento de manutenção e alertas por vencimento |
 | Funcionários | Gestão de usuários com níveis admin, secretary e user |
 | Dashboard Admin | Métricas, visão geral financeira, alertas operacionais e acesso à auditoria |
@@ -250,7 +259,7 @@ Campos relevantes:
 - `brand`
 - `model`
 - `serial_number`
-- `location`
+- `location` usado como local, setor ou filial
 - `qr_code_path`
 - `maintenance_interval`
 - `client_id`
@@ -396,8 +405,9 @@ Campos relevantes:
 1. cadastrar equipamento;
 2. gerar QR Code;
 3. imprimir ou baixar o código;
-4. ler o código via câmera;
-5. abrir diretamente a página do equipamento.
+4. ler o código via câmera, preferencialmente pela traseira do celular;
+5. aceitar QR contendo série, ID interno ou URL completa do equipamento;
+6. abrir diretamente a página do equipamento e seu histórico associado.
 
 ### 5. Fluxo de recuperação de senha
 
@@ -682,13 +692,23 @@ netsh advfirewall firewall add rule name="Flask 5000" dir=in action=allow protoc
 
 Leitura de câmera em celular pode exigir HTTPS quando o navegador bloquear `getUserMedia` em HTTP externo.
 
+Comportamento atual do scanner mobile:
+
+- abre em modo simples de leitura de QR Code;
+- prioriza a câmera traseira quando o navegador permitir `facingMode=environment`;
+- mantém busca manual por série ou código do equipamento como fallback;
+- redireciona para `/equipment/view/<referência>` após leitura válida.
+
 ## Segurança
 
 Controles existentes no projeto:
 
 - hash de senha com Bcrypt;
 - JWT em cookie HttpOnly;
+- logout via `POST` com CSRF, sem encerramento de sessão por `GET`;
 - CSRF por Flask-WTF em formulários;
+- validação same-origin para requests mutáveis (`POST`, `PUT`, `PATCH`, `DELETE`);
+- vínculo do JWT com `uid`, `permission_level`, versão da senha, nonce da sessão e fingerprint de user-agent;
 - uso de ORM em vez de SQL manual na maior parte dos fluxos;
 - autoescape do Jinja2;
 - validação de uploads e redimensionamento de imagem;
@@ -696,12 +716,19 @@ Controles existentes no projeto:
 - restrição específica para secretariado em rotas sensíveis;
 - trilha de auditoria administrativa.
 
+Regras adicionais de autorização:
+
+- apenas administradores podem alterar uma OS já concluída;
+- técnico e secretária podem visualizar OS concluída, mas sem permissão de alteração;
+- fotos de ordem de serviço continuam servidas por rota autenticada com checagem de acesso.
+
 Pontos de atenção:
 
 - o modo debug está ativo no `run.py`;
 - `JWT_COOKIE_SECURE` ainda está desligado para desenvolvimento;
 - SQLite não é a melhor opção para produção concorrente;
-- o acesso por perfil depende da consistência entre `permission_level` e regras das rotas.
+- o acesso por perfil depende da consistência entre `permission_level` e regras das rotas;
+- em produção, `JWT_COOKIE_SECURE` e `SESSION_COOKIE_SECURE` devem ficar habilitados com HTTPS.
 
 ## Operação Administrativa
 
@@ -748,6 +775,7 @@ Após autenticar:
 - `docs/LICENCIAMENTO_COMERCIAL.md`: modelos comerciais, planos, precificação e regras operacionais.
 - `license_api/README.md`: emissão, verificação, revogação e painel administrativo do serviço de licenças.
 - `deploy/HOSTINGER_VPS.md`: deploy do app principal em VPS.
+- `deploy/HOSTINGER_VPS_RENDER_POSTGRESQL.md`: arquitetura alvo com PostgreSQL no app principal e na license_api.
 - `deploy/HOSTINGER_LICENCIAMENTO.md`: deploy desacoplado do serviço de licenças em VPS.
 - `deploy/HOSPEDAGEM_COMPARTILHADA_LICENCIAMENTO.md`: cenário reduzido para hospedagem compartilhada.
 
