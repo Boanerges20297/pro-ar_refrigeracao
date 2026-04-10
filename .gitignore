@@ -65,3 +65,8 @@ tests/
 # Standalone license API
 license_api/data/
 license_api/keys/
+
+# SQLite local em fase de testes: manter versionado por enquanto
+!instance/*.db
+!instance/*.db-wal
+!instance/*.db-shm
