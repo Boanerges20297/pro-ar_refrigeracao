@@ -488,18 +488,23 @@
         <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
             <div class="mt-3 text-center">
                 <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4">
-                    <i class="fas fa-barcode text-primary text-xl"></i>
+                    <i class="fas fa-qrcode text-primary text-xl"></i>
                 </div>
-                <h3 class="text-lg leading-6 font-medium text-gray-900">Buscar Equipamento</h3>
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Ler QR do Equipamento</h3>
                 <div class="mt-2 px-7 py-3">
-                    <p class="text-sm text-gray-500 mb-4">Escaneie o código de barras ou digite o número de série da máquina.</p>
+                    <p class="text-sm text-gray-500 mb-4">Aponte a câmera para o QR Code do equipamento. Você também pode digitar a série ou o código manualmente.</p>
 
-                    <div id="global-reader-container" class="border border-gray-300 rounded mb-4 overflow-hidden">
+                    <div id="global-reader-container" class="relative border border-gray-300 rounded mb-4 overflow-hidden bg-black/5 min-h-[280px]">
                         <div id="global-reader" width="100%"></div>
+                        <div id="global-reader-overlay" class="pointer-events-none absolute inset-0 flex items-center justify-center">
+                            <div class="h-52 w-52 rounded-2xl border-4 border-white/95 shadow-[0_0_0_9999px_rgba(17,24,39,0.22)]"></div>
+                        </div>
                     </div>
 
+                    <p id="global-scanner-status" class="mb-4 text-xs text-gray-500">Modo de leitura simples ativado para QR Code.</p>
+
                     <div class="flex">
-                        <input type="text" id="manual_serial" placeholder="Ou digite o número de série..." class="block w-full border border-gray-300 rounded-l-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                        <input type="text" id="manual_serial" placeholder="Ou digite a série ou código do equipamento..." class="block w-full border border-gray-300 rounded-l-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
                         <button type="button" onclick="manualSearch()" class="inline-flex items-center px-4 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 font-medium">
                             Buscar
                         </button>
@@ -516,9 +521,9 @@
 
     {% if current_user %}
     <!-- FAB Scanner -->
-    <button id="fab-scanner" onclick="startGlobalScanner()" title="Escanear / Buscar Equipamento">
-        <i class="fas fa-barcode" style="font-size:1.15rem; flex-shrink:0;"></i>
-        <span class="fab-label">Escanear / Buscar</span>
+    <button id="fab-scanner" onclick="startGlobalScanner()" title="Ler QR / Buscar Equipamento">
+        <i class="fas fa-qrcode" style="font-size:1.15rem; flex-shrink:0;"></i>
+        <span class="fab-label">Ler QR / Buscar</span>
     </button>
     {% endif %}
 
@@ -615,7 +620,7 @@
       ]},
       { icon:'❄️', title:'Equipamentos', color:'#0ea5e9', steps:[
         'Acesse <strong>Equipamentos</strong> para visualizar todas as máquinas cadastradas.',
-        'Clique em <strong>Novo Equipamento</strong> e preencha: tipo, marca, modelo, número de série (se houver), localização e cliente.',
+        'Clique em <strong>Novo Equipamento</strong> e preencha: tipo, marca, modelo, número de série (se houver), local/setor/filial e cliente.',
         '<strong>QR Code gerado automaticamente</strong> ao salvar. O código é salvo e exibido nos detalhes do equipamento.',
         'Na tela de detalhes, clique no QR Code para imprimir. Cole a etiqueta no equipamento.',
         'O técnico escaneia o QR em campo — o sistema abre os detalhes e histórico instantaneamente.'
@@ -753,36 +758,117 @@
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <script>
         let globalHtml5QrcodeScanner = null;
+        let globalScannerRunning = false;
 
-        function startGlobalScanner() {
+        function setGlobalScannerStatus(message, tone = 'neutral') {
+            const statusElement = document.getElementById('global-scanner-status');
+            if (!statusElement) {
+                return;
+            }
+
+            const toneClasses = {
+                neutral: 'text-gray-500',
+                success: 'text-green-600',
+                error: 'text-red-600'
+            };
+
+            statusElement.className = `mb-4 text-xs ${toneClasses[tone] || toneClasses.neutral}`;
+            statusElement.textContent = message;
+        }
+
+        function getEquipmentLookupUrl(rawValue) {
+            const value = (rawValue || '').trim();
+            if (!value) {
+                return null;
+            }
+
+            try {
+                const parsed = new URL(value, window.location.origin);
+                if (parsed.origin === window.location.origin && parsed.pathname.startsWith('/equipment/view/')) {
+                    return parsed.toString();
+                }
+
+                const pathSegments = parsed.pathname.split('/').filter(Boolean);
+                if (pathSegments.length > 0) {
+                    const lastSegment = decodeURIComponent(pathSegments[pathSegments.length - 1]);
+                    return `/equipment/view/${encodeURIComponent(lastSegment)}`;
+                }
+            } catch (error) {
+                // Keep the raw value when it is not a URL.
+            }
+
+            return `/equipment/view/${encodeURIComponent(value)}`;
+        }
+
+        async function startGlobalScanner() {
             document.getElementById('global-scanner-modal').style.display = 'block';
+            setGlobalScannerStatus('Modo de leitura simples ativado para QR Code.');
+
+            if (globalScannerRunning) {
+                return;
+            }
 
             if (!globalHtml5QrcodeScanner) {
-                globalHtml5QrcodeScanner = new Html5QrcodeScanner(
-                    "global-reader",
-                    { fps: 10, qrbox: {width: 250, height: 250} },
-                    /* verbose= */ false);
+                globalHtml5QrcodeScanner = new Html5Qrcode('global-reader');
+            }
 
-                globalHtml5QrcodeScanner.render(onGlobalScanSuccess, onGlobalScanFailure);
+            const formatsToSupport = window.Html5QrcodeSupportedFormats
+                ? [Html5QrcodeSupportedFormats.QR_CODE]
+                : undefined;
+
+            try {
+                await globalHtml5QrcodeScanner.start(
+                    { facingMode: 'environment' },
+                    {
+                        fps: 10,
+                        qrbox: { width: 220, height: 220 },
+                        aspectRatio: 1,
+                        formatsToSupport,
+                    },
+                    onGlobalScanSuccess,
+                    onGlobalScanFailure,
+                );
+
+                globalScannerRunning = true;
+                document.getElementById('global-reader-overlay')?.classList.remove('hidden');
+            } catch (error) {
+                setGlobalScannerStatus('Nao foi possivel iniciar a camera. Use a busca manual abaixo.', 'error');
             }
         }
 
-        function stopGlobalScanner() {
+        async function stopGlobalScanner() {
             document.getElementById('global-scanner-modal').style.display = 'none';
-            if (globalHtml5QrcodeScanner) {
-                globalHtml5QrcodeScanner.clear();
-                globalHtml5QrcodeScanner = null;
+            document.getElementById('global-reader-overlay')?.classList.add('hidden');
+
+            if (globalHtml5QrcodeScanner && globalScannerRunning) {
+                try {
+                    await globalHtml5QrcodeScanner.stop();
+                } catch (error) {
+                    // Ignore stop failures to keep the modal closable.
+                }
+
+                try {
+                    await globalHtml5QrcodeScanner.clear();
+                } catch (error) {
+                    // Ignore clear failures after stop.
+                }
             }
+
+            globalHtml5QrcodeScanner = null;
+            globalScannerRunning = false;
         }
 
-        function onGlobalScanSuccess(decodedText, decodedResult) {
-            stopGlobalScanner();
+        async function onGlobalScanSuccess(decodedText, decodedResult) {
+            setGlobalScannerStatus('QR identificado. Abrindo equipamento...', 'success');
+            const targetUrl = getEquipmentLookupUrl(decodedText);
+            await stopGlobalScanner();
             // Play a small beep (optional)
             const audio = new Audio('https://www.soundjay.com/buttons/beep-07a.mp3');
             audio.play().catch(e => console.log('Audio error:', e));
 
-            // Redirect to the equipment view page
-            window.location.href = `/equipment/view/${encodeURIComponent(decodedText)}`;
+            if (targetUrl) {
+                window.location.href = targetUrl;
+            }
         }
 
         function onGlobalScanFailure(error) {
@@ -791,8 +877,9 @@
 
         function manualSearch() {
             const serial = document.getElementById('manual_serial').value.trim();
-            if (serial) {
-                window.location.href = `/equipment/view/${encodeURIComponent(serial)}`;
+            const targetUrl = getEquipmentLookupUrl(serial);
+            if (targetUrl) {
+                window.location.href = targetUrl;
             }
         }
 

@@ -151,6 +151,7 @@ def index():
             or_(
                 Client.name.ilike(search_term),
                 Equipment.name.ilike(search_term),
+                Equipment.location.ilike(search_term),
                 Equipment.serial_number.ilike(search_term),
                 ServiceCatalog.name.ilike(search_term),
                 User.name.ilike(search_term),
@@ -213,6 +214,7 @@ def index():
                 recent_os_query = recent_os_query.outerjoin(WorkOrder.equipment).outerjoin(WorkOrder.service_type).outerjoin(WorkOrder.technician).filter(
                     or_(
                         Equipment.name.ilike(search_term),
+                        Equipment.location.ilike(search_term),
                         Equipment.serial_number.ilike(search_term),
                         ServiceCatalog.name.ilike(search_term),
                         User.name.ilike(search_term),
@@ -233,6 +235,7 @@ def index():
                 total_os_query = total_os_query.outerjoin(WorkOrder.equipment).outerjoin(WorkOrder.service_type).outerjoin(WorkOrder.technician).filter(
                     or_(
                         Equipment.name.ilike(search_term),
+                        Equipment.location.ilike(search_term),
                         Equipment.serial_number.ilike(search_term),
                         ServiceCatalog.name.ilike(search_term),
                         User.name.ilike(search_term),
@@ -247,6 +250,7 @@ def index():
                 recent_os_query = recent_os_query.outerjoin(WorkOrder.equipment).outerjoin(WorkOrder.service_type).outerjoin(WorkOrder.technician).filter(
                     or_(
                         Equipment.name.ilike(search_term),
+                        Equipment.location.ilike(search_term),
                         Equipment.serial_number.ilike(search_term),
                         ServiceCatalog.name.ilike(search_term),
                         User.name.ilike(search_term),
@@ -264,6 +268,7 @@ def index():
                 total_os_query = total_os_query.outerjoin(WorkOrder.equipment).outerjoin(WorkOrder.service_type).outerjoin(WorkOrder.technician).filter(
                     or_(
                         Equipment.name.ilike(search_term),
+                        Equipment.location.ilike(search_term),
                         Equipment.serial_number.ilike(search_term),
                         ServiceCatalog.name.ilike(search_term),
                         User.name.ilike(search_term),

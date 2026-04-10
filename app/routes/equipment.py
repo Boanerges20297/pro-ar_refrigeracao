@@ -1,5 +1,6 @@
 import os
 import qrcode
+from urllib.parse import unquote, urlparse
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify
 from app.models.equipment import Equipment
 from app.models.client import Client
@@ -13,6 +14,36 @@ from app.utils.decorators import roles_required, get_technician_client_ids
 from sqlalchemy import or_
 
 equip_bp = Blueprint('equipment', __name__)
+
+
+def resolve_equipment_lookup(raw_reference):
+    if raw_reference is None:
+        return None, None
+
+    reference = str(raw_reference).strip()
+    if not reference:
+        return None, None
+
+    parsed = urlparse(reference)
+    if parsed.scheme or parsed.netloc:
+        path_parts = [part for part in parsed.path.split('/') if part]
+        if path_parts:
+            reference = path_parts[-1]
+
+    reference = unquote(reference).strip().strip('/')
+    if not reference:
+        return None, None
+
+    equipment = Equipment.query.filter_by(serial_number=reference).first()
+    if equipment:
+        return equipment, reference
+
+    if reference.isdigit():
+        equipment = Equipment.query.get(int(reference))
+        if equipment:
+            return equipment, reference
+
+    return None, reference
 
 @equip_bp.route('/')
 @roles_required('admin', 'secretary', 'technician')
@@ -59,7 +90,7 @@ def view_by_serial(serial_number):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id) if current_user_id else None
     
-    equip = Equipment.query.filter_by(serial_number=serial_number).first()
+    equip, normalized_reference = resolve_equipment_lookup(serial_number)
     
     # Verificar se técnico tem acesso a este equipamento
     is_technician = current_user and current_user.permission_level == 'user'
@@ -70,7 +101,7 @@ def view_by_serial(serial_number):
             return redirect(url_for('equipment.index'))
     
     if not equip:
-        flash(f'Equipamento com número de série/código {serial_number} não encontrado.', 'danger')
+        flash(f'Equipamento com número de série/código {normalized_reference or serial_number} não encontrado.', 'danger')
         return redirect(url_for('equipment.index'))
     return render_template('equipment/view.html', equip=equip, now=datetime.utcnow())
 

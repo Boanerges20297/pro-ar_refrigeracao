@@ -51,8 +51,9 @@
                     </div>
                 </div>
                 <div>
-                    <label for="location" class="block text-sm font-medium text-gray-700">Localização no Cliente</label>
-                    <input type="text" name="location" id="location" placeholder="Ex: Sala de Estar, Quarto 1" class="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                    <label for="location" class="block text-sm font-medium text-gray-700">Local / Setor / Filial</label>
+                    <input type="text" name="location" id="location" placeholder="Ex: Filial Centro, Contabilidade, Recepção" class="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                    <p class="mt-1 text-xs text-gray-400 italic">Use este campo para informar a filial, setor ou ponto interno onde o equipamento está.</p>
                 </div>
             </div>
 
@@ -91,33 +92,60 @@
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 <script>
     let html5QrcodeScanner = null;
+    let scannerRunning = false;
 
-    function startScanner() {
+    async function startScanner() {
         document.getElementById('reader-container').classList.remove('hidden');
 
         if (!html5QrcodeScanner) {
-            html5QrcodeScanner = new Html5QrcodeScanner(
-                "reader",
-                { fps: 10, qrbox: {width: 250, height: 250} },
-                /* verbose= */ false);
+            html5QrcodeScanner = new Html5Qrcode('reader');
+        }
 
-            html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+        if (scannerRunning) {
+            return;
+        }
+
+        try {
+            await html5QrcodeScanner.start(
+                { facingMode: 'environment' },
+                {
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 },
+                },
+                onScanSuccess,
+                onScanFailure,
+            );
+            scannerRunning = true;
+        } catch (error) {
+            console.log('Scanner start error:', error);
         }
     }
 
-    function stopScanner() {
+    async function stopScanner() {
         document.getElementById('reader-container').classList.add('hidden');
-        if (html5QrcodeScanner) {
-            html5QrcodeScanner.clear();
-            html5QrcodeScanner = null;
+        if (html5QrcodeScanner && scannerRunning) {
+            try {
+                await html5QrcodeScanner.stop();
+            } catch (error) {
+                console.log('Scanner stop error:', error);
+            }
+
+            try {
+                await html5QrcodeScanner.clear();
+            } catch (error) {
+                console.log('Scanner clear error:', error);
+            }
         }
+
+        html5QrcodeScanner = null;
+        scannerRunning = false;
     }
 
-    function onScanSuccess(decodedText, decodedResult) {
+    async function onScanSuccess(decodedText, decodedResult) {
         // Handle the scanned code
         document.getElementById('serial_number').value = decodedText;
         // Stop scanning
-        stopScanner();
+        await stopScanner();
         // Play a small beep (optional)
         const audio = new Audio('https://www.soundjay.com/buttons/beep-07a.mp3');
         audio.play().catch(e => console.log('Audio error:', e));
