@@ -49,12 +49,18 @@
             </div>
         </div>
         <div class="mt-4 flex flex-col sm:flex-row gap-2 sm:justify-end">
+            <a href="{{ url_for('services.service_catalog_item', service_id=service.id) }}" class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 mr-0 sm:mr-2">
+                <i class="fas fa-file-alt mr-2"></i>Detalhes
+            </a>
             <button type="button" class="edit-service-btn inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
                     data-service-id="{{ service.id }}"
                     data-service-name="{{ service.name }}"
                     data-service-description="{{ service.description or '' }}"
                     data-service-price="{{ '%.2f'|format(service.base_price or 0) }}"
-                    data-service-duration="{{ service.estimated_duration or '' }}">
+                    data-service-duration="{{ service.estimated_duration or '' }}"
+                    data-service-code="{{ service.service_code or '' }}"
+                    data-service-instructions="{{ service.instructions or ''|e }}"
+                    data-service-parts="{{ service.parts or ''|e }}">
                 <i class="fas fa-pen mr-2"></i>Editar
             </button>
             <form method="post" action="{{ url_for('services.delete_service_catalog', service_id=service.id) }}" onsubmit="return confirm('Excluir este tipo de serviço?');">
@@ -94,6 +100,18 @@
             <div>
                 <label for="catalogDescription" class="block text-sm font-medium text-gray-700">Descrição</label>
                 <textarea id="catalogDescription" name="description" rows="3" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-primary focus:ring-1 sm:text-sm"></textarea>
+            </div>
+            <div>
+                <label for="catalogServiceCode" class="block text-sm font-medium text-gray-700">Código (opcional)</label>
+                <input id="catalogServiceCode" name="service_code" type="text" maxlength="50" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-primary focus:ring-1 sm:text-sm">
+            </div>
+            <div>
+                <label for="catalogInstructions" class="block text-sm font-medium text-gray-700">Instruções / Padrão de Serviço</label>
+                <textarea id="catalogInstructions" name="instructions" rows="4" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-primary focus:ring-1 sm:text-sm" placeholder="Descreva o padrão, procedimentos ou observações importantes para este tipo de serviço."></textarea>
+            </div>
+            <div>
+                <label for="catalogParts" class="block text-sm font-medium text-gray-700">Peças / Materiais</label>
+                <textarea id="catalogParts" name="parts" rows="3" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-primary focus:ring-1 sm:text-sm" placeholder="Liste peças ou materiais recomendados (uma por linha)"></textarea>
             </div>
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
@@ -136,11 +154,17 @@ function openCatalogModal(mode = 'create', service = null) {
         document.getElementById('catalogDescription').value = service.description || '';
         document.getElementById('catalogBasePrice').value = service.base_price || '0.00';
         document.getElementById('catalogDuration').value = service.estimated_duration || '';
+        document.getElementById('catalogServiceCode').value = service.service_code || '';
+        document.getElementById('catalogInstructions').value = service.instructions || '';
+        document.getElementById('catalogParts').value = service.parts || '';
     } else {
         document.getElementById('catalogModalTitle').textContent = 'Novo tipo de serviço';
         catalogServiceId.value = '';
         catalogForm.reset();
         document.getElementById('catalogBasePrice').value = '0.00';
+        document.getElementById('catalogServiceCode').value = '';
+        document.getElementById('catalogInstructions').value = '';
+        document.getElementById('catalogParts').value = '';
     }
 
     catalogModal.classList.remove('hidden');
@@ -170,6 +194,9 @@ document.querySelectorAll('.edit-service-btn').forEach((button) => {
             description: button.dataset.serviceDescription,
             base_price: button.dataset.servicePrice,
             estimated_duration: button.dataset.serviceDuration,
+            service_code: button.dataset.serviceCode,
+            instructions: button.dataset.serviceInstructions,
+            parts: button.dataset.serviceParts,
         });
     });
 });

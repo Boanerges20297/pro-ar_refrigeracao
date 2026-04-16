@@ -6,7 +6,7 @@
     <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
         {% if current_user.permission_level == 'admin' %}
         <a href="{{ url_for('services.service_catalog') }}" class="w-full sm:w-auto bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-bold py-2 px-4 rounded transition-all shadow-sm text-center">
-            <i class="fas fa-tags mr-2"></i>Tipos de Serviço
+            <i class="fas fa-tags mr-2"></i>Listar Serviços Cadastrados
         </a>
         <a href="{{ url_for('services.add') }}" class="w-full sm:w-auto bg-primary hover:opacity-90 text-white font-bold py-2 px-4 rounded transition-all shadow-sm text-center">
             <i class="fas fa-plus mr-2"></i>Nova OS

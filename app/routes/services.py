@@ -76,6 +76,9 @@ def serialize_service_catalog(service):
         'base_price': float(service.base_price or 0.0),
         'base_price_label': f'R$ {service.base_price:.2f}',
         'estimated_duration': service.estimated_duration,
+        'instructions': service.instructions or '',
+        'parts': service.parts or '',
+        'service_code': service.service_code or '',
     }
 
 
@@ -85,6 +88,9 @@ def create_service_catalog():
     payload = request.get_json(silent=True) or request.form
     name = (payload.get('name') or '').strip()
     description = (payload.get('description') or '').strip() or None
+    instructions = (payload.get('instructions') or '').strip() or None
+    parts = (payload.get('parts') or '').strip() or None
+    service_code = (payload.get('service_code') or '').strip() or None
     base_price_raw = payload.get('base_price')
     estimated_duration_raw = payload.get('estimated_duration')
 
@@ -121,6 +127,9 @@ def create_service_catalog():
         description=description,
         base_price=base_price,
         estimated_duration=estimated_duration,
+        instructions=instructions,
+        parts=parts,
+        service_code=service_code,
     )
     db.session.add(service)
     db.session.commit()
@@ -154,12 +163,29 @@ def service_catalog():
     )
 
 
+@services_bp.route('/catalog/<int:service_id>')
+@roles_required('admin')
+def service_catalog_item(service_id):
+    """Página de detalhe/edição de um tipo de serviço (view somente para admin)."""
+    service = ServiceCatalog.query.get_or_404(service_id)
+    usage_count = WorkOrder.query.filter_by(service_id=service.id).count()
+
+    return render_template(
+        'services/service_detail.html',
+        service=service,
+        usage_count=usage_count,
+    )
+
+
 @services_bp.route('/catalog/<int:service_id>/update', methods=['POST'])
 @roles_required('admin')
 def update_service_catalog(service_id):
     service = ServiceCatalog.query.get_or_404(service_id)
     name = (request.form.get('name') or '').strip()
     description = (request.form.get('description') or '').strip() or None
+    instructions = (request.form.get('instructions') or '').strip() or None
+    parts = (request.form.get('parts') or '').strip() or None
+    service_code = (request.form.get('service_code') or '').strip() or None
     base_price_raw = request.form.get('base_price')
     estimated_duration_raw = request.form.get('estimated_duration')
 
@@ -187,6 +213,9 @@ def update_service_catalog(service_id):
 
     service.name = name
     service.description = description
+    service.instructions = instructions
+    service.parts = parts
+    service.service_code = service_code
     service.base_price = base_price
     service.estimated_duration = estimated_duration
     db.session.commit()

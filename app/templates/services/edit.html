@@ -51,7 +51,7 @@
                 {% if current_user and current_user.permission_level == 'admin' %}
                 <p class="mt-2 text-xs text-gray-500">
                     Administração de tipos de serviço disponível em
-                    <a href="{{ url_for('services.service_catalog') }}" class="font-semibold text-primary hover:underline">Catálogo de Tipos de Serviço</a>.
+                    <a href="{{ url_for('services.service_catalog') }}" class="font-semibold text-primary hover:underline">Listar Serviços Cadastrados</a>.
                 </p>
                 {% endif %}
             </div>

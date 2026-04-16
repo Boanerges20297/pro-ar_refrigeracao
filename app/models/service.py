@@ -7,6 +7,9 @@ class ServiceCatalog(db.Model):
     description = db.Column(db.Text, nullable=True)
     base_price = db.Column(db.Float, nullable=False, default=0.0)
     estimated_duration = db.Column(db.Integer, nullable=True) # Duration in minutes
+    instructions = db.Column(db.Text, nullable=True)
+    parts = db.Column(db.Text, nullable=True)
+    service_code = db.Column(db.String(50), nullable=True)
 
     # Relationship
     work_orders = db.relationship('WorkOrder', backref='service_type', lazy=True)

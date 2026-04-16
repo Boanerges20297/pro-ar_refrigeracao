@@ -129,6 +129,18 @@
                     <label for="service_description" class="block text-sm font-medium text-gray-700">Descrição</label>
                     <textarea id="service_description" name="description" rows="3" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-primary focus:ring-1 sm:text-sm" placeholder="Descreva o serviço de forma objetiva"></textarea>
                 </div>
+                <div>
+                    <label for="service_code" class="block text-sm font-medium text-gray-700">Código (opcional)</label>
+                    <input type="text" id="service_code" name="service_code" maxlength="50" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-primary focus:ring-1 sm:text-sm" placeholder="Código ou identificador interno">
+                </div>
+                <div>
+                    <label for="service_instructions" class="block text-sm font-medium text-gray-700">Instruções / Padrão de Serviço</label>
+                    <textarea id="service_instructions" name="instructions" rows="4" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-primary focus:ring-1 sm:text-sm" placeholder="Descreva o padrão ou procedimento para este serviço"></textarea>
+                </div>
+                <div>
+                    <label for="service_parts" class="block text-sm font-medium text-gray-700">Peças / Materiais</label>
+                    <textarea id="service_parts" name="parts" rows="2" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-primary focus:ring-1 sm:text-sm" placeholder="Listagem de peças/materiais (uma por linha)"></textarea>
+                </div>
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                         <label for="service_base_price" class="block text-sm font-medium text-gray-700">Preço base (R$)</label>
@@ -294,6 +306,9 @@ serviceCatalogForm.addEventListener('submit', async (event) => {
         description: document.getElementById('service_description').value,
         base_price: document.getElementById('service_base_price').value,
         estimated_duration: document.getElementById('service_duration').value,
+        service_code: document.getElementById('service_code').value,
+        instructions: document.getElementById('service_instructions').value,
+        parts: document.getElementById('service_parts').value,
     };
 
     try {
