@@ -1,8 +1,0 @@
-fastapi
-uvicorn
-cryptography
-SQLAlchemy
-Jinja2
-python-multipart
-alembic
-psycopg[binary]==3.2.12

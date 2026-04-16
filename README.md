@@ -569,8 +569,8 @@ Variáveis de ambiente suportadas:
 | `SERVER_NAME` | host preferencial do Flask | vazio |
 | `TRUSTED_HOSTS` | lista de hosts confiáveis | vazio |
 | `JWT_SECRET_KEY` | chave JWT | gerada aleatoriamente |
-| `LICENSE_SIGNING_SECRET` | fallback legado para desenvolvimento/local | usa `SECRET_KEY` |
-| `LICENSE_PUBLIC_KEY_PATH` | caminho da chave pública usada para validar licenças emitidas externamente | `license_api/keys/ed25519_public.pem` |
+| `LICENSE_SIGNING_SECRET` | fallback legado para tokens antigos, apenas em migração | usa `SECRET_KEY` |
+| `LICENSE_PUBLIC_KEY_PATH` | caminho da chave pública usada para validar licenças emitidas externamente | `keys/ed25519_public.pem` |
 | `LICENSE_WARNING_DAYS` | antecedência para aviso de expiração | `15` |
 | `LICENSE_GRACE_DAYS` | carência após expiração | `7` |
 | `LICENSE_INSTANCE_ID` | identificador fixo opcional da instalação | vazio |
@@ -787,7 +787,7 @@ Comportamentos implementados:
 
 1. ativação e renovação pela área administrativa em `/admin/settings`;
 2. validação local por chave pública quando a licença é emitida externamente;
-3. fallback legado por `LICENSE_SIGNING_SECRET` para desenvolvimento e transição;
+3. fallback legado por `LICENSE_SIGNING_SECRET` apenas para leitura de tokens antigos em migração;
 4. checagem de `company_name` e `instance_fingerprint` para vincular a chave à empresa e à instalação corretas;
 5. suporte a licença perpétua e por assinatura;
 6. avisos globais quando a licença está prestes a vencer;
@@ -797,7 +797,7 @@ Comportamentos implementados:
 
 Observação:
 
-- a emissão centralizada/remota agora pode ser feita pela API separada em `license_api/`, enquanto o Flask valida localmente a licença recebida.
+- a emissão centralizada/remota pode ser feita por um processo administrativo externo, enquanto o Flask valida localmente a licença recebida.
 - o detalhamento comercial completo dos modelos, planos, preços sugeridos e regras de operação está em `docs/LICENCIAMENTO_COMERCIAL.md`.
 
 ### Planos sugeridos

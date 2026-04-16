@@ -36,6 +36,10 @@ def _b64url_decode(value):
     return base64.urlsafe_b64decode(value + padding)
 
 
+def _b64url_encode(value):
+    return base64.urlsafe_b64encode(value).rstrip(b'=').decode('ascii')
+
+
 def _parse_datetime(value):
     if not value:
         return None
@@ -81,6 +85,22 @@ def _load_public_key():
     return serialization.load_pem_public_key(path.read_bytes())
 
 
+def _load_private_key():
+    private_key_pem = current_app.config.get('LICENSE_PRIVATE_KEY_PEM')
+    if private_key_pem:
+        return serialization.load_pem_private_key(private_key_pem.encode('utf-8'), password=None)
+
+    private_key_path = current_app.config.get('LICENSE_PRIVATE_KEY_PATH')
+    if not private_key_path:
+        return None
+
+    path = Path(private_key_path)
+    if not path.exists():
+        return None
+
+    return serialization.load_pem_private_key(path.read_bytes(), password=None)
+
+
 def _decode_public_token(license_key):
     if '.' not in license_key:
         raise ValueError('invalid_token_format')
@@ -119,6 +139,16 @@ def get_instance_fingerprint():
 
 def issue_license_key(payload):
     return _serializer().dumps(payload)
+
+
+def sign_payload(payload):
+    private_key = _load_private_key()
+    if private_key is None:
+        raise ValueError('private_key_not_configured')
+
+    message = json.dumps(payload, separators=(',', ':'), sort_keys=True).encode('utf-8')
+    signature = private_key.sign(message)
+    return f'{_b64url_encode(message)}.{_b64url_encode(signature)}'
 
 
 def decode_license_key(license_key):

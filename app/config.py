@@ -39,7 +39,9 @@ class Config:
 
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or os.urandom(32).hex()
     LICENSE_SIGNING_SECRET = os.environ.get('LICENSE_SIGNING_SECRET') or SECRET_KEY
-    LICENSE_PUBLIC_KEY_PATH = os.environ.get('LICENSE_PUBLIC_KEY_PATH', os.path.join('license_api', 'keys', 'ed25519_public.pem'))
+    LICENSE_PRIVATE_KEY_PATH = os.environ.get('LICENSE_PRIVATE_KEY_PATH', os.path.join('keys', 'ed25519_private.pem'))
+    LICENSE_PUBLIC_KEY_PATH = os.environ.get('LICENSE_PUBLIC_KEY_PATH', os.path.join('keys', 'ed25519_public.pem'))
+    LICENSE_PRIVATE_KEY_PEM = os.environ.get('LICENSE_PRIVATE_KEY_PEM') or None
     LICENSE_PUBLIC_KEY_PEM = os.environ.get('LICENSE_PUBLIC_KEY_PEM') or None
     LICENSE_WARNING_DAYS = int(os.environ.get('LICENSE_WARNING_DAYS', '15'))
     LICENSE_GRACE_DAYS = int(os.environ.get('LICENSE_GRACE_DAYS', '7'))

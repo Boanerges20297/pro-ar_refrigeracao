@@ -6,9 +6,8 @@ from app.models.service import ServiceCatalog
 from app.models.workorder import WorkOrder
 from app.models.config import AppConfig
 from app.models.license import License
-from app.utils.license import get_instance_fingerprint
+from app.utils.license import get_instance_fingerprint, sign_payload
 from datetime import datetime, timedelta
-from license_api.security import ensure_keypair, sign_payload
 import random
 
 def seed_database():
@@ -32,7 +31,6 @@ def seed_database():
         db.session.commit()
 
         print("Seeding License...")
-        ensure_keypair()
         trial_issued_at = datetime.utcnow()
         trial_expires_at = trial_issued_at + timedelta(days=365)
         trial_payload = {

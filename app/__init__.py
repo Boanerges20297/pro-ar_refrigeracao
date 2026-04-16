@@ -69,6 +69,9 @@ def create_app(config_class=Config):
     if not os.path.isabs(app.config['UPLOAD_ROOT']):
         app.config['UPLOAD_ROOT'] = os.path.join(_PROJECT_ROOT, app.config['UPLOAD_ROOT'])
 
+    if app.config.get('LICENSE_PRIVATE_KEY_PATH') and not os.path.isabs(app.config['LICENSE_PRIVATE_KEY_PATH']):
+        app.config['LICENSE_PRIVATE_KEY_PATH'] = os.path.join(_PROJECT_ROOT, app.config['LICENSE_PRIVATE_KEY_PATH'])
+
     if app.config.get('LICENSE_PUBLIC_KEY_PATH') and not os.path.isabs(app.config['LICENSE_PUBLIC_KEY_PATH']):
         app.config['LICENSE_PUBLIC_KEY_PATH'] = os.path.join(_PROJECT_ROOT, app.config['LICENSE_PUBLIC_KEY_PATH'])
 
