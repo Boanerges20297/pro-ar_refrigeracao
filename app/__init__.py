@@ -129,6 +129,9 @@ def create_app(config_class=Config):
 
     @app.before_request
     def enforce_same_origin_for_mutations():
+        if not app.config.get('SECURITY_ENFORCE_SAME_ORIGIN_MUTATIONS', False):
+            return None
+
         endpoint = request.endpoint or ''
         if request.method not in {'POST', 'PUT', 'PATCH', 'DELETE'}:
             return None
@@ -172,16 +175,23 @@ def create_app(config_class=Config):
             return clear_auth_and_redirect('Sua sessão não é mais válida. Faça login novamente.', 'warning')
 
         expected_password_version = build_password_version(current_user.password_hash)
-        expected_user_agent = build_user_agent_fingerprint(request.headers.get('User-Agent'))
-        session_nonce = session.get('jwt_session_nonce')
+        check_session_nonce = app.config.get('SECURITY_BIND_JWT_SESSION_NONCE', False)
+        check_user_agent = app.config.get('SECURITY_BIND_JWT_USER_AGENT', False)
+
+        expected_user_agent = build_user_agent_fingerprint(request.headers.get('User-Agent')) if check_user_agent else None
+        session_nonce = session.get('jwt_session_nonce') if check_session_nonce else None
 
         token_is_valid = all([
             str(jwt_claims.get('uid')) == str(current_user.id),
             jwt_claims.get('permission_level') == current_user.permission_level,
             jwt_claims.get('pwdv') == expected_password_version,
-            jwt_claims.get('session_nonce') == session_nonce,
-            jwt_claims.get('ua_hash') == expected_user_agent,
         ])
+
+        if check_session_nonce:
+            token_is_valid = token_is_valid and jwt_claims.get('session_nonce') == session_nonce
+
+        if check_user_agent:
+            token_is_valid = token_is_valid and jwt_claims.get('ua_hash') == expected_user_agent
 
         if not token_is_valid:
             app.logger.warning('Blocked request with mismatched JWT context for user_id=%s path=%s', current_user.id, request.path)

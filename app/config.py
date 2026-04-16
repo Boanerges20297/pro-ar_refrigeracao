@@ -60,6 +60,9 @@ class Config:
     PROXY_FIX_X_HOST = int(os.environ.get('PROXY_FIX_X_HOST', '1'))
     PROXY_FIX_X_PORT = int(os.environ.get('PROXY_FIX_X_PORT', '1'))
     PROXY_FIX_X_PREFIX = int(os.environ.get('PROXY_FIX_X_PREFIX', '0'))
+    SECURITY_ENFORCE_SAME_ORIGIN_MUTATIONS = env_bool('SECURITY_ENFORCE_SAME_ORIGIN_MUTATIONS', False)
+    SECURITY_BIND_JWT_SESSION_NONCE = env_bool('SECURITY_BIND_JWT_SESSION_NONCE', False)
+    SECURITY_BIND_JWT_USER_AGENT = env_bool('SECURITY_BIND_JWT_USER_AGENT', False)
 
     # Disable JWT's built-in CSRF to prevent conflict with Flask-WTF
     JWT_COOKIE_CSRF_PROTECT = False

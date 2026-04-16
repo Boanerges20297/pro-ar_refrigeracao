@@ -310,7 +310,7 @@ cp license_api/.env.example license_api/.env
 nano license_api/.env
 ```
 
-Valores base sugeridos:
+Valores base sugeridos para o modo inicial com SQLite local na mesma VPS:
 
 ```env
 LICENSE_API_TOKEN=gere-um-token-forte
@@ -319,6 +319,8 @@ LICENSE_PRIVATE_KEY_PATH=/var/www/pro-ar_refrigeracao/license_service/license_ap
 LICENSE_PUBLIC_KEY_PATH=/var/www/pro-ar_refrigeracao/license_service/license_api/keys/ed25519_public.pem
 LICENSE_ALLOW_PERPETUAL=true
 ```
+
+Se quiser simplificar ainda mais, pode omitir `LICENSE_API_DATABASE_URL`, porque a `license_api` ja assume SQLite local por padrao quando a variavel nao esta definida.
 
 ### 9. Criar diretorios persistentes
 
@@ -329,6 +331,8 @@ mkdir -p /var/www/pro-ar_refrigeracao/app_main/static/img/qrcodes
 mkdir -p /var/www/pro-ar_refrigeracao/license_service/license_api/data
 mkdir -p /var/www/pro-ar_refrigeracao/license_service/license_api/keys
 ```
+
+Esses diretórios guardam o banco SQLite, as chaves Ed25519 e os arquivos persistentes da aplicacao principal.
 
 ### 10. Aplicar migrations do app principal
 
@@ -347,6 +351,8 @@ cd /var/www/pro-ar_refrigeracao/license_service
 source .venv/bin/activate
 python license_api/scripts/generate_keys.py
 ```
+
+Se voce ja tiver uma chave privada antiga e quiser manter compatibilidade, copie os arquivos PEM para a pasta `license_api/keys/` antes de iniciar o servico.
 
 ### 12. Testar servicos manualmente
 
@@ -426,6 +432,8 @@ sudo certbot --nginx -d app.seudominio.com -d licenses.seudominio.com
 - emitir uma licenca de teste
 - ativar essa chave no sistema principal
 
+Nesse desenho, o cliente consulta o subdominio de licenciamento pela internet, mas o armazenamento continua local na VPS, em SQLite.
+
 ## Politica de Seguranca Recomendada
 
 ### Nunca distribuir a chave privada
@@ -464,3 +472,160 @@ Se voce vai usar o plano VPS de entrada ou o plano VPS mais popular da Hostinger
 - usar a `license_api` como backoffice interno;
 - manter a validacao da licenca local em cada aplicacao cliente;
 - planejar repositorio e infraestrutura separados quando o segundo produto entrar em producao.
+
+## Comandos Exatos para Subir a license_api na Mesma VPS
+
+Use esta sequencia se voce quiser fazer o deploy agora, sem adaptar o guia.
+
+### 1. Preparar a pasta
+
+```bash
+sudo mkdir -p /var/www/pro-ar_refrigeracao/license_service
+sudo chown -R $USER:$USER /var/www/pro-ar_refrigeracao/license_service
+cd /var/www/pro-ar_refrigeracao/license_service
+```
+
+### 2. Clonar o repositorio
+
+```bash
+git clone https://github.com/Boanerges20297/license_api.git .
+```
+
+### 3. Criar o ambiente virtual e instalar dependencias
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### 4. Criar o arquivo de ambiente
+
+```bash
+cp .env.example .env
+nano .env
+```
+
+Conteudo minimo recomendado:
+
+```env
+LICENSE_API_TOKEN=troque-por-um-token-forte
+LICENSE_API_DATABASE_URL=sqlite:////var/www/pro-ar_refrigeracao/license_service/license_api/data/license_api.db
+LICENSE_PRIVATE_KEY_PATH=/var/www/pro-ar_refrigeracao/license_service/license_api/keys/ed25519_private.pem
+LICENSE_PUBLIC_KEY_PATH=/var/www/pro-ar_refrigeracao/license_service/license_api/keys/ed25519_public.pem
+LICENSE_ALLOW_PERPETUAL=true
+LICENSE_API_AUTO_CREATE_SCHEMA=true
+```
+
+### 5. Criar diretorios persistentes
+
+```bash
+mkdir -p /var/www/pro-ar_refrigeracao/license_service/license_api/data
+mkdir -p /var/www/pro-ar_refrigeracao/license_service/license_api/keys
+```
+
+### 6. Gerar as chaves
+
+```bash
+source .venv/bin/activate
+python license_api/scripts/generate_keys.py
+```
+
+### 7. Subir manualmente para teste
+
+```bash
+source .venv/bin/activate
+uvicorn license_api.main:app --host 127.0.0.1 --port 8010
+```
+
+### 8. Instalar o service systemd
+
+```bash
+sudo cp deploy/systemd/bta-license-service.service /etc/systemd/system/bta-license-service.service
+sudo systemctl daemon-reload
+sudo systemctl enable bta-license-service
+sudo systemctl start bta-license-service
+sudo systemctl status bta-license-service
+```
+
+### 9. Instalar o Nginx do subdominio
+
+```bash
+sudo cp deploy/nginx/license-api.conf /etc/nginx/sites-available/pro-ar-license
+sudo ln -s /etc/nginx/sites-available/pro-ar-license /etc/nginx/sites-enabled/pro-ar-license
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### 10. Emitir HTTPS
+
+```bash
+sudo certbot --nginx -d licenses.seudominio.com
+```
+
+### 11. Testar
+
+```bash
+curl -I https://licenses.seudominio.com/health
+```
+
+Se a resposta vier `200`, a `license_api` esta no ar.
+
+## Sequencia Unica de Comandos da license_api
+
+Se voce quiser executar tudo em uma vez, use esta ordem no SSH da VPS:
+
+```bash
+sudo apt update
+sudo apt install -y python3 python3-venv python3-pip nginx git certbot python3-certbot-nginx
+
+sudo mkdir -p /var/www/pro-ar_refrigeracao/license_service
+sudo chown -R $USER:$USER /var/www/pro-ar_refrigeracao/license_service
+cd /var/www/pro-ar_refrigeracao/license_service
+
+git clone https://github.com/Boanerges20297/license_api.git .
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+
+cp .env.example .env
+nano .env
+
+mkdir -p /var/www/pro-ar_refrigeracao/license_service/license_api/data
+mkdir -p /var/www/pro-ar_refrigeracao/license_service/license_api/keys
+
+source .venv/bin/activate
+python license_api/scripts/generate_keys.py
+
+source .venv/bin/activate
+uvicorn license_api.main:app --host 127.0.0.1 --port 8010
+
+sudo cp deploy/systemd/bta-license-service.service /etc/systemd/system/bta-license-service.service
+sudo systemctl daemon-reload
+sudo systemctl enable bta-license-service
+sudo systemctl start bta-license-service
+sudo systemctl status bta-license-service
+
+sudo cp deploy/nginx/license-api.conf /etc/nginx/sites-available/pro-ar-license
+sudo ln -s /etc/nginx/sites-available/pro-ar-license /etc/nginx/sites-enabled/pro-ar-license
+sudo nginx -t
+sudo systemctl reload nginx
+
+sudo certbot --nginx -d licenses.seudominio.com
+
+curl -I https://licenses.seudominio.com/health
+```
+
+Ordem do que configurar no `.env`:
+
+```env
+LICENSE_API_TOKEN=troque-por-um-token-forte
+LICENSE_API_DATABASE_URL=sqlite:////var/www/pro-ar_refrigeracao/license_service/license_api/data/license_api.db
+LICENSE_PRIVATE_KEY_PATH=/var/www/pro-ar_refrigeracao/license_service/license_api/keys/ed25519_private.pem
+LICENSE_PUBLIC_KEY_PATH=/var/www/pro-ar_refrigeracao/license_service/license_api/keys/ed25519_public.pem
+LICENSE_ALLOW_PERPETUAL=true
+LICENSE_API_AUTO_CREATE_SCHEMA=true
+```

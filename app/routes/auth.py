@@ -36,19 +36,27 @@ def confirm_reset_token(token, expiration=3600):
 
 
 def build_authenticated_response(user, redirect_url):
-    session_nonce = build_session_nonce()
-    session['jwt_session_nonce'] = session_nonce
-    session.modified = True
+    session_nonce = None
+    if current_app.config.get('SECURITY_BIND_JWT_SESSION_NONCE', False):
+        session_nonce = build_session_nonce()
+        session['jwt_session_nonce'] = session_nonce
+        session.modified = True
+
+    additional_claims = {
+        'uid': str(user.id),
+        'permission_level': user.permission_level,
+        'pwdv': build_password_version(user.password_hash),
+    }
+
+    if current_app.config.get('SECURITY_BIND_JWT_SESSION_NONCE', False):
+        additional_claims['session_nonce'] = session_nonce
+
+    if current_app.config.get('SECURITY_BIND_JWT_USER_AGENT', False):
+        additional_claims['ua_hash'] = build_user_agent_fingerprint(request.headers.get('User-Agent'))
 
     access_token = create_access_token(
         identity=str(user.id),
-        additional_claims={
-            'uid': str(user.id),
-            'permission_level': user.permission_level,
-            'pwdv': build_password_version(user.password_hash),
-            'session_nonce': session_nonce,
-            'ua_hash': build_user_agent_fingerprint(request.headers.get('User-Agent')),
-        },
+        additional_claims=additional_claims,
     )
 
     resp = make_response(redirect(redirect_url))
