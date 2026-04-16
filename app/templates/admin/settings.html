@@ -373,6 +373,29 @@
         {% endif %}
     </div>
 
+    {% if license_record and license_record.license_key %}
+    <div class="rounded-2xl border border-gray-200 bg-white p-5 mb-6">
+        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-3">
+            <div>
+                <h4 class="text-sm font-semibold text-gray-900">Chave salva atualmente</h4>
+                <p class="text-xs text-gray-500">Você pode revelar ou copiar a licença registrada sem precisar reemitir.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button type="button" id="toggle-license-key" class="inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
+                    Ver chave
+                </button>
+                <button type="button" id="copy-license-key" class="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90">
+                    Copiar chave
+                </button>
+            </div>
+        </div>
+        <div id="license-key-box" class="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-3 font-mono text-xs break-all text-gray-700 blur-sm select-none">
+            {{ license_record.license_key }}
+        </div>
+        <p id="license-key-feedback" class="mt-2 text-xs text-gray-500">Clique em “Ver chave” para exibir o token completo quando precisar revalidar manualmente.</p>
+    </div>
+    {% endif %}
+
     <div class="grid grid-cols-1 gap-6">
         <form method="POST" action="{{ url_for('admin.activate_license') }}" class="rounded-2xl border border-gray-200 p-5 bg-gray-50">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -426,6 +449,40 @@
             }
         });
     });
+
+    const licenseKeyBox = document.getElementById('license-key-box');
+    const toggleLicenseKeyButton = document.getElementById('toggle-license-key');
+    const copyLicenseKeyButton = document.getElementById('copy-license-key');
+    const licenseKeyFeedback = document.getElementById('license-key-feedback');
+
+    if (licenseKeyBox && toggleLicenseKeyButton) {
+        toggleLicenseKeyButton.addEventListener('click', function () {
+            const isBlurred = licenseKeyBox.classList.toggle('blur-sm');
+            licenseKeyBox.classList.toggle('select-none', isBlurred);
+            toggleLicenseKeyButton.textContent = isBlurred ? 'Ver chave' : 'Ocultar chave';
+            if (licenseKeyFeedback) {
+                licenseKeyFeedback.textContent = isBlurred
+                    ? 'Clique em “Ver chave” para exibir o token completo quando precisar revalidar manualmente.'
+                    : 'A chave está visível. Use “Copiar chave” para pegar o token completo.';
+            }
+        });
+    }
+
+    if (licenseKeyBox && copyLicenseKeyButton) {
+        copyLicenseKeyButton.addEventListener('click', async function () {
+            const token = licenseKeyBox.textContent.trim();
+            try {
+                await navigator.clipboard.writeText(token);
+                if (licenseKeyFeedback) {
+                    licenseKeyFeedback.textContent = 'Chave copiada para a área de transferência.';
+                }
+            } catch (error) {
+                if (licenseKeyFeedback) {
+                    licenseKeyFeedback.textContent = 'Não foi possível copiar automaticamente. Selecione a chave manualmente.';
+                }
+            }
+        });
+    }
 
     // SMTP Provider Logic
     const providerSelect = document.getElementById('smtp_provider');

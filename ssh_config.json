@@ -1,0 +1,23 @@
+{
+  "connections": [
+    {
+      "name": "hostinger-vps",
+      "host": "76.13.237.243",
+      "username": "root",
+      "port": 22,
+      "password": null,
+      "private_key": null,
+      "private_key_password": null,
+      "description": "Hostinger VPS",
+      "tags": [
+        "hostinger",
+        "vps",
+        "production"
+      ]
+    }
+  ],
+  "default_timeout": 30,
+  "log_level": "INFO",
+  "auto_connect": [],
+  "max_connections": 10
+}

@@ -67,8 +67,8 @@ def seed_database():
         db.session.add(license_record)
 
         print("Seeding Users...")
-        admin = User(name='Administrador', email='admin@prontoar.com', role='admin')
-        admin.set_password('admin123')
+        admin = User(name='Administrador', email='admin@prontoar.com', role='admin', permission_level='admin', job_title='Administrador', must_change_password=True)
+        admin.set_password('prontoar123')
 
         tech1 = User(name='Carlos Técnico', email='carlos@prontoar.com', role='technician', specialty='Refrigeração')
         tech1.set_password('tech1234')
@@ -145,7 +145,7 @@ def seed_database():
 
         db.session.commit()
         print("Database seeded successfully! You can login with:")
-        print("Admin: admin@prontoar.com / admin123")
+        print("Admin: admin@prontoar.com / prontoar123")
         print("Tech: carlos@prontoar.com / tech1234")
 
 if __name__ == '__main__':

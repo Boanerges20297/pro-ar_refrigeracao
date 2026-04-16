@@ -124,11 +124,14 @@ def issue_license_key(payload):
 def decode_license_key(license_key):
     errors = []
 
-    if _load_public_key() is not None:
+    public_key = _load_public_key()
+    if public_key is not None:
         try:
             return _decode_public_token(license_key)
         except (InvalidSignature, ValueError, json.JSONDecodeError) as exc:
             errors.append(str(exc))
+    else:
+        errors.append('public_key_not_configured')
 
     if current_app.config.get('LICENSE_ALLOW_LEGACY_TOKENS', True):
         try:
@@ -204,6 +207,7 @@ def _state_template():
         'payload': None,
         'last_validated_at': None,
         'last_validation_error': None,
+        'validation_error_code': None,
     }
 
 
@@ -275,6 +279,7 @@ def evaluate_license(license_record=None):
             'details': [str(exc)],
             'badge_classes': 'bg-red-100 text-red-800 border border-red-200',
             'notice_key': 'license:invalid',
+            'validation_error_code': str(exc),
         })
         return state
 
@@ -501,7 +506,8 @@ def activate_license_key(license_key, explicit_user_id=None):
     state = evaluate_license(license_record)
 
     if not state['valid']:
-        license_record.license_key = previous_key
+        should_persist_key = not previous_key and state.get('validation_error_code') == 'public_key_not_configured'
+        license_record.license_key = license_record.license_key if should_persist_key else previous_key
         license_record.status = state['status']
         license_record.last_validated_at = _utcnow()
         license_record.last_validation_status = state['status']

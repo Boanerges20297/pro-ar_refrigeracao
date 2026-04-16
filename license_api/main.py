@@ -82,6 +82,7 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
             'plans': PLAN_FEATURES,
             'issued_license': None,
             'error': None,
+            'api_token': settings.api_token,
         },
     )
 

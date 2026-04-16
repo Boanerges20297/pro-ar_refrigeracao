@@ -1,0 +1,462 @@
+diff --git a/app/__init__.py b/app/__init__.py
+index 7f9d89d..0f356a5 100644
+--- a/app/__init__.py
++++ b/app/__init__.py
+@@ -25,6 +25,29 @@ jwt = JWTManager()
+ bcrypt = Bcrypt()
+ limiter = Limiter(key_func=get_remote_address, default_limits=[])
+ 
++
++def _resolve_logo_path(config):
++    fallback_logo = '/static/img/logo.jpg'
++    if not config:
++        return fallback_logo
++
++    logo_path = getattr(config, 'logo_path', None)
++    if not logo_path:
++        return fallback_logo
++
++    if logo_path.startswith('http://') or logo_path.startswith('https://'):
++        return logo_path
++
++    if not logo_path.startswith('/static/'):
++        return fallback_logo
++
++    static_relative = logo_path.replace('/static/', '', 1)
++    candidate = os.path.join(_PROJECT_ROOT, 'static', static_relative)
++    if not os.path.exists(candidate):
++        return fallback_logo
++
++    return logo_path
++
+ @event.listens_for(Engine, "connect")
+ def set_sqlite_pragma(dbapi_connection, connection_record):
+     if isinstance(dbapi_connection, sqlite3.Connection):
+@@ -255,6 +278,7 @@ def create_app(config_class=Config):
+                 config = AppConfig.query.first()
+                 if not config:
+                     config = AppConfig()
++                config.logo_path = _resolve_logo_path(config)
+                 g.app_config = config
+             except Exception:
+                 g.app_config = None
+diff --git a/app/models/config.py b/app/models/config.py
+index be9458c..34c61d6 100644
+--- a/app/models/config.py
++++ b/app/models/config.py
+@@ -3,7 +3,7 @@ from datetime import datetime
+ 
+ class AppConfig(db.Model):
+     id = db.Column(db.Integer, primary_key=True)
+-    logo_path = db.Column(db.String(255), nullable=True, default='/static/img/logo_clean.png')
++    logo_path = db.Column(db.String(255), nullable=True, default='/static/img/logo.jpg')
+     company_name = db.Column(db.String(100), default='Pronto Ar Refrigeração')
+ 
+     # Colors
+diff --git a/app/models/user.py b/app/models/user.py
+index 68a01bd..81b84bd 100644
+--- a/app/models/user.py
++++ b/app/models/user.py
+@@ -12,6 +12,7 @@ class User(db.Model):
+     role = db.Column(db.String(20), nullable=False, default='technician') # Deprecated: 'admin', 'secretary', or 'technician', kept for compatibility if needed.
+     specialty = db.Column(db.String(100), nullable=True) # E.g., Refrigeration, Electrical
+     is_active = db.Column(db.Boolean, default=True)
++    must_change_password = db.Column(db.Boolean, default=False, nullable=False)
+     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+ 
+     # Relationships
+diff --git a/app/routes/auth.py b/app/routes/auth.py
+index c315dbd..82a9613 100644
+--- a/app/routes/auth.py
++++ b/app/routes/auth.py
+@@ -34,6 +34,27 @@ def confirm_reset_token(token, expiration=3600):
+         return False
+     return email
+ 
++
++def build_authenticated_response(user, redirect_url):
++    session_nonce = build_session_nonce()
++    session['jwt_session_nonce'] = session_nonce
++    session.modified = True
++
++    access_token = create_access_token(
++        identity=str(user.id),
++        additional_claims={
++            'uid': str(user.id),
++            'permission_level': user.permission_level,
++            'pwdv': build_password_version(user.password_hash),
++            'session_nonce': session_nonce,
++            'ua_hash': build_user_agent_fingerprint(request.headers.get('User-Agent')),
++        },
++    )
++
++    resp = make_response(redirect(redirect_url))
++    set_access_cookies(resp, access_token)
++    return resp
++
+ @auth_bp.route('/login', methods=['GET', 'POST'])
+ @limiter.limit('5 per minute', methods=['POST'])
+ def login():
+@@ -64,24 +85,13 @@ def login():
+                 )
+                 return redirect(url_for('auth.login'))
+ 
+-            session_nonce = build_session_nonce()
+-            session['jwt_session_nonce'] = session_nonce
+-            session.modified = True
+-
+-            access_token = create_access_token(
+-                identity=str(user.id),
+-                additional_claims={
+-                    'uid': str(user.id),
+-                    'permission_level': user.permission_level,
+-                    'pwdv': build_password_version(user.password_hash),
+-                    'session_nonce': session_nonce,
+-                    'ua_hash': build_user_agent_fingerprint(request.headers.get('User-Agent')),
+-                },
+-            )
+-
+-            # Log successful login
+             log_login(user.id, success=True)
+ 
++            if user.must_change_password:
++                flash('Por segurança, defina uma nova senha antes de acessar o sistema.', 'warning')
++                reset_token = generate_reset_token(user.email)
++                return redirect(url_for('auth.reset_password', token=reset_token))
++
+             # Determine where to redirect based on permission_level
+             if user.permission_level == 'admin':
+                 redirect_url = url_for('admin.dashboard')
+@@ -90,9 +100,7 @@ def login():
+             else:
+                 redirect_url = url_for('tech.dashboard')
+ 
+-            resp = make_response(redirect(redirect_url))
+-            set_access_cookies(resp, access_token)
+-            return resp
++            return build_authenticated_response(user, redirect_url)
+         else:
+             flash('Email ou senha inválidos.', 'danger')
+             # Log failed login attempt
+@@ -179,6 +187,7 @@ def reset_password(token):
+             return render_template('auth/reset_password.html', token=token)
+             
+         user.set_password(password)
++        user.must_change_password = False
+         db.session.commit()
+         
+         # Log password reset
+@@ -191,7 +200,15 @@ def reset_password(token):
+         )
+         
+         flash('Sua senha foi atualizada com sucesso! Agora você pode fazer login.', 'success')
+-        return redirect(url_for('auth.login'))
++
++        if user.permission_level == 'admin':
++            redirect_url = url_for('admin.dashboard')
++        elif user.permission_level == 'secretary':
++            redirect_url = url_for('secretary.dashboard')
++        else:
++            redirect_url = url_for('tech.dashboard')
++
++        return build_authenticated_response(user, redirect_url)
+         
+     return render_template('auth/reset_password.html', token=token)
+ 
+diff --git a/app/routes/technician.py b/app/routes/technician.py
+index c5c999a..4a6cead 100644
+--- a/app/routes/technician.py
++++ b/app/routes/technician.py
+@@ -15,6 +15,10 @@ from sqlalchemy import or_
+ tech_bp = Blueprint('tech', __name__)
+ 
+ 
++def normalize_email(email):
++    return (email or '').strip().lower()
++
++
+ def send_staff_message(recipients, subject, message_body, sender_name):
+     sent_count = 0
+     failed_recipients = []
+@@ -225,7 +229,7 @@ def normalize_job_title(permission_level, job_title, other_job_title=None):
+ def add_technician():
+     if request.method == 'POST':
+         name = request.form.get('name')
+-        email = request.form.get('email')
++        email = normalize_email(request.form.get('email'))
+         password = request.form.get('password')
+         specialty = request.form.get('specialty')
+         is_active = request.form.get('is_active') == 'on'
+@@ -241,6 +245,14 @@ def add_technician():
+             flash(PASSWORD_POLICY_MESSAGE, 'danger')
+             return render_template('technician/add.html')
+ 
++        if not email:
++            flash('Informe um e-mail válido para continuar.', 'danger')
++            return render_template('technician/add.html')
++
++        if User.query.filter_by(email=email).first():
++            flash('Já existe um funcionário cadastrado com este e-mail.', 'danger')
++            return render_template('technician/add.html')
++
+         limit_error = check_user_limit(permission_level=permission_level, is_active=is_active)
+         if limit_error:
+             flash(limit_error, 'danger')
+@@ -260,13 +272,13 @@ def edit_technician(user_id):
+     user = User.query.get_or_404(user_id)
+ 
+     if request.method == 'POST':
+-        user.name = request.form.get('name')
+-        user.email = request.form.get('email')
+-        user.specialty = request.form.get('specialty')
+-        user.is_active = request.form.get('is_active') == 'on'
+-        user.permission_level = request.form.get('permission_level', 'user')
+-        user.job_title = normalize_job_title(
+-            user.permission_level,
++        name = request.form.get('name')
++        email = normalize_email(request.form.get('email'))
++        specialty = request.form.get('specialty')
++        is_active = request.form.get('is_active') == 'on'
++        permission_level = request.form.get('permission_level', 'user')
++        job_title = normalize_job_title(
++            permission_level,
+             request.form.get('job_title'),
+             request.form.get('other_job_title')
+         )
+@@ -276,13 +288,31 @@ def edit_technician(user_id):
+             if not is_password_strong(password):
+                 flash(PASSWORD_POLICY_MESSAGE, 'danger')
+                 return render_template('technician/edit.html', user=user)
+-            user.set_password(password)
+ 
+-        limit_error = check_user_limit(permission_level=user.permission_level, existing_user=user, is_active=user.is_active)
++        if not email:
++            flash('Informe um e-mail válido para continuar.', 'danger')
++            return render_template('technician/edit.html', user=user)
++
++        existing_user = User.query.filter(User.email == email, User.id != user.id).first()
++        if existing_user:
++            flash('Já existe um funcionário cadastrado com este e-mail.', 'danger')
++            return render_template('technician/edit.html', user=user)
++
++        limit_error = check_user_limit(permission_level=permission_level, existing_user=user, is_active=is_active)
+         if limit_error:
+             flash(limit_error, 'danger')
+             return render_template('technician/edit.html', user=user)
+ 
++        user.name = name
++        user.email = email
++        user.specialty = specialty
++        user.is_active = is_active
++        user.permission_level = permission_level
++        user.job_title = job_title
++
++        if password:
++            user.set_password(password)
++
+         db.session.commit()
+         flash('Funcionário atualizado com sucesso!', 'success')
+         return redirect(url_for('tech.list_technicians'))
+diff --git a/app/templates/admin/settings.html b/app/templates/admin/settings.html
+index a76369b..d7a9336 100644
+--- a/app/templates/admin/settings.html
++++ b/app/templates/admin/settings.html
+@@ -373,6 +373,29 @@
+         {% endif %}
+     </div>
+ 
++    {% if license_record and license_record.license_key %}
++    <div class="rounded-2xl border border-gray-200 bg-white p-5 mb-6">
++        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-3">
++            <div>
++                <h4 class="text-sm font-semibold text-gray-900">Chave salva atualmente</h4>
++                <p class="text-xs text-gray-500">Você pode revelar ou copiar a licença registrada sem precisar reemitir.</p>
++            </div>
++            <div class="flex flex-wrap gap-2">
++                <button type="button" id="toggle-license-key" class="inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
++                    Ver chave
++                </button>
++                <button type="button" id="copy-license-key" class="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90">
++                    Copiar chave
++                </button>
++            </div>
++        </div>
++        <div id="license-key-box" class="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-3 font-mono text-xs break-all text-gray-700 blur-sm select-none">
++            {{ license_record.license_key }}
++        </div>
++        <p id="license-key-feedback" class="mt-2 text-xs text-gray-500">Clique em “Ver chave” para exibir o token completo quando precisar revalidar manualmente.</p>
++    </div>
++    {% endif %}
++
+     <div class="grid grid-cols-1 gap-6">
+         <form method="POST" action="{{ url_for('admin.activate_license') }}" class="rounded-2xl border border-gray-200 p-5 bg-gray-50">
+             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+@@ -427,6 +450,40 @@
+         });
+     });
+ 
++    const licenseKeyBox = document.getElementById('license-key-box');
++    const toggleLicenseKeyButton = document.getElementById('toggle-license-key');
++    const copyLicenseKeyButton = document.getElementById('copy-license-key');
++    const licenseKeyFeedback = document.getElementById('license-key-feedback');
++
++    if (licenseKeyBox && toggleLicenseKeyButton) {
++        toggleLicenseKeyButton.addEventListener('click', function () {
++            const isBlurred = licenseKeyBox.classList.toggle('blur-sm');
++            licenseKeyBox.classList.toggle('select-none', isBlurred);
++            toggleLicenseKeyButton.textContent = isBlurred ? 'Ver chave' : 'Ocultar chave';
++            if (licenseKeyFeedback) {
++                licenseKeyFeedback.textContent = isBlurred
++                    ? 'Clique em “Ver chave” para exibir o token completo quando precisar revalidar manualmente.'
++                    : 'A chave está visível. Use “Copiar chave” para pegar o token completo.';
++            }
++        });
++    }
++
++    if (licenseKeyBox && copyLicenseKeyButton) {
++        copyLicenseKeyButton.addEventListener('click', async function () {
++            const token = licenseKeyBox.textContent.trim();
++            try {
++                await navigator.clipboard.writeText(token);
++                if (licenseKeyFeedback) {
++                    licenseKeyFeedback.textContent = 'Chave copiada para a área de transferência.';
++                }
++            } catch (error) {
++                if (licenseKeyFeedback) {
++                    licenseKeyFeedback.textContent = 'Não foi possível copiar automaticamente. Selecione a chave manualmente.';
++                }
++            }
++        });
++    }
++
+     // SMTP Provider Logic
+     const providerSelect = document.getElementById('smtp_provider');
+     const gmailHelper    = document.getElementById('gmail-helper');
+diff --git a/app/utils/license.py b/app/utils/license.py
+index c1f3556..6cc015f 100644
+--- a/app/utils/license.py
++++ b/app/utils/license.py
+@@ -124,11 +124,14 @@ def issue_license_key(payload):
+ def decode_license_key(license_key):
+     errors = []
+ 
+-    if _load_public_key() is not None:
++    public_key = _load_public_key()
++    if public_key is not None:
+         try:
+             return _decode_public_token(license_key)
+         except (InvalidSignature, ValueError, json.JSONDecodeError) as exc:
+             errors.append(str(exc))
++    else:
++        errors.append('public_key_not_configured')
+ 
+     if current_app.config.get('LICENSE_ALLOW_LEGACY_TOKENS', True):
+         try:
+@@ -204,6 +207,7 @@ def _state_template():
+         'payload': None,
+         'last_validated_at': None,
+         'last_validation_error': None,
++        'validation_error_code': None,
+     }
+ 
+ 
+@@ -275,6 +279,7 @@ def evaluate_license(license_record=None):
+             'details': [str(exc)],
+             'badge_classes': 'bg-red-100 text-red-800 border border-red-200',
+             'notice_key': 'license:invalid',
++            'validation_error_code': str(exc),
+         })
+         return state
+ 
+@@ -501,7 +506,8 @@ def activate_license_key(license_key, explicit_user_id=None):
+     state = evaluate_license(license_record)
+ 
+     if not state['valid']:
+-        license_record.license_key = previous_key
++        should_persist_key = not previous_key and state.get('validation_error_code') == 'public_key_not_configured'
++        license_record.license_key = license_record.license_key if should_persist_key else previous_key
+         license_record.status = state['status']
+         license_record.last_validated_at = _utcnow()
+         license_record.last_validation_status = state['status']
+diff --git a/license_api/main.py b/license_api/main.py
+index 4467a42..0bce264 100644
+--- a/license_api/main.py
++++ b/license_api/main.py
+@@ -82,6 +82,7 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
+             'plans': PLAN_FEATURES,
+             'issued_license': None,
+             'error': None,
++            'api_token': settings.api_token,
+         },
+     )
+ 
+diff --git a/license_api/templates/dashboard.html b/license_api/templates/dashboard.html
+index ea02b40..073d9b8 100644
+--- a/license_api/templates/dashboard.html
++++ b/license_api/templates/dashboard.html
+@@ -26,6 +26,7 @@
+         .issued-box { background: #ecfeff; color: #155e75; }
+         .error-box { background: #fef2f2; color: #b91c1c; }
+         .token { font-family: Consolas, monospace; font-size: 0.8rem; word-break: break-all; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; }
++        .token-hidden { filter: blur(8px); user-select: none; }
+         .plan-list { margin: 0; padding-left: 18px; color: #475569; }
+         .small { font-size: 0.8rem; color: #64748b; }
+         @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+@@ -48,12 +49,20 @@
+                 <h1 style="margin: 0 0 6px;">Painel de Licenças</h1>
+                 <div class="small">Emissão, listagem e revogação de licenças comerciais.</div>
+             </div>
+-            <a href="/admin/logout">Sair</a>
++            <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
++                <button type="button" id="toggle-api-token" style="background:#1d4ed8;">Ver token</button>
++                <a href="/admin/logout">Sair</a>
++            </div>
+         </div>
+ 
+         <div class="grid">
+             <div class="card">
+                 <h2>Emitir licença</h2>
++                <div class="issued-box" style="background:#eff6ff; color:#1e3a8a; margin-bottom:16px;">
++                    <strong>Token administrativo</strong>
++                    <div class="token token-hidden" id="api-token-value" style="margin-top:10px;">{{ api_token }}</div>
++                    <div class="small" style="margin-top:8px;">Use este token no cabeçalho <strong>X-API-Token</strong> para emitir, verificar ou revogar licenças via API.</div>
++                </div>
+                 {% if error %}
+                 <div class="error-box">{{ error }}</div>
+                 {% endif %}
+@@ -151,5 +160,19 @@
+             </div>
+         </div>
+     </div>
++
++    <script>
++    (function () {
++        const toggleButton = document.getElementById('toggle-api-token');
++        const tokenValue = document.getElementById('api-token-value');
++
++        if (toggleButton && tokenValue) {
++            toggleButton.addEventListener('click', function () {
++                const hidden = tokenValue.classList.toggle('token-hidden');
++                toggleButton.textContent = hidden ? 'Ver token' : 'Ocultar token';
++            });
++        }
++    })();
++    </script>
+ </body>
+ </html>
+\ No newline at end of file
+diff --git a/seed.py b/seed.py
+index f53d990..dfaad91 100644
+--- a/seed.py
++++ b/seed.py
+@@ -67,8 +67,8 @@ def seed_database():
+         db.session.add(license_record)
+ 
+         print("Seeding Users...")
+-        admin = User(name='Administrador', email='admin@prontoar.com', role='admin')
+-        admin.set_password('admin123')
++        admin = User(name='Administrador', email='admin@prontoar.com', role='admin', permission_level='admin', job_title='Administrador', must_change_password=True)
++        admin.set_password('prontoar')
+ 
+         tech1 = User(name='Carlos Técnico', email='carlos@prontoar.com', role='technician', specialty='Refrigeração')
+         tech1.set_password('tech1234')

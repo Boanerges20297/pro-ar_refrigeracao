@@ -15,6 +15,10 @@ from sqlalchemy import or_
 tech_bp = Blueprint('tech', __name__)
 
 
+def normalize_email(email):
+    return (email or '').strip().lower()
+
+
 def send_staff_message(recipients, subject, message_body, sender_name):
     sent_count = 0
     failed_recipients = []
@@ -225,7 +229,7 @@ def normalize_job_title(permission_level, job_title, other_job_title=None):
 def add_technician():
     if request.method == 'POST':
         name = request.form.get('name')
-        email = request.form.get('email')
+        email = normalize_email(request.form.get('email'))
         password = request.form.get('password')
         specialty = request.form.get('specialty')
         is_active = request.form.get('is_active') == 'on'
@@ -239,6 +243,14 @@ def add_technician():
         # Backend validation for password
         if not is_password_strong(password):
             flash(PASSWORD_POLICY_MESSAGE, 'danger')
+            return render_template('technician/add.html')
+
+        if not email:
+            flash('Informe um e-mail válido para continuar.', 'danger')
+            return render_template('technician/add.html')
+
+        if User.query.filter_by(email=email).first():
+            flash('Já existe um funcionário cadastrado com este e-mail.', 'danger')
             return render_template('technician/add.html')
 
         limit_error = check_user_limit(permission_level=permission_level, is_active=is_active)
@@ -260,13 +272,13 @@ def edit_technician(user_id):
     user = User.query.get_or_404(user_id)
 
     if request.method == 'POST':
-        user.name = request.form.get('name')
-        user.email = request.form.get('email')
-        user.specialty = request.form.get('specialty')
-        user.is_active = request.form.get('is_active') == 'on'
-        user.permission_level = request.form.get('permission_level', 'user')
-        user.job_title = normalize_job_title(
-            user.permission_level,
+        name = request.form.get('name')
+        email = normalize_email(request.form.get('email'))
+        specialty = request.form.get('specialty')
+        is_active = request.form.get('is_active') == 'on'
+        permission_level = request.form.get('permission_level', 'user')
+        job_title = normalize_job_title(
+            permission_level,
             request.form.get('job_title'),
             request.form.get('other_job_title')
         )
@@ -276,12 +288,30 @@ def edit_technician(user_id):
             if not is_password_strong(password):
                 flash(PASSWORD_POLICY_MESSAGE, 'danger')
                 return render_template('technician/edit.html', user=user)
-            user.set_password(password)
 
-        limit_error = check_user_limit(permission_level=user.permission_level, existing_user=user, is_active=user.is_active)
+        if not email:
+            flash('Informe um e-mail válido para continuar.', 'danger')
+            return render_template('technician/edit.html', user=user)
+
+        existing_user = User.query.filter(User.email == email, User.id != user.id).first()
+        if existing_user:
+            flash('Já existe um funcionário cadastrado com este e-mail.', 'danger')
+            return render_template('technician/edit.html', user=user)
+
+        limit_error = check_user_limit(permission_level=permission_level, existing_user=user, is_active=is_active)
         if limit_error:
             flash(limit_error, 'danger')
             return render_template('technician/edit.html', user=user)
+
+        user.name = name
+        user.email = email
+        user.specialty = specialty
+        user.is_active = is_active
+        user.permission_level = permission_level
+        user.job_title = job_title
+
+        if password:
+            user.set_password(password)
 
         db.session.commit()
         flash('Funcionário atualizado com sucesso!', 'success')

@@ -25,6 +25,29 @@ jwt = JWTManager()
 bcrypt = Bcrypt()
 limiter = Limiter(key_func=get_remote_address, default_limits=[])
 
+
+def _resolve_logo_path(config):
+    fallback_logo = '/static/img/logo.jpg'
+    if not config:
+        return fallback_logo
+
+    logo_path = getattr(config, 'logo_path', None)
+    if not logo_path:
+        return fallback_logo
+
+    if logo_path.startswith('http://') or logo_path.startswith('https://'):
+        return logo_path
+
+    if not logo_path.startswith('/static/'):
+        return fallback_logo
+
+    static_relative = logo_path.replace('/static/', '', 1)
+    candidate = os.path.join(_PROJECT_ROOT, 'static', static_relative)
+    if not os.path.exists(candidate):
+        return fallback_logo
+
+    return logo_path
+
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
     if isinstance(dbapi_connection, sqlite3.Connection):
@@ -255,6 +278,7 @@ def create_app(config_class=Config):
                 config = AppConfig.query.first()
                 if not config:
                     config = AppConfig()
+                config.logo_path = _resolve_logo_path(config)
                 g.app_config = config
             except Exception:
                 g.app_config = None

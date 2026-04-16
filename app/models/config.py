@@ -3,7 +3,7 @@ from datetime import datetime
 
 class AppConfig(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    logo_path = db.Column(db.String(255), nullable=True, default='/static/img/logo_clean.png')
+    logo_path = db.Column(db.String(255), nullable=True, default='/static/img/logo.jpg')
     company_name = db.Column(db.String(100), default='Pronto Ar Refrigeração')
 
     # Colors

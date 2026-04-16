@@ -671,7 +671,7 @@ O seed atual:
 
 Credenciais de seed informadas pelo próprio script:
 
-- admin: `admin@prontoar.com` / `admin123`
+- admin: `admin@prontoar.com` / `prontoar123`
 - técnico: `carlos@prontoar.com` / `tech1234`
 - técnico adicional: `joao@prontoar.com` / `tech1234`
 

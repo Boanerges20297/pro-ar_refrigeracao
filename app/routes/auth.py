@@ -34,6 +34,27 @@ def confirm_reset_token(token, expiration=3600):
         return False
     return email
 
+
+def build_authenticated_response(user, redirect_url):
+    session_nonce = build_session_nonce()
+    session['jwt_session_nonce'] = session_nonce
+    session.modified = True
+
+    access_token = create_access_token(
+        identity=str(user.id),
+        additional_claims={
+            'uid': str(user.id),
+            'permission_level': user.permission_level,
+            'pwdv': build_password_version(user.password_hash),
+            'session_nonce': session_nonce,
+            'ua_hash': build_user_agent_fingerprint(request.headers.get('User-Agent')),
+        },
+    )
+
+    resp = make_response(redirect(redirect_url))
+    set_access_cookies(resp, access_token)
+    return resp
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 @limiter.limit('5 per minute', methods=['POST'])
 def login():
@@ -64,23 +85,12 @@ def login():
                 )
                 return redirect(url_for('auth.login'))
 
-            session_nonce = build_session_nonce()
-            session['jwt_session_nonce'] = session_nonce
-            session.modified = True
-
-            access_token = create_access_token(
-                identity=str(user.id),
-                additional_claims={
-                    'uid': str(user.id),
-                    'permission_level': user.permission_level,
-                    'pwdv': build_password_version(user.password_hash),
-                    'session_nonce': session_nonce,
-                    'ua_hash': build_user_agent_fingerprint(request.headers.get('User-Agent')),
-                },
-            )
-
-            # Log successful login
             log_login(user.id, success=True)
+
+            if user.must_change_password:
+                flash('Por segurança, defina uma nova senha antes de acessar o sistema.', 'warning')
+                reset_token = generate_reset_token(user.email)
+                return redirect(url_for('auth.reset_password', token=reset_token))
 
             # Determine where to redirect based on permission_level
             if user.permission_level == 'admin':
@@ -90,9 +100,7 @@ def login():
             else:
                 redirect_url = url_for('tech.dashboard')
 
-            resp = make_response(redirect(redirect_url))
-            set_access_cookies(resp, access_token)
-            return resp
+            return build_authenticated_response(user, redirect_url)
         else:
             flash('Email ou senha inválidos.', 'danger')
             # Log failed login attempt
@@ -179,6 +187,7 @@ def reset_password(token):
             return render_template('auth/reset_password.html', token=token)
             
         user.set_password(password)
+        user.must_change_password = False
         db.session.commit()
         
         # Log password reset
@@ -191,7 +200,15 @@ def reset_password(token):
         )
         
         flash('Sua senha foi atualizada com sucesso! Agora você pode fazer login.', 'success')
-        return redirect(url_for('auth.login'))
+
+        if user.permission_level == 'admin':
+            redirect_url = url_for('admin.dashboard')
+        elif user.permission_level == 'secretary':
+            redirect_url = url_for('secretary.dashboard')
+        else:
+            redirect_url = url_for('tech.dashboard')
+
+        return build_authenticated_response(user, redirect_url)
         
     return render_template('auth/reset_password.html', token=token)
 

@@ -26,6 +26,7 @@
         .issued-box { background: #ecfeff; color: #155e75; }
         .error-box { background: #fef2f2; color: #b91c1c; }
         .token { font-family: Consolas, monospace; font-size: 0.8rem; word-break: break-all; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; }
+        .token-hidden { filter: blur(8px); user-select: none; }
         .plan-list { margin: 0; padding-left: 18px; color: #475569; }
         .small { font-size: 0.8rem; color: #64748b; }
         @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
@@ -48,12 +49,20 @@
                 <h1 style="margin: 0 0 6px;">Painel de Licenças</h1>
                 <div class="small">Emissão, listagem e revogação de licenças comerciais.</div>
             </div>
-            <a href="/admin/logout">Sair</a>
+            <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                <button type="button" id="toggle-api-token" style="background:#1d4ed8;">Ver token</button>
+                <a href="/admin/logout">Sair</a>
+            </div>
         </div>
 
         <div class="grid">
             <div class="card">
                 <h2>Emitir licença</h2>
+                <div class="issued-box" style="background:#eff6ff; color:#1e3a8a; margin-bottom:16px;">
+                    <strong>Token administrativo</strong>
+                    <div class="token token-hidden" id="api-token-value" style="margin-top:10px;">{{ api_token }}</div>
+                    <div class="small" style="margin-top:8px;">Use este token no cabeçalho <strong>X-API-Token</strong> para emitir, verificar ou revogar licenças via API.</div>
+                </div>
                 {% if error %}
                 <div class="error-box">{{ error }}</div>
                 {% endif %}
@@ -151,5 +160,19 @@
             </div>
         </div>
     </div>
+
+    <script>
+    (function () {
+        const toggleButton = document.getElementById('toggle-api-token');
+        const tokenValue = document.getElementById('api-token-value');
+
+        if (toggleButton && tokenValue) {
+            toggleButton.addEventListener('click', function () {
+                const hidden = tokenValue.classList.toggle('token-hidden');
+                toggleButton.textContent = hidden ? 'Ver token' : 'Ocultar token';
+            });
+        }
+    })();
+    </script>
 </body>
 </html>

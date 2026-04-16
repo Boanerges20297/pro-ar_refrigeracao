@@ -12,6 +12,7 @@ class User(db.Model):
     role = db.Column(db.String(20), nullable=False, default='technician') # Deprecated: 'admin', 'secretary', or 'technician', kept for compatibility if needed.
     specialty = db.Column(db.String(100), nullable=True) # E.g., Refrigeration, Electrical
     is_active = db.Column(db.Boolean, default=True)
+    must_change_password = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships

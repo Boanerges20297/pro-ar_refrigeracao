@@ -61,7 +61,7 @@ htmlcov/
 
 # Automated Tests
 tests/
-
+docs/
 # Standalone license API
 license_api/data/
 license_api/keys/
