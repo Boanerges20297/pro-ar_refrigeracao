@@ -17,10 +17,22 @@ depends_on = None
 
 
 def upgrade():
-    with op.batch_alter_table('user', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('must_change_password', sa.Boolean(), server_default=sa.false(), nullable=False))
+    op.add_column(
+        'user',
+        sa.Column('must_change_password', sa.Boolean(), server_default=sa.false(), nullable=False),
+    )
 
 
 def downgrade():
-    with op.batch_alter_table('user', schema=None) as batch_op:
-        batch_op.drop_column('must_change_password')
+    bind = op.get_bind()
+    is_sqlite = bind.dialect.name == 'sqlite'
+
+    if is_sqlite:
+        op.execute(sa.text('PRAGMA foreign_keys=OFF'))
+
+    try:
+        with op.batch_alter_table('user', schema=None) as batch_op:
+            batch_op.drop_column('must_change_password')
+    finally:
+        if is_sqlite:
+            op.execute(sa.text('PRAGMA foreign_keys=ON'))

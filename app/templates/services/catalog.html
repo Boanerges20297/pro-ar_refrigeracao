@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}Tipos de Serviço{% endblock %}
+{% block content %}
+<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800">Catálogo de Tipos de Serviço</h2>
+        <p class="mt-1 text-sm text-gray-500">Somente administradores podem criar, editar ou excluir tipos de serviço.</p>
+    </div>
+    <div class="flex flex-col sm:flex-row gap-3">
+        <button type="button" id="openCatalogModal" class="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90">
+            <i class="fas fa-plus mr-2"></i>Novo tipo
+        </button>
+        <a href="{{ url_for('services.index') }}" class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+            Voltar para OS
+        </a>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        <div class="space-y-3 mb-6">
+            {% for category, message in messages %}
+                <div class="rounded-lg px-4 py-3 text-sm {% if category == 'danger' %}bg-red-50 text-red-700 border border-red-200{% elif category == 'warning' %}bg-amber-50 text-amber-800 border border-amber-200{% else %}bg-green-50 text-green-700 border border-green-200{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endwith %}
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    {% for service in services %}
+    <article class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h3 class="text-lg font-bold text-gray-900">{{ service.name }}</h3>
+                <p class="mt-1 text-sm text-gray-500">{{ service.description or 'Sem descrição' }}</p>
+            </div>
+            <span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-primary whitespace-nowrap">{{ service.base_price | round(2) }} R$</span>
+        </div>
+        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-600">
+            <div class="rounded-lg bg-gray-50 p-3">
+                <span class="block text-xs font-semibold uppercase tracking-wide text-gray-400">Duração estimada</span>
+                <span class="mt-1 block font-medium">{{ service.estimated_duration or '-' }} min</span>
+            </div>
+            <div class="rounded-lg bg-gray-50 p-3">
+                <span class="block text-xs font-semibold uppercase tracking-wide text-gray-400">Uso em OS</span>
+                <span class="mt-1 block font-medium">{{ usage_counts.get(service.id, 0) }} vez(es)</span>
+            </div>
+        </div>
+        <div class="mt-4 flex flex-col sm:flex-row gap-2 sm:justify-end">
+            <button type="button" class="edit-service-btn inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    data-service-id="{{ service.id }}"
+                    data-service-name="{{ service.name }}"
+                    data-service-description="{{ service.description or '' }}"
+                    data-service-price="{{ '%.2f'|format(service.base_price or 0) }}"
+                    data-service-duration="{{ service.estimated_duration or '' }}">
+                <i class="fas fa-pen mr-2"></i>Editar
+            </button>
+            <form method="post" action="{{ url_for('services.delete_service_catalog', service_id=service.id) }}" onsubmit="return confirm('Excluir este tipo de serviço?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="inline-flex w-full items-center justify-center rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 {% if usage_counts.get(service.id, 0) > 0 %}opacity-60{% endif %}" {% if usage_counts.get(service.id, 0) > 0 %}disabled title="Há OS vinculadas a este tipo"{% endif %}>
+                    <i class="fas fa-trash mr-2"></i>Excluir
+                </button>
+            </form>
+        </div>
+    </article>
+    {% else %}
+    <div class="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center text-gray-500 lg:col-span-2">
+        Nenhum tipo de serviço cadastrado.
+    </div>
+    {% endfor %}
+</div>
+
+<div id="catalogModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-gray-900/60 p-4">
+    <div class="w-full max-w-xl rounded-2xl bg-white shadow-2xl">
+        <div class="flex items-start justify-between border-b border-gray-100 px-6 py-4">
+            <div>
+                <h3 class="text-lg font-bold text-gray-900" id="catalogModalTitle">Novo tipo de serviço</h3>
+                <p class="text-sm text-gray-500">Cadastre ou edite o catálogo usado nas OS.</p>
+            </div>
+            <button type="button" id="closeCatalogModal" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+        </div>
+        <form id="catalogForm" class="space-y-4 px-6 py-5" method="post">
+            <input type="hidden" id="catalogCsrf" value="{{ csrf_token() }}">
+            <input type="hidden" id="catalogMethod" value="create">
+            <input type="hidden" id="catalogServiceId" value="">
+            <div>
+                <label for="catalogName" class="block text-sm font-medium text-gray-700">Nome *</label>
+                <input id="catalogName" name="name" type="text" maxlength="150" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-primary focus:ring-1 sm:text-sm" required>
+            </div>
+            <div>
+                <label for="catalogDescription" class="block text-sm font-medium text-gray-700">Descrição</label>
+                <textarea id="catalogDescription" name="description" rows="3" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-primary focus:ring-1 sm:text-sm"></textarea>
+            </div>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                    <label for="catalogBasePrice" class="block text-sm font-medium text-gray-700">Preço base (R$)</label>
+                    <input id="catalogBasePrice" name="base_price" type="number" step="0.01" min="0" value="0.00" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-primary focus:ring-1 sm:text-sm">
+                </div>
+                <div>
+                    <label for="catalogDuration" class="block text-sm font-medium text-gray-700">Duração estimada (min)</label>
+                    <input id="catalogDuration" name="estimated_duration" type="number" min="1" step="1" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-primary focus:ring-1 sm:text-sm">
+                </div>
+            </div>
+            <div id="catalogError" class="hidden rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"></div>
+            <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button type="button" id="cancelCatalogModal" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancelar</button>
+                <button type="submit" class="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90">Salvar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const catalogModal = document.getElementById('catalogModal');
+const catalogForm = document.getElementById('catalogForm');
+const catalogError = document.getElementById('catalogError');
+const catalogMethod = document.getElementById('catalogMethod');
+const catalogServiceId = document.getElementById('catalogServiceId');
+
+function openCatalogModal(mode = 'create', service = null) {
+    catalogError.classList.add('hidden');
+    catalogError.textContent = '';
+
+    catalogMethod.value = mode;
+    if (mode === 'edit' && service) {
+        document.getElementById('catalogModalTitle').textContent = 'Editar tipo de serviço';
+        catalogServiceId.value = service.id;
+        document.getElementById('catalogName').value = service.name || '';
+        document.getElementById('catalogDescription').value = service.description || '';
+        document.getElementById('catalogBasePrice').value = service.base_price || '0.00';
+        document.getElementById('catalogDuration').value = service.estimated_duration || '';
+    } else {
+        document.getElementById('catalogModalTitle').textContent = 'Novo tipo de serviço';
+        catalogServiceId.value = '';
+        catalogForm.reset();
+        document.getElementById('catalogBasePrice').value = '0.00';
+    }
+
+    catalogModal.classList.remove('hidden');
+    catalogModal.classList.add('flex');
+    document.getElementById('catalogName').focus();
+}
+
+function closeCatalogModal() {
+    catalogModal.classList.add('hidden');
+    catalogModal.classList.remove('flex');
+}
+
+document.getElementById('openCatalogModal').addEventListener('click', () => openCatalogModal('create'));
+document.getElementById('closeCatalogModal').addEventListener('click', closeCatalogModal);
+document.getElementById('cancelCatalogModal').addEventListener('click', closeCatalogModal);
+catalogModal.addEventListener('click', (event) => {
+    if (event.target.id === 'catalogModal') {
+        closeCatalogModal();
+    }
+});
+
+document.querySelectorAll('.edit-service-btn').forEach((button) => {
+    button.addEventListener('click', () => {
+        openCatalogModal('edit', {
+            id: button.dataset.serviceId,
+            name: button.dataset.serviceName,
+            description: button.dataset.serviceDescription,
+            base_price: button.dataset.servicePrice,
+            estimated_duration: button.dataset.serviceDuration,
+        });
+    });
+});
+
+catalogForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const payload = new FormData(catalogForm);
+    const mode = catalogMethod.value;
+    const serviceId = catalogServiceId.value;
+    const url = mode === 'edit'
+        ? `{{ url_for('services.service_catalog') }}/${serviceId}/update`
+        : '{{ url_for('services.create_service_catalog') }}';
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.getElementById('catalogCsrf').value,
+            },
+            credentials: 'same-origin',
+            body: payload,
+        });
+
+        if (response.redirected) {
+            window.location.href = response.url;
+            return;
+        }
+
+        if (!response.ok) {
+            throw new Error('Não foi possível salvar o tipo de serviço.');
+        }
+
+        window.location.reload();
+    } catch (error) {
+        catalogError.textContent = error.message;
+        catalogError.classList.remove('hidden');
+    }
+});
+</script>
+{% endblock %}

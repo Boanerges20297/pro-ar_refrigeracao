@@ -37,14 +37,25 @@
 
             <div>
                 <label for="service_id" class="block text-sm font-medium text-gray-700">Tipo de Serviço *</label>
-                <select id="service_id" name="service_id" required class="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
-                    <option value="" disabled selected>Selecione um serviço...</option>
-                    {% for service in services %}
-                        <option value="{{ service.id }}">{{ service.name }} (R$ {{ "%.2f"|format(service.base_price) }})</option>
-                    {% endfor %}
-                </select>
+                <div class="mt-1 flex flex-col gap-2 sm:flex-row">
+                    <div class="relative flex-1">
+                        <input id="service_search" name="service_search" list="service_catalog_list" autocomplete="off" placeholder="Digite para buscar ou selecione um tipo..." class="block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-primary focus:outline-none focus:ring-primary focus:ring-1 sm:text-sm">
+                        <input type="hidden" id="service_id" name="service_id" required>
+                        <datalist id="service_catalog_list">
+                            {% for service in services %}
+                                <option value="{{ service.name }}"></option>
+                            {% endfor %}
+                        </datalist>
+                    </div>
+                    {% if current_user and current_user.permission_level == 'admin' %}
+                    <button type="button" id="openServiceModal" class="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2">
+                        <i class="fas fa-plus mr-2"></i>Novo tipo
+                    </button>
+                    {% endif %}
+                </div>
+                <p class="mt-1 text-xs text-gray-500">Escolha um tipo já cadastrado ou crie um novo sem sair da tela.</p>
                 {% if not services %}
-                <p class="text-xs text-red-500 mt-1">O sistema adicionará serviços automaticamente na inicialização do banco.</p>
+                <p class="text-xs text-red-500 mt-1">Nenhum tipo de serviço encontrado. {% if current_user and current_user.permission_level == 'admin' %}Use o botão ao lado para cadastrar o primeiro.{% else %}Peça para um administrador cadastrar o primeiro tipo.{% endif %}</p>
                 {% endif %}
             </div>
 
@@ -89,16 +100,133 @@
                 <a href="{{ url_for('services.index') }}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mr-3">
                     Cancelar
                 </a>
-                <button type="submit" class="bg-primary border border-transparent rounded-md shadow-sm py-2 px-4 inline-flex justify-center text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {% if not clients or not services %}disabled{% endif %}>
+                <button type="submit" class="bg-primary border border-transparent rounded-md shadow-sm py-2 px-4 inline-flex justify-center text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {% if not clients %}disabled{% endif %}>
                     Criar Ordem de Serviço
                 </button>
             </div>
         </div>
     </form>
+
+    {% if current_user and current_user.permission_level == 'admin' %}
+    <div id="serviceModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-gray-900/60 p-4">
+        <div class="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+            <div class="flex items-start justify-between border-b border-gray-100 px-6 py-4">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900">Novo tipo de serviço</h3>
+                    <p class="text-sm text-gray-500">Cadastre um tipo para aparecer no autocomplete e na OS atual.</p>
+                </div>
+                <button type="button" id="closeServiceModal" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-lg"></i>
+                </button>
+            </div>
+            <form id="serviceCatalogForm" class="px-6 py-5 space-y-4">
+                <input type="hidden" id="serviceCatalogCsrf" value="{{ csrf_token() }}">
+                <div>
+                    <label for="service_name" class="block text-sm font-medium text-gray-700">Nome *</label>
+                    <input type="text" id="service_name" name="name" required maxlength="150" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-primary focus:ring-1 sm:text-sm" placeholder="Ex.: Higienização de evaporadora">
+                </div>
+                <div>
+                    <label for="service_description" class="block text-sm font-medium text-gray-700">Descrição</label>
+                    <textarea id="service_description" name="description" rows="3" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-primary focus:ring-1 sm:text-sm" placeholder="Descreva o serviço de forma objetiva"></textarea>
+                </div>
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                        <label for="service_base_price" class="block text-sm font-medium text-gray-700">Preço base (R$)</label>
+                        <input type="number" id="service_base_price" name="base_price" min="0" step="0.01" value="0.00" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-primary focus:ring-1 sm:text-sm">
+                    </div>
+                    <div>
+                        <label for="service_duration" class="block text-sm font-medium text-gray-700">Duração estimada (min)</label>
+                        <input type="number" id="service_duration" name="estimated_duration" min="1" step="1" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-primary focus:ring-1 sm:text-sm">
+                    </div>
+                </div>
+                <div id="serviceCatalogError" class="hidden rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"></div>
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" id="cancelServiceModal" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancelar</button>
+                    <button type="submit" class="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90">Salvar tipo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
+const serviceCatalog = {{ service_catalog_items | tojson }};
+
+function getServiceByName(name) {
+    const normalized = (name || '').trim().toLowerCase();
+    return serviceCatalog.find((service) => service.name.trim().toLowerCase() === normalized) || null;
+}
+
+function setSelectedService(service) {
+    const serviceInput = document.getElementById('service_search');
+    const serviceHidden = document.getElementById('service_id');
+    const totalValue = document.getElementById('total_value');
+
+    if (!service || !serviceInput || !serviceHidden) {
+        return;
+    }
+
+    serviceInput.value = service.name;
+    serviceHidden.value = service.id;
+
+    if (totalValue && (!totalValue.value || totalValue.value === '0' || totalValue.value === '0.00')) {
+        totalValue.value = Number(service.base_price || 0).toFixed(2);
+    }
+}
+
+function syncServiceSelection() {
+    const serviceInput = document.getElementById('service_search');
+    const serviceHidden = document.getElementById('service_id');
+    if (!serviceInput || !serviceHidden) {
+        return;
+    }
+
+    const service = getServiceByName(serviceInput.value);
+    serviceHidden.value = service ? service.id : '';
+    if (service) {
+        const totalValue = document.getElementById('total_value');
+        if (totalValue && (!totalValue.value || totalValue.value === '0' || totalValue.value === '0.00')) {
+            totalValue.value = Number(service.base_price || 0).toFixed(2);
+        }
+    }
+}
+
+function refreshServiceCatalogList(service) {
+    const datalist = document.getElementById('service_catalog_list');
+    if (!datalist || !service) {
+        return;
+    }
+
+    const option = document.createElement('option');
+    option.value = service.name;
+    datalist.appendChild(option);
+    serviceCatalog.push(service);
+}
+
+function openServiceModal() {
+    const modal = document.getElementById('serviceModal');
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.getElementById('service_name').focus();
+}
+
+function closeServiceModal() {
+    const modal = document.getElementById('serviceModal');
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.getElementById('serviceCatalogError').classList.add('hidden');
+}
+
 function filterEquipment(clientId) {
     const equipSelect = document.getElementById('equipment_id');
     const options = equipSelect.options;
@@ -131,6 +259,76 @@ function checkFileSize(input) {
             alert(`A imagem selecionada possui ${fileSize.toFixed(2)}MB. \n\nO sistema irá redimensioná-la automaticamente para economizar espaço, mas recomendamos o uso de imagens menores para um upload mais rápido.`);
         }
     }
+}
+
+document.getElementById('service_search').addEventListener('input', syncServiceSelection);
+document.getElementById('service_search').addEventListener('change', syncServiceSelection);
+
+const openServiceModalButton = document.getElementById('openServiceModal');
+if (openServiceModalButton) {
+    openServiceModalButton.addEventListener('click', openServiceModal);
+}
+
+const serviceModal = document.getElementById('serviceModal');
+if (serviceModal) {
+    document.getElementById('closeServiceModal').addEventListener('click', closeServiceModal);
+    document.getElementById('cancelServiceModal').addEventListener('click', closeServiceModal);
+    serviceModal.addEventListener('click', (event) => {
+        if (event.target.id === 'serviceModal') {
+            closeServiceModal();
+        }
+    });
+}
+
+const serviceCatalogForm = document.getElementById('serviceCatalogForm');
+if (serviceCatalogForm) {
+serviceCatalogForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const errorBox = document.getElementById('serviceCatalogError');
+    errorBox.classList.add('hidden');
+    errorBox.textContent = '';
+
+    const payload = {
+        name: document.getElementById('service_name').value,
+        description: document.getElementById('service_description').value,
+        base_price: document.getElementById('service_base_price').value,
+        estimated_duration: document.getElementById('service_duration').value,
+    };
+
+    try {
+        const response = await fetch('{{ url_for('services.create_service_catalog') }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.getElementById('serviceCatalogCsrf').value,
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload),
+        });
+
+        const rawResponse = await response.text();
+        let data = null;
+        try {
+            data = rawResponse ? JSON.parse(rawResponse) : null;
+        } catch (parseError) {
+            data = null;
+        }
+
+        if (!response.ok || !data || !data.ok) {
+            throw new Error((data && data.message) || 'Não foi possível cadastrar o tipo de serviço.');
+        }
+
+        refreshServiceCatalogList(data.service);
+        setSelectedService(data.service);
+        closeServiceModal();
+        document.getElementById('serviceCatalogForm').reset();
+        document.getElementById('service_base_price').value = '0.00';
+    } catch (error) {
+        errorBox.textContent = error.message;
+        errorBox.classList.remove('hidden');
+    }
+});
 }
 </script>
 {% endblock %}

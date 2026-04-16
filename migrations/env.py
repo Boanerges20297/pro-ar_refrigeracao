@@ -51,6 +51,18 @@ def get_metadata():
     return target_db.metadata
 
 
+def cleanup_sqlite_batch_tables(connection):
+    if connection.dialect.name != 'sqlite':
+        return
+
+    temp_tables = connection.exec_driver_sql(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '_alembic_tmp_%'"
+    ).fetchall()
+
+    for (table_name,) in temp_tables:
+        connection.exec_driver_sql(f'DROP TABLE IF EXISTS "{table_name}"')
+
+
 def run_migrations_offline():
     """Run migrations in 'offline' mode.
 
@@ -97,6 +109,7 @@ def run_migrations_online():
     connectable = get_engine()
 
     with connectable.connect() as connection:
+        cleanup_sqlite_batch_tables(connection)
         context.configure(
             connection=connection,
             target_metadata=get_metadata(),

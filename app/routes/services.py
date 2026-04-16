@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app, send_from_directory, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app, send_from_directory, abort, jsonify
 from app.models.workorder import WorkOrder
 from app.models.client import Client
 from app.models.equipment import Equipment
@@ -19,12 +19,10 @@ from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle, Image
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from xml.sax.saxutils import escape
 
 services_bp = Blueprint('services', __name__)
-
-from sqlalchemy import func
 
 
 def get_current_user():
@@ -68,6 +66,149 @@ def can_access_workorder(user, workorder):
         return True
 
     return workorder.technician_id == user.id
+
+
+def serialize_service_catalog(service):
+    return {
+        'id': service.id,
+        'name': service.name,
+        'description': service.description or '',
+        'base_price': float(service.base_price or 0.0),
+        'base_price_label': f'R$ {service.base_price:.2f}',
+        'estimated_duration': service.estimated_duration,
+    }
+
+
+@services_bp.route('/catalog', methods=['POST'])
+@roles_required('admin')
+def create_service_catalog():
+    payload = request.get_json(silent=True) or request.form
+    name = (payload.get('name') or '').strip()
+    description = (payload.get('description') or '').strip() or None
+    base_price_raw = payload.get('base_price')
+    estimated_duration_raw = payload.get('estimated_duration')
+
+    if not name:
+        if request.is_json:
+            return jsonify({'ok': False, 'message': 'Informe o nome do tipo de serviço.'}), 400
+        flash('Informe o nome do tipo de serviço.', 'danger')
+        return redirect(request.referrer or url_for('services.add'))
+
+    existing_service = ServiceCatalog.query.filter(func.lower(ServiceCatalog.name) == name.lower()).first()
+    if existing_service:
+        response_body = {
+            'ok': False,
+            'message': 'Já existe um tipo de serviço com esse nome.',
+            'service': serialize_service_catalog(existing_service),
+        }
+        if request.is_json:
+            return jsonify(response_body), 409
+        flash('Já existe um tipo de serviço com esse nome.', 'warning')
+        return redirect(request.referrer or url_for('services.add'))
+
+    try:
+        base_price = round(float(base_price_raw), 2) if base_price_raw not in (None, '') else 0.0
+    except (TypeError, ValueError):
+        base_price = 0.0
+
+    try:
+        estimated_duration = int(estimated_duration_raw) if estimated_duration_raw not in (None, '') else None
+    except (TypeError, ValueError):
+        estimated_duration = None
+
+    service = ServiceCatalog(
+        name=name,
+        description=description,
+        base_price=base_price,
+        estimated_duration=estimated_duration,
+    )
+    db.session.add(service)
+    db.session.commit()
+
+    response_body = {
+        'ok': True,
+        'message': 'Tipo de serviço cadastrado com sucesso.',
+        'service': serialize_service_catalog(service),
+    }
+    if request.is_json:
+        return jsonify(response_body), 201
+
+    flash('Tipo de serviço cadastrado com sucesso.', 'success')
+    return redirect(request.referrer or url_for('services.add'))
+
+
+@services_bp.route('/catalog')
+@roles_required('admin')
+def service_catalog():
+    services = ServiceCatalog.query.order_by(ServiceCatalog.name.asc()).all()
+    usage_counts = dict(
+        db.session.query(WorkOrder.service_id, func.count(WorkOrder.id))
+        .group_by(WorkOrder.service_id)
+        .all()
+    )
+
+    return render_template(
+        'services/catalog.html',
+        services=services,
+        usage_counts=usage_counts,
+    )
+
+
+@services_bp.route('/catalog/<int:service_id>/update', methods=['POST'])
+@roles_required('admin')
+def update_service_catalog(service_id):
+    service = ServiceCatalog.query.get_or_404(service_id)
+    name = (request.form.get('name') or '').strip()
+    description = (request.form.get('description') or '').strip() or None
+    base_price_raw = request.form.get('base_price')
+    estimated_duration_raw = request.form.get('estimated_duration')
+
+    if not name:
+        flash('Informe o nome do tipo de serviço.', 'danger')
+        return redirect(url_for('services.service_catalog'))
+
+    existing_service = ServiceCatalog.query.filter(
+        func.lower(ServiceCatalog.name) == name.lower(),
+        ServiceCatalog.id != service.id,
+    ).first()
+    if existing_service:
+        flash('Já existe outro tipo de serviço com esse nome.', 'warning')
+        return redirect(url_for('services.service_catalog'))
+
+    try:
+        base_price = round(float(base_price_raw), 2) if base_price_raw not in (None, '') else 0.0
+    except (TypeError, ValueError):
+        base_price = 0.0
+
+    try:
+        estimated_duration = int(estimated_duration_raw) if estimated_duration_raw not in (None, '') else None
+    except (TypeError, ValueError):
+        estimated_duration = None
+
+    service.name = name
+    service.description = description
+    service.base_price = base_price
+    service.estimated_duration = estimated_duration
+    db.session.commit()
+
+    flash('Tipo de serviço atualizado com sucesso.', 'success')
+    return redirect(url_for('services.service_catalog'))
+
+
+@services_bp.route('/catalog/<int:service_id>/delete', methods=['POST'])
+@roles_required('admin')
+def delete_service_catalog(service_id):
+    service = ServiceCatalog.query.get_or_404(service_id)
+    usage_count = WorkOrder.query.filter_by(service_id=service.id).count()
+
+    if usage_count > 0:
+        flash('Não é possível excluir um tipo de serviço que já possui OS vinculadas.', 'danger')
+        return redirect(url_for('services.service_catalog'))
+
+    db.session.delete(service)
+    db.session.commit()
+    flash('Tipo de serviço excluído com sucesso.', 'success')
+    return redirect(url_for('services.service_catalog'))
 
 
 @services_bp.route('/uploads/work-orders/<path:filename>')
@@ -301,6 +442,7 @@ def add():
     clients = Client.query.all()
     equipments = Equipment.query.all()
     services = ServiceCatalog.query.all()
+    service_catalog_items = [serialize_service_catalog(service) for service in services]
     technicians = User.query.filter_by(role='technician', is_active=True).all()
 
     if request.method == 'POST':
@@ -308,6 +450,10 @@ def add():
         equipment_id = request.form.get('equipment_id') or None
         service_id = request.form.get('service_id')
         technician_id = request.form.get('technician_id') or None
+
+        if not service_id:
+            flash('Selecione um tipo de serviço válido.', 'danger')
+            return redirect(url_for('services.add'))
 
         # Safely parse total_value
         raw_total_value = request.form.get('total_value')
@@ -350,7 +496,7 @@ def add():
         flash('Ordem de Serviço criada com sucesso!', 'success')
         return redirect(url_for('services.index'))
 
-    return render_template('services/add.html', clients=clients, equipments=equipments, services=services, technicians=technicians)
+    return render_template('services/add.html', clients=clients, equipments=equipments, services=services, service_catalog_items=service_catalog_items, technicians=technicians)
 @services_bp.route('/edit/<int:id>', methods=['GET', 'POST'])
 @roles_required('admin', 'secretary', 'technician')
 def edit(id):
