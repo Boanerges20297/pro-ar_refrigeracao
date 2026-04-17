@@ -4,47 +4,166 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recibo OS #{{ wo.id }}</title>
-        @media print {
-            /* Preserve original visual style, compacted to fit A4 single page */
-            @page { size: A4; margin: 10mm; }
+    <style>
+        :root {
+            --ink: #0f172a;
+            --muted: #475569;
+            --line: #cbd5e1;
+            --panel: #f8fafc;
+            --brand: {{ config.primary_color if config and config.primary_color else '#2563eb' }};
+        }
 
-            body { background: #fff; padding: 0; font-size: 11px; color: var(--ink); -webkit-print-color-adjust: exact; }
-            .toolbar { display: none; }
-            .page { max-width: none; box-shadow: none; border-radius: 0; margin: 0; }
+        * { box-sizing: border-box; }
 
-            /* Header / brand: keep logo and brand color but smaller */ 
-            .hero { padding: 14px 18px; background: linear-gradient(135deg, rgba(37,99,235,0.06), rgba(15,23,42,0.01)); border-bottom: 1px solid var(--line); }
-            .brand img { width: 60px; height: 60px; object-fit: contain; border-radius: 10px; padding: 6px; }
-            h1 { font-size: 20px; margin: 0; }
-            .subtitle { font-size: 12px; color: var(--muted); margin-top: 6px; }
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--ink);
+            background: #eef2f7;
+            padding: 32px;
+        }
 
-            /* Meta box compact and aligned right */ 
-            .meta { min-width: 180px; padding: 10px; border-radius: 12px; }
-            .meta-row { font-size: 11px; padding: 5px 0; border-bottom: 1px dashed var(--line); }
+        .toolbar {
+            max-width: 980px;
+            margin: 0 auto 20px;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+        }
 
-            /* Two-column cards */ 
-            .grid { grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
-            .card { padding: 12px 14px; border-radius: 12px; }
+        .toolbar a,
+        .toolbar button {
+            border: 0;
+            border-radius: 12px;
+            padding: 12px 18px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+        }
 
-            /* Compact summary row */ 
-            .summary { grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
-            .summary-item { padding: 8px 10px; border-radius: 10px; }
-            .summary-item strong { font-size: 13px; }
+        .toolbar .back {
+            background: #111827;
+            color: #fff;
+        }
 
-            /* Table smaller */ 
-            thead th { padding: 8px 8px; font-size: 11px; background: #eff6ff; color: #1d4ed8; }
-            tbody td { padding: 8px 8px; font-size: 11px; }
+        .toolbar .print {
+            background: var(--brand);
+            color: #fff;
+        }
 
-            /* Note and signatures */ 
-            .receipt-note { padding: 12px 14px; margin-bottom: 12px; border-radius: 10px; }
-            .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; }
-            .signature { padding-top: 10px; border-top: 1px solid #64748b; }
-            .signature strong { font-size: 12px; }
+        .page {
+            max-width: 980px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 24px;
+            box-shadow: 0 24px 60px rgba(15, 23, 42, 0.14);
+            overflow: hidden;
+        }
 
-            /* Keep headings and essential blocks together */ 
-            thead { display: table-header-group; }
-            tbody, table { page-break-inside: auto; }
-            .card, table, .receipt-note, .signatures { page-break-inside: avoid; }
+        .hero {
+            padding: 40px 44px 28px;
+            background: linear-gradient(135deg, rgba(37,99,235,0.08), rgba(15,23,42,0.02));
+            border-bottom: 1px solid var(--line);
+        }
+
+        .hero-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 24px;
+            align-items: flex-start;
+        }
+
+        .brand {
+            display: flex;
+            gap: 18px;
+            align-items: center;
+        }
+
+        .brand img {
+            width: 74px;
+            height: 74px;
+            object-fit: contain;
+            background: #fff;
+            border-radius: 18px;
+            padding: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+        }
+
+        .eyebrow {
+            margin: 0 0 8px;
+            color: var(--brand);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 38px;
+            line-height: 1;
+            letter-spacing: -0.03em;
+        }
+
+        .subtitle {
+            margin: 10px 0 0;
+            font-size: 15px;
+            color: var(--muted);
+            max-width: 520px;
+        }
+
+        .meta {
+            min-width: 240px;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 18px 20px;
+        }
+
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            font-size: 13px;
+            padding: 7px 0;
+            border-bottom: 1px dashed #e2e8f0;
+        }
+
+        .meta-row:last-child { border-bottom: 0; }
+
+        .meta-row strong { color: var(--muted); }
+
+        .content {
+            padding: 32px 44px 40px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+            margin-bottom: 22px;
+        }
+
+        .card {
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 18px 20px;
+            background: var(--panel);
+        }
+
+        .card h2 {
+            margin: 0 0 14px;
+            font-size: 14px;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+            text-transform: uppercase;
+        }
+
+        .card p {
+            margin: 6px 0;
+            font-size: 14px;
+            line-height: 1.5;
         }
 
         .summary {
@@ -151,7 +270,127 @@
             color: var(--muted);
         }
 
-        
+        @media print {
+            @page {
+                size: A4;
+                margin: 12mm;
+            }
+
+            body {
+                background: #fff;
+                padding: 0;
+                font-size: 12px;
+            }
+
+            .toolbar {
+                display: none;
+            }
+
+            .page {
+                max-width: none;
+                box-shadow: none;
+                border-radius: 0;
+            }
+
+            .hero,
+            .content {
+                padding-left: 16px;
+                padding-right: 16px;
+            }
+
+            .page {
+                overflow: visible;
+            }
+
+            .hero {
+                padding-top: 18px;
+                padding-bottom: 18px;
+            }
+
+            .content {
+                padding-top: 18px;
+                padding-bottom: 20px;
+            }
+
+            .hero-top {
+                gap: 16px;
+            }
+
+            .brand img {
+                width: 58px;
+                height: 58px;
+                border-radius: 14px;
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+
+            .subtitle {
+                font-size: 12px;
+                margin-top: 8px;
+            }
+
+            .meta {
+                min-width: 220px;
+                padding: 14px 16px;
+            }
+
+            .meta-row {
+                font-size: 11px;
+                padding: 5px 0;
+            }
+
+            .grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px;
+                break-inside: auto;
+            }
+
+            .card,
+            .summary-item,
+            .receipt-note,
+            .signatures,
+            .signature,
+            tr,
+            td,
+            th {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+
+            .summary {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 10px;
+            }
+
+            .summary-item {
+                padding: 12px 14px;
+            }
+
+            .summary-item strong {
+                font-size: 16px;
+            }
+
+            thead {
+                display: table-header-group;
+            }
+
+            tbody,
+            table {
+                break-inside: auto;
+                page-break-inside: auto;
+            }
+
+            .receipt-note {
+                margin-bottom: 18px;
+            }
+
+            .signatures {
+                margin-top: 18px;
+                gap: 24px;
+            }
+        }
 
         @media (max-width: 900px) {
             body { padding: 16px; }
@@ -200,7 +439,6 @@
                 <article class="card">
                     <h2>Dados da Empresa</h2>
                     <p><strong>Empresa:</strong> {{ company_name }}</p>
-                    <p><strong>CNPJ:</strong> {{ company_cnpj }}</p>
                     <p><strong>Responsável:</strong> {{ company_responsible_name }}</p>
                     <p><strong>Cargo:</strong> {{ company_responsible_role }}</p>
                 </article>
