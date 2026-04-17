@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recibo OS #{{ wo.id }}</title>
+    <title>Recibo OS #123</title>
         @media print {
             /* Preserve original visual style, compacted to fit A4 single page */
             @page { size: A4; margin: 10mm; }
@@ -169,7 +169,7 @@
 </head>
 <body>
     <div class="toolbar">
-        <a href="{{ url_for('services.history') }}" class="back">Voltar ao Histórico</a>
+        <a href="/services/history" class="back">Voltar ao Histórico</a>
         <button type="button" class="print" onclick="window.print()">Imprimir Recibo</button>
     </div>
 
@@ -177,20 +177,20 @@
         <section class="hero">
             <div class="hero-top">
                 <div class="brand">
-                    {% if config and config.logo_path %}
-                    <img src="{{ config.logo_path }}" alt="{{ company_name }}">
-                    {% endif %}
+                    
+                    <img src="/static/img/logo.jpg" alt="Pronto Ar Refrigeração">
+                    
                     <div>
                         <p class="eyebrow">Recibo de Prestação de Serviços</p>
-                        <h1>{{ company_name }}</h1>
+                        <h1>Pronto Ar Refrigeração</h1>
                         <p class="subtitle">Documento emitido para formalizar o atendimento executado e o valor correspondente à Ordem de Serviço.</p>
                     </div>
                 </div>
                 <div class="meta">
-                    <div class="meta-row"><strong>Recibo</strong><span>REC-{{ "%05d"|format(wo.id) }}</span></div>
-                    <div class="meta-row"><strong>OS</strong><span>#{{ wo.id }}</span></div>
-                    <div class="meta-row"><strong>Emissão</strong><span>{{ issued_at.strftime('%d/%m/%Y %H:%M') }}</span></div>
-                    <div class="meta-row"><strong>Status</strong><span>{{ status_label }}</span></div>
+                    <div class="meta-row"><strong>Recibo</strong><span>REC-00123</span></div>
+                    <div class="meta-row"><strong>OS</strong><span>#123</span></div>
+                    <div class="meta-row"><strong>Emissão</strong><span>16/04/2026 22:40</span></div>
+                    <div class="meta-row"><strong>Status</strong><span>Concluída</span></div>
                 </div>
             </div>
         </section>
@@ -199,36 +199,36 @@
             <div class="grid">
                 <article class="card">
                     <h2>Dados da Empresa</h2>
-                    <p><strong>Empresa:</strong> {{ company_name }}</p>
-                    <p><strong>CNPJ:</strong> {{ company_cnpj }}</p>
-                    <p><strong>Responsável:</strong> {{ company_responsible_name }}</p>
-                    <p><strong>Cargo:</strong> {{ company_responsible_role }}</p>
+                    <p><strong>Empresa:</strong> Pronto Ar Refrigeração</p>
+                    <p><strong>CNPJ:</strong> 12.345.678/0001-99</p>
+                    <p><strong>Responsável:</strong> Técnico Um</p>
+                    <p><strong>Cargo:</strong> Técnico</p>
                 </article>
                 <article class="card">
                     <h2>Dados do Cliente</h2>
-                    <p><strong>Cliente:</strong> {{ wo.client.name if wo.client else '-' }}</p>
-                    <p><strong>Telefone:</strong> {{ wo.client.phone if wo.client and wo.client.phone else '-' }}</p>
-                    <p><strong>E-mail:</strong> {{ wo.client.email if wo.client and wo.client.email else '-' }}</p>
-                    <p><strong>Endereço:</strong> {{ wo.client.address if wo.client and wo.client.address else '-' }}</p>
+                    <p><strong>Cliente:</strong> Cliente Exemplo</p>
+                    <p><strong>Telefone:</strong> (11) 99999-0000</p>
+                    <p><strong>E-mail:</strong> cliente@example.com</p>
+                    <p><strong>Endereço:</strong> Rua A, 123</p>
                 </article>
             </div>
 
             <div class="summary">
                 <div class="summary-item">
                     <span>Serviço</span>
-                    <strong>{{ wo.service_type.name if wo.service_type else '-' }}</strong>
+                    <strong>Manutenção</strong>
                 </div>
                 <div class="summary-item">
                     <span>Técnico Responsável</span>
-                    <strong>{{ wo.technician.name if wo.technician else '-' }}</strong>
+                    <strong>Técnico Um</strong>
                 </div>
                 <div class="summary-item">
                     <span>Data da OS</span>
-                    <strong>{{ wo.created_at.strftime('%d/%m/%Y') }}</strong>
+                    <strong>16/04/2026</strong>
                 </div>
                 <div class="summary-item">
                     <span>Valor Total</span>
-                    <strong>R$ {{ "%.2f"|format(wo.total_value) }}</strong>
+                    <strong>R$ 150.00</strong>
                 </div>
             </div>
 
@@ -243,10 +243,10 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td>{{ wo.equipment.name if wo.equipment else 'Atendimento Genérico' }}</td>
-                        <td>{{ wo.equipment.serial_number if wo.equipment and wo.equipment.serial_number else '-' }}</td>
-                        <td>{{ wo.equipment.location if wo.equipment and wo.equipment.location else '-' }}</td>
-                        <td>{{ status_label }}</td>
+                        <td>Ar Condicionado</td>
+                        <td>SN123</td>
+                        <td>Sala</td>
+                        <td>Concluída</td>
                     </tr>
                 </tbody>
             </table>
@@ -254,21 +254,21 @@
             <div class="receipt-note">
                 <h3>Declaração de Recebimento</h3>
                 <p>
-                    Declaramos para os devidos fins que os serviços descritos nesta Ordem de Serviço foram apresentados ao cliente acima identificado, no valor total de <strong>R$ {{ "%.2f"|format(wo.total_value) }}</strong>, referente ao atendimento realizado por {{ company_name }}.
-                    {% if wo.description %}
-                    Observações registradas: {{ wo.description }}.
-                    {% endif %}
+                    Declaramos para os devidos fins que os serviços descritos nesta Ordem de Serviço foram apresentados ao cliente acima identificado, no valor total de <strong>R$ 150.00</strong>, referente ao atendimento realizado por Pronto Ar Refrigeração.
+                    
+                    Observações registradas: Troca de filtro e limpeza completa do equipamento..
+                    
                 </p>
             </div>
 
             <div class="signatures">
                 <div class="signature">
-                    <strong>{{ company_responsible_name }}</strong>
-                    <span>{{ company_responsible_role }}</span>
-                    <span>{{ company_name }}</span>
+                    <strong>Técnico Um</strong>
+                    <span>Técnico</span>
+                    <span>Pronto Ar Refrigeração</span>
                 </div>
                 <div class="signature">
-                    <strong>{{ wo.client.name if wo.client else 'Cliente' }}</strong>
+                    <strong>Cliente Exemplo</strong>
                     <span>Assinatura do Cliente</span>
                     <span>Confirmação do recebimento do serviço</span>
                 </div>

@@ -5,6 +5,7 @@ class AppConfig(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     logo_path = db.Column(db.String(255), nullable=True, default='/static/img/logo.jpg')
     company_name = db.Column(db.String(100), default='Pronto Ar Refrigeração')
+    cnpj = db.Column(db.String(32), nullable=True)
 
     # Colors
     primary_color = db.Column(db.String(20), default='#3b82f6') # Azul

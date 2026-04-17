@@ -282,6 +282,8 @@ def receipt(id):
     elif current_user:
         company_responsible_name = current_user.name
         company_responsible_role = current_user.job_title or 'Responsável da Empresa'
+    # Company CNPJ (if set in AppConfig)
+    company_cnpj = config.cnpj if config and getattr(config, 'cnpj', None) else '-'
 
     return render_template(
         'services/receipt.html',
@@ -290,6 +292,7 @@ def receipt(id):
         company_name=company_name,
         company_responsible_name=company_responsible_name,
         company_responsible_role=company_responsible_role,
+        company_cnpj=company_cnpj,
         issued_at=datetime.now(),
         status_label=get_status_label(wo.status),
     )

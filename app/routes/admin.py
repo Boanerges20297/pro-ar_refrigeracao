@@ -269,6 +269,8 @@ def settings():
         config.smtp_use_tls     = 'smtp_use_tls' in request.form
         config.smtp_use_ssl     = 'smtp_use_ssl' in request.form
         config.mail_sender_name = request.form.get('mail_sender_name')
+        # Company CNPJ (Brazilian company identifier)
+        config.cnpj = (request.form.get('company_cnpj') or '').strip() or None
 
         db.session.commit()
         flash('Configurações atualizadas com sucesso!', 'success')
