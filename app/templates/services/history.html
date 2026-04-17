@@ -113,8 +113,9 @@
                     <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Equipamento</th>
                     <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Técnico Responsável</th>
                     <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                    <th scope="col" class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Despesas</th>
                     {% if current_user.permission_level == 'admin' %}
-                    <th scope="col" class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Valor</th>
+                    <th scope="col" class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Valor OS</th>
                     {% endif %}
                     <th scope="col" class="relative px-4 py-3"><span class="sr-only">Ações</span></th>
                 </tr>
@@ -145,6 +146,9 @@
                         {% else %}
                         <span class="px-2 py-1 inline-flex text-[10px] font-bold rounded-full bg-gray-100 text-gray-800">{{ wo.status }}</span>
                         {% endif %}
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-right text-xs font-semibold text-indigo-600">
+                        R$ {{ "%.2f"|format(wo.expenses|sum(attribute='total')) if wo.expenses else '0.00' }}
                     </td>
                     {% if current_user.permission_level == 'admin' %}
                     <td class="px-4 py-3 whitespace-nowrap text-right text-xs font-bold text-gray-900">

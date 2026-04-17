@@ -24,6 +24,7 @@ class WorkOrder(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     maintenance_schedule = db.relationship('MaintenanceSchedule', back_populates='work_order', uselist=False)
+    expenses = db.relationship('WorkOrderExpense', back_populates='work_order', cascade='all, delete-orphan', lazy=True)
 
     def __repr__(self):
         return f'<WorkOrder #{self.id} - {self.status}>'

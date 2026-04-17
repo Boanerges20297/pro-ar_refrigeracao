@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app, send_from_directory, abort, jsonify
 from app.models.workorder import WorkOrder
+from app.models.workorder_expense import WorkOrderExpense
 from app.models.client import Client
 from app.models.equipment import Equipment
 from app.models.service import ServiceCatalog
@@ -862,12 +863,17 @@ def export_pdf():
                 Paragraph('Tipo/Serviço', table_header_style),
                 Paragraph('Status', table_header_style),
                 Paragraph('Data', table_header_style),
+                Paragraph('Despesas', table_header_style),
                 Paragraph('Valor', table_header_style),
             ]]
             total_value = 0.0
+            total_expenses_overall = 0.0
 
             for wo in client_work_orders:
                 total_value += wo.total_value or 0.0
+                wo_expenses_sum = sum(e.total for e in wo.expenses) if wo.expenses else 0.0
+                total_expenses_overall += wo_expenses_sum
+
                 equipment_name = wo.equipment.name if wo.equipment else 'Genérico'
                 serial_number = wo.equipment.serial_number if wo.equipment and wo.equipment.serial_number else '-'
                 service_name = wo.service_type.name if wo.service_type else '-'
@@ -879,12 +885,13 @@ def export_pdf():
                     Paragraph(escape(service_name), table_cell_style),
                     Paragraph(escape(status_label), table_cell_center_style),
                     Paragraph(wo.created_at.strftime('%d/%m/%Y'), table_cell_center_style),
+                    Paragraph(f'R$ {wo_expenses_sum:.2f}', table_cell_center_style),
                     Paragraph(f'R$ {wo.total_value:.2f}', table_cell_center_style),
                 ])
 
             table = Table(
                 data,
-                colWidths=[0.4*inch, 1.35*inch, 0.85*inch, 1.2*inch, 0.9*inch, 0.75*inch, 0.7*inch],
+                colWidths=[0.4*inch, 1.25*inch, 0.8*inch, 1.1*inch, 0.8*inch, 0.7*inch, 0.7*inch, 0.7*inch],
                 repeatRows=1
             )
             table.setStyle(TableStyle([
@@ -906,7 +913,7 @@ def export_pdf():
             elements.append(table)
             elements.append(Spacer(1, 0.12*inch))
             elements.append(Paragraph(
-                f"<b>Subtotal do cliente:</b> {len(client_work_orders)} serviços realizados | <b>Total em OS:</b> R$ {total_value:.2f}",
+                f"<b>Subtotal do cliente:</b> {len(client_work_orders)} serviços | <b>Total em OS:</b> R$ {total_value:.2f} | <b>Total Despesas:</b> R$ {total_expenses_overall:.2f}",
                 summary_style,
             ))
 
@@ -941,3 +948,101 @@ def export_pdf():
         as_attachment=True,
         download_name=filename
     )
+
+
+# ─────────────────────────────────────────────
+#  DESPESAS DE ORDEM DE SERVIÇO
+# ─────────────────────────────────────────────
+
+@services_bp.route('/edit/<int:id>/expenses', methods=['GET'])
+@roles_required('admin', 'secretary', 'technician')
+def list_expenses(id):
+    """Retorna a lista de despesas de uma OS (JSON)."""
+    current_user = get_current_user()
+    wo = WorkOrder.query.get_or_404(id)
+    if not can_access_workorder(current_user, wo):
+        return jsonify({'ok': False, 'message': 'Acesso negado.'}), 403
+
+    expenses = [
+        {
+            'id': e.id,
+            'description': e.description,
+            'category': e.category or '',
+            'quantity': e.quantity,
+            'unit_price': e.unit_price,
+            'total': e.total,
+        }
+        for e in wo.expenses
+    ]
+    total_expenses = round(sum(e.total for e in wo.expenses), 2)
+    return jsonify({'ok': True, 'expenses': expenses, 'total_expenses': total_expenses})
+
+
+@services_bp.route('/edit/<int:id>/expenses/add', methods=['POST'])
+@roles_required('admin', 'secretary', 'technician')
+def add_expense(id):
+    """Adiciona uma nova despesa a uma OS."""
+    current_user = get_current_user()
+    wo = WorkOrder.query.get_or_404(id)
+    if not can_access_workorder(current_user, wo):
+        return jsonify({'ok': False, 'message': 'Acesso negado.'}), 403
+
+    payload = request.get_json(silent=True) or request.form
+    description = (payload.get('description') or '').strip()
+    category = (payload.get('category') or '').strip() or None
+
+    if not description:
+        return jsonify({'ok': False, 'message': 'Informe a descrição da despesa.'}), 400
+
+    try:
+        quantity = float(payload.get('quantity') or 1)
+        quantity = max(quantity, 0.001)
+    except (TypeError, ValueError):
+        quantity = 1.0
+
+    try:
+        unit_price = round(float(payload.get('unit_price') or 0), 2)
+    except (TypeError, ValueError):
+        unit_price = 0.0
+
+    expense = WorkOrderExpense(
+        work_order_id=id,
+        description=description,
+        category=category,
+        quantity=quantity,
+        unit_price=unit_price,
+    )
+    db.session.add(expense)
+    db.session.commit()
+
+    total_expenses = round(sum(e.total for e in wo.expenses), 2)
+    return jsonify({
+        'ok': True,
+        'message': 'Despesa adicionada.',
+        'expense': {
+            'id': expense.id,
+            'description': expense.description,
+            'category': expense.category or '',
+            'quantity': expense.quantity,
+            'unit_price': expense.unit_price,
+            'total': expense.total,
+        },
+        'total_expenses': total_expenses,
+    }), 201
+
+
+@services_bp.route('/edit/<int:id>/expenses/<int:expense_id>/delete', methods=['POST'])
+@roles_required('admin', 'secretary', 'technician')
+def delete_expense(id, expense_id):
+    """Remove uma despesa de uma OS."""
+    current_user = get_current_user()
+    wo = WorkOrder.query.get_or_404(id)
+    if not can_access_workorder(current_user, wo):
+        return jsonify({'ok': False, 'message': 'Acesso negado.'}), 403
+
+    expense = WorkOrderExpense.query.filter_by(id=expense_id, work_order_id=id).first_or_404()
+    db.session.delete(expense)
+    db.session.commit()
+
+    total_expenses = round(sum(e.total for e in wo.expenses), 2)
+    return jsonify({'ok': True, 'message': 'Despesa removida.', 'total_expenses': total_expenses})

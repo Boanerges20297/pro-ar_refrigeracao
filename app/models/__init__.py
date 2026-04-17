@@ -3,6 +3,7 @@ from .client import Client
 from .equipment import Equipment
 from .service import ServiceCatalog
 from .workorder import WorkOrder
+from .workorder_expense import WorkOrderExpense
 from .config import AppConfig
 from .maintenance import MaintenanceSchedule
 from .audit_log import AuditLog
