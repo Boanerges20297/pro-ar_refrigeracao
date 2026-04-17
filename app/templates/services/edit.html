@@ -128,11 +128,15 @@
                                     <td class="px-3 py-2 text-right text-gray-700">R$ {{ "%.2f"|format(expense.unit_price) }}</td>
                                     <td class="px-3 py-2 text-right font-semibold text-gray-900">R$ {{ "%.2f"|format(expense.total) }}</td>
                                     <td class="px-3 py-2 text-center">
+                                        {% if current_user.permission_level == 'admin' %}
                                         <button type="button"
                                             onclick="deleteExpense({{ expense.id }})"
                                             class="text-red-500 hover:text-red-700 transition-colors" title="Remover">
                                             <svg class="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
                                         </button>
+                                        {% else %}
+                                        <span class="text-gray-400">—</span>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -274,6 +278,7 @@ const receiptUrl = {{ url_for('services.receipt', id=wo.id)|tojson }};
 const returnToUrl = {{ (return_to or url_for('services.index'))|tojson }};
 const addExpenseUrl = {{ url_for('services.add_expense', id=wo.id)|tojson }};
 const deleteExpenseBaseUrl = {{ url_for('services.delete_expense', id=wo.id, expense_id=0)|tojson }};
+const userIsAdmin = {{ 'true' if current_user.permission_level == 'admin' else 'false' }};
 const csrfToken = document.querySelector('input[name="csrf_token"]').value;
 
 function checkFileSize(input) {
@@ -382,10 +387,12 @@ function addExpenseRow(expense) {
         <td class="px-3 py-2 text-right text-gray-700">R$ ${expense.unit_price.toFixed(2)}</td>
         <td class="px-3 py-2 text-right font-semibold text-gray-900">R$ ${expense.total.toFixed(2)}</td>
         <td class="px-3 py-2 text-center">
+            ${userIsAdmin ? `
             <button type="button" onclick="deleteExpense(${expense.id})"
                 class="text-red-500 hover:text-red-700 transition-colors" title="Remover">
                 <svg class="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
             </button>
+            ` : '<span class="text-gray-400">—</span>'}
         </td>`;
     tbody.appendChild(tr);
     wrapper.classList.remove('hidden');

@@ -1032,9 +1032,9 @@ def add_expense(id):
 
 
 @services_bp.route('/edit/<int:id>/expenses/<int:expense_id>/delete', methods=['POST'])
-@roles_required('admin', 'secretary', 'technician')
+@roles_required('admin')
 def delete_expense(id, expense_id):
-    """Remove uma despesa de uma OS."""
+    """Remove uma despesa de uma OS. Apenas Admins."""
     current_user = get_current_user()
     wo = WorkOrder.query.get_or_404(id)
     if not can_access_workorder(current_user, wo):
