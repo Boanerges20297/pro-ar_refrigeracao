@@ -5,6 +5,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from app.utils.decorators import license_feature_required, roles_required, permission_level_required
 from app.utils.license import activate_license_key, evaluate_license, get_instance_fingerprint, get_license_record, revalidate_license
 from app.models.workorder import WorkOrder
+from app.models.workorder_expense import WorkOrderExpense
 from app.models.maintenance import MaintenanceSchedule
 from app.models.user import User
 from app.models.config import AppConfig
@@ -161,6 +162,12 @@ def dashboard():
     # Financials
     total_revenue = db.session.query(func.sum(WorkOrder.total_value)).filter(*workorder_period_filters, WorkOrder.status == 'Completed').scalar() or 0.0
     pending_revenue = db.session.query(func.sum(WorkOrder.total_value)).filter(*workorder_period_filters, WorkOrder.status != 'Completed').scalar() or 0.0
+    
+    # Calculate Total Expenses for the period
+    total_expenses = db.session.query(func.sum(WorkOrderExpense.quantity * WorkOrderExpense.unit_price)).join(WorkOrder).filter(*workorder_period_filters).scalar() or 0.0
+    
+    # Cash Balance (Revenue - Expenses)
+    cash_balance = total_revenue - total_expenses
 
     # Technicians Performance
     techs = User.query.filter_by(role='technician').all()
@@ -232,6 +239,8 @@ def dashboard():
                            overdue_services_count=overdue_services_count,
                            total_revenue=total_revenue,
                            pending_revenue=pending_revenue,
+                           total_expenses=total_expenses,
+                           cash_balance=cash_balance,
                            tech_performance=tech_performance,
                            selected_period=selected_period,
                            selected_start_date=start_date.isoformat(),
