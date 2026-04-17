@@ -99,8 +99,8 @@
 <section class="mb-8">
     <div class="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
-            <h3 class="text-lg font-bold text-gray-800">Detalhes Financeiros</h3>
-            <p class="text-sm text-gray-500">Valores consolidados do período para acompanhamento rápido.</p>
+            <h3 class="text-lg font-bold text-gray-800">Detalhes Financeiros do Mês Atual</h3>
+            <p class="text-sm text-gray-500">Valores consolidados do mês vigente para acompanhamento rápido.</p>
         </div>
     </div>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -111,7 +111,7 @@
                 </div>
                 <div>
                     <p class="text-[11px] text-gray-500 font-bold uppercase tracking-wider">Receita Recebida</p>
-                    <p class="text-xl font-bold text-gray-800">R$ {{ "%.2f"|format(total_revenue) }}</p>
+                    <p class="text-xl font-bold text-gray-800">R$ {{ "%.2f"|format(total_revenue_month) }}</p>
                 </div>
             </div>
         </div>
@@ -123,7 +123,7 @@
                 </div>
                 <div>
                     <p class="text-[11px] text-gray-500 font-bold uppercase tracking-wider">Receita Pendente</p>
-                    <p class="text-xl font-bold text-gray-800">R$ {{ "%.2f"|format(pending_revenue) }}</p>
+                    <p class="text-xl font-bold text-gray-800">R$ {{ "%.2f"|format(pending_revenue_month) }}</p>
                 </div>
             </div>
         </div>
@@ -135,7 +135,7 @@
                 </div>
                 <div>
                     <p class="text-[11px] text-gray-500 font-bold uppercase tracking-wider">Total Despesas</p>
-                    <p class="text-xl font-bold text-gray-800">R$ {{ "%.2f"|format(total_expenses) }}</p>
+                    <p class="text-xl font-bold text-gray-800">R$ {{ "%.2f"|format(total_expenses_month) }}</p>
                 </div>
             </div>
         </div>
@@ -147,7 +147,7 @@
                 </div>
                 <div>
                     <p class="text-[11px] text-gray-500 font-bold uppercase tracking-wider">Caixa (Saldo)</p>
-                    <p class="text-xl font-bold text-indigo-700">R$ {{ "%.2f"|format(cash_balance) }}</p>
+                    <p class="text-xl font-bold text-indigo-700">R$ {{ "%.2f"|format(cash_balance_month) }}</p>
                 </div>
             </div>
         </div>

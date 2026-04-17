@@ -159,15 +159,23 @@ def dashboard():
     pending_os = WorkOrder.query.filter(*workorder_period_filters, WorkOrder.status == 'Pending').count()
     in_progress_os = WorkOrder.query.filter(*workorder_period_filters, WorkOrder.status == 'In Progress').count()
 
-    # Financials
+    # Financials (Filtered Period)
     total_revenue = db.session.query(func.sum(WorkOrder.total_value)).filter(*workorder_period_filters, WorkOrder.status == 'Completed').scalar() or 0.0
     pending_revenue = db.session.query(func.sum(WorkOrder.total_value)).filter(*workorder_period_filters, WorkOrder.status != 'Completed').scalar() or 0.0
-    
-    # Calculate Total Expenses for the period
     total_expenses = db.session.query(func.sum(WorkOrderExpense.quantity * WorkOrderExpense.unit_price)).join(WorkOrder).filter(*workorder_period_filters).scalar() or 0.0
-    
-    # Cash Balance (Revenue - Expenses)
     cash_balance = total_revenue - total_expenses
+
+    # Financials (Current Month - Fixed)
+    cm_start = datetime.combine(today.replace(day=1), datetime.min.time())
+    cm_end = datetime.combine(today + timedelta(days=1), datetime.min.time())
+    cm_filters = [
+        WorkOrder.created_at >= cm_start,
+        WorkOrder.created_at < cm_end,
+    ]
+    total_revenue_month = db.session.query(func.sum(WorkOrder.total_value)).filter(*cm_filters, WorkOrder.status == 'Completed').scalar() or 0.0
+    pending_revenue_month = db.session.query(func.sum(WorkOrder.total_value)).filter(*cm_filters, WorkOrder.status != 'Completed').scalar() or 0.0
+    total_expenses_month = db.session.query(func.sum(WorkOrderExpense.quantity * WorkOrderExpense.unit_price)).join(WorkOrder).filter(*cm_filters).scalar() or 0.0
+    cash_balance_month = total_revenue_month - total_expenses_month
 
     # Technicians Performance
     techs = User.query.filter_by(role='technician').all()
@@ -241,6 +249,10 @@ def dashboard():
                            pending_revenue=pending_revenue,
                            total_expenses=total_expenses,
                            cash_balance=cash_balance,
+                           total_revenue_month=total_revenue_month,
+                           pending_revenue_month=pending_revenue_month,
+                           total_expenses_month=total_expenses_month,
+                           cash_balance_month=cash_balance_month,
                            tech_performance=tech_performance,
                            selected_period=selected_period,
                            selected_start_date=start_date.isoformat(),
