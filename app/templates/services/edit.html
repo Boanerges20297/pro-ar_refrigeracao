@@ -198,6 +198,13 @@
                 <a href="{{ return_to or url_for('services.index') }}" class="inline-flex justify-center bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:mr-3">
                     Cancelar
                 </a>
+                
+                {% if current_user.permission_level == 'admin' %}
+                <button type="button" onclick="confirmDeleteOS('{{ wo.id }}')" class="inline-flex justify-center bg-red-600 border border-transparent rounded-md shadow-sm py-2 px-4 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:mr-3">
+                    Excluir OS
+                </button>
+                {% endif %}
+
                 <button type="submit" class="inline-flex justify-center bg-primary border border-transparent rounded-md shadow-sm py-2 px-4 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {% if is_completed_locked %}disabled{% endif %}>
                     Salvar Alterações
                 </button>
@@ -290,6 +297,59 @@ const addExpenseUrl = {{ url_for('services.add_expense', id=wo.id)|tojson }};
 const deleteExpenseBaseUrl = {{ url_for('services.delete_expense', id=wo.id, expense_id=0)|tojson }};
 const userIsAdmin = {{ 'true' if current_user.permission_level == 'admin' else 'false' }};
 const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+function confirmDeleteOS(id) {
+    Swal.fire({
+        title: 'Tem certeza?',
+        text: "Esta OS e TODOS os lançamentos financeiros vinculados (receitas e despesas) serão excluídos permanentemente!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sim, excluir!',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Excluindo...',
+                text: 'Sincronizando com o módulo financeiro',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            fetch(`/services/delete/${id}`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.ok) {
+                    Swal.fire({
+                        title: 'Excluído!',
+                        text: data.message,
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false
+                    }).then(() => {
+                        window.location.href = returnToUrl;
+                    });
+                } else {
+                    Swal.fire('Erro!', data.message || 'Houve um erro ao processar sua solicitação.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire('Erro!', 'Erro de conexão com o servidor.', 'error');
+            });
+        }
+    });
+}
 
 function checkFileSize(input) {
     if (input.files && input.files[0]) {

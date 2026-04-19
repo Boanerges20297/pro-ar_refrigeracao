@@ -1064,3 +1064,32 @@ def delete_expense(id, expense_id):
 
     total_expenses = round(sum(e.total for e in wo.expenses), 2)
     return jsonify({'ok': True, 'message': 'Despesa removida.', 'total_expenses': total_expenses})
+
+@services_bp.route('/delete/<int:id>', methods=['POST'])
+@roles_required('admin')
+def delete_workorder(id):
+    """Exclui uma Ordem de Serviço e sincroniza com o financeiro. Apenas Admins."""
+    wo = WorkOrder.query.get_or_404(id)
+    
+    try:
+        # 1. Registrar ação para auditoria
+        log_action(
+            action='DELETE',
+            resource_type='WorkOrder',
+            resource_id=wo.id,
+            resource_name=f'WO-{wo.id}',
+            details={'client': wo.client.name if wo.client else 'N/A', 'amount': wo.total_value}
+        )
+        
+        # 2. Remover transações financeiras vinculadas (Receita e Despesas de OS)
+        delete_finance_sync(work_order_id=wo.id)
+        
+        # 3. Excluir a OS (isso também deve disparar deleção em cascata de despesas se configurado, 
+        # mas por segurança as despesas foram removidas do financeiro acima)
+        db.session.delete(wo)
+        db.session.commit()
+        
+        return jsonify({'ok': True, 'message': 'Ordem de Serviço e registros financeiros excluídos com sucesso.'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'ok': False, 'message': f'Erro ao excluir: {str(e)}'}), 500

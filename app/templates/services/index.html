@@ -134,6 +134,11 @@
                                 <a href="{{ url_for('services.edit', id=wo.id, return_to=request.full_path.rstrip('?')) }}" class="text-primary hover:text-blue-900 text-xs font-medium">
                                     <i class="fas fa-edit mr-1"></i>Editar
                                 </a>
+                                {% if current_user.permission_level == 'admin' %}
+                                <button type="button" onclick="confirmDeleteOS('{{ wo.id }}')" class="text-red-600 hover:text-red-900 text-xs font-medium transition-colors">
+                                    <i class="fas fa-trash-alt mr-1"></i>Excluir
+                                </button>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
@@ -211,4 +216,63 @@
     </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDeleteOS(id) {
+    Swal.fire({
+        title: 'Tem certeza?',
+        text: "Esta OS e TODOS os lançamentos financeiros vinculados (receitas e despesas) serão excluídos permanentemente!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sim, excluir!',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Mostrar Loading
+            Swal.fire({
+                title: 'Excluindo...',
+                text: 'Sincronizando com o módulo financeiro',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            // Requisição AJAX
+            fetch(`/services/delete/${id}`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': "{{ csrf_token() }}",
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.ok) {
+                    Swal.fire({
+                        title: 'Excluído!',
+                        text: data.message,
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false
+                    }).then(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire('Erro!', data.message || 'Houve um erro ao processar sua solicitação.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire('Erro!', 'Erro de conexão com o servidor.', 'error');
+            });
+        }
+    });
+}
+</script>
 {% endblock %}
