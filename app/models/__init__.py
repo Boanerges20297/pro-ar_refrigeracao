@@ -8,3 +8,4 @@ from .config import AppConfig
 from .maintenance import MaintenanceSchedule
 from .audit_log import AuditLog
 from .license import License
+from .finance import FinancialCategory, FinancialTransaction

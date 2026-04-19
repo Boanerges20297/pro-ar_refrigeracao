@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+{% block title %}Dashboard Financeiro{% endblock %}
+{% block content %}
+<div class="mb-8 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+        <h2 class="text-3xl font-extrabold text-gray-900 tracking-tight">Módulo Financeiro</h2>
+        <p class="text-gray-500 font-medium">Gestão completa de receitas, despesas e fluxo de caixa.</p>
+    </div>
+    <div class="flex items-center gap-3">
+        <a href="{{ url_for('finance.add_transaction') }}" class="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] hover:opacity-90 active:scale-[0.98]">
+            <i class="fas fa-plus mr-2"></i>Novo Lançamento
+        </a>
+    </div>
+</div>
+
+<!-- Period Selector -->
+<div class="mb-8 flex flex-wrap gap-2 p-1.5 bg-gray-100 rounded-2xl w-fit">
+    <a href="{{ url_for('finance.index', period='today') }}" class="px-5 py-2 rounded-xl text-sm font-bold transition-all {% if period == 'today' %}bg-white text-primary shadow-sm{% else %}text-gray-500 hover:text-gray-900{% endif %}">Hoje</a>
+    <a href="{{ url_for('finance.index', period='month') }}" class="px-5 py-2 rounded-xl text-sm font-bold transition-all {% if period == 'month' %}bg-white text-primary shadow-sm{% else %}text-gray-500 hover:text-gray-900{% endif %}">Mês Atual</a>
+    <a href="{{ url_for('finance.index', period='last_30_days') }}" class="px-5 py-2 rounded-xl text-sm font-bold transition-all {% if period == 'last_30_days' %}bg-white text-primary shadow-sm{% else %}text-gray-500 hover:text-gray-900{% endif %}">Últimos 30 Dias</a>
+    <a href="{{ url_for('finance.index', period='year') }}" class="px-5 py-2 rounded-xl text-sm font-bold transition-all {% if period == 'year' %}bg-white text-primary shadow-sm{% else %}text-gray-500 hover:text-gray-900{% endif %}">Ano Atual</a>
+</div>
+
+<!-- Metric Cards -->
+<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+    <div class="relative overflow-hidden rounded-3xl bg-white p-6 shadow-sm border border-gray-100 group transition-all hover:shadow-xl hover:shadow-green-500/5">
+        <div class="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-green-50 opacity-50 transition-transform group-hover:scale-110"></div>
+        <div class="relative">
+            <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-green-100 text-green-600">
+                <i class="fas fa-arrow-up text-xl"></i>
+            </div>
+            <p class="text-sm font-bold text-gray-500 uppercase tracking-wider">Receita Total</p>
+            <h3 class="mt-1 text-2xl font-black text-gray-900">R$ {{ "%.2f"|format(total_revenue) }}</h3>
+            <p class="mt-2 text-xs font-semibold text-yellow-600">
+                <i class="fas fa-clock mr-1"></i> R$ {{ "%.2f"|format(pending_revenue) }} pendente
+            </p>
+        </div>
+    </div>
+
+    <div class="relative overflow-hidden rounded-3xl bg-white p-6 shadow-sm border border-gray-100 group transition-all hover:shadow-xl hover:shadow-red-500/5">
+        <div class="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-red-50 opacity-50 transition-transform group-hover:scale-110"></div>
+        <div class="relative">
+            <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 text-red-600">
+                <i class="fas fa-arrow-down text-xl"></i>
+            </div>
+            <p class="text-sm font-bold text-gray-500 uppercase tracking-wider">Despesa Total</p>
+            <h3 class="mt-1 text-2xl font-black text-gray-900">R$ {{ "%.2f"|format(total_expense) }}</h3>
+            <p class="mt-2 text-xs font-semibold text-gray-400">Saídas do período</p>
+        </div>
+    </div>
+
+    <div class="relative overflow-hidden rounded-3xl bg-white p-6 shadow-sm border border-gray-100 group transition-all hover:shadow-xl hover:shadow-primary/5">
+        <div class="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-blue-50 opacity-50 transition-transform group-hover:scale-110"></div>
+        <div class="relative">
+            <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-primary">
+                <i class="fas fa-wallet text-xl"></i>
+            </div>
+            <p class="text-sm font-bold text-gray-500 uppercase tracking-wider">Saldo (Fluxo)</p>
+            <h3 class="mt-1 text-2xl font-black {% if cash_flow >= 0 %}text-primary{% else %}text-red-600{% endif %}">
+                R$ {{ "%.2f"|format(cash_flow) }}
+            </h3>
+            <p class="mt-2 text-xs font-semibold text-gray-400">Resultado operacional</p>
+        </div>
+    </div>
+
+    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-blue-700 p-6 shadow-xl shadow-primary/20 group transition-all hover:scale-[1.02]">
+        <div class="relative text-white">
+            <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-md">
+                <i class="fas fa-chart-line text-xl"></i>
+            </div>
+            <p class="text-sm font-bold opacity-80 uppercase tracking-wider">Margem</p>
+            <h3 class="mt-1 text-2xl font-black">
+                {% if total_revenue > 0 %}
+                    {{ "%.1f"|format((cash_flow / total_revenue) * 100) }}%
+                {% else %}
+                    0%
+                {% endif %}
+            </h3>
+            <p class="mt-2 text-xs font-semibold opacity-70">Eficiência do período</p>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="grid grid-cols-1 gap-8 lg:grid-cols-2 mb-8">
+    <!-- Trend Line Chart -->
+    <div class="rounded-3xl bg-white p-8 shadow-sm border border-gray-100">
+        <div class="mb-6 flex items-center justify-between">
+            <h3 class="text-xl font-extrabold text-gray-900 tracking-tight">Tendência Financeira</h3>
+            <div class="flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-gray-400">
+                <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-primary"></span> Receita</span>
+                <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-red-400"></span> Despesa</span>
+            </div>
+        </div>
+        <div class="h-[300px] w-full">
+            <canvas id="trendChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Categories Doughnut Chart -->
+    <div class="rounded-3xl bg-white p-8 shadow-sm border border-gray-100">
+        <h3 class="mb-6 text-xl font-extrabold text-gray-900 tracking-tight">Distribuição por Categoria</h3>
+        <div class="flex flex-col items-center justify-center h-[300px]">
+            <div class="w-full max-w-[280px]">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Extra Quick Links -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <a href="{{ url_for('finance.transactions') }}" class="flex items-center justify-between p-5 bg-white rounded-2xl border border-gray-100 hover:border-primary hover:shadow-md transition-all group">
+        <div class="flex items-center gap-4">
+            <div class="h-10 w-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                <i class="fas fa-list-ul"></i>
+            </div>
+            <div>
+                <p class="font-bold text-gray-900">Ver Extrato Completo</p>
+                <p class="text-xs text-gray-500">Histórico detalhado de todas as transações</p>
+            </div>
+        </div>
+        <i class="fas fa-chevron-right text-gray-300 group-hover:text-primary transition-colors"></i>
+    </a>
+    <a href="{{ url_for('finance.categories') }}" class="flex items-center justify-between p-5 bg-white rounded-2xl border border-gray-100 hover:border-primary hover:shadow-md transition-all group">
+        <div class="flex items-center gap-4">
+            <div class="h-10 w-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                <i class="fas fa-tags"></i>
+            </div>
+            <div>
+                <p class="font-bold text-gray-900">Configurar Categorias</p>
+                <p class="text-xs text-gray-500">Gere tipos de entrada e saída personalizada</p>
+            </div>
+        </div>
+        <i class="fas fa-chevron-right text-gray-300 group-hover:text-primary transition-colors"></i>
+    </a>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Trend Chart (Line)
+        const trendCtx = document.getElementById('trendChart').getContext('2d');
+        const trendLabels = {{ trend_data | map(attribute='label') | list | tojson }};
+        const revenueData = {{ trend_data | map(attribute='revenue') | list | tojson }};
+        const expenseData = {{ trend_data | map(attribute='expense') | list | tojson }};
+
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: trendLabels.map(l => {
+                    if(l.length > 10) return l; // format already processed
+                    const [y, m, d] = l.split('-');
+                    return `${d}/${m}`;
+                }),
+                datasets: [
+                    {
+                        label: 'Receita',
+                        data: revenueData,
+                        borderColor: '#3b82f6',
+                        backgroundColor: (context) => {
+                            const ctx = context.chart.ctx;
+                            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.1)');
+                            gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+                            return gradient;
+                        },
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: '#3b82f6',
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 3
+                    },
+                    {
+                        label: 'Despesa',
+                        data: expenseData,
+                        borderColor: '#f87171',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        fill: false,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: '#111827',
+                        titleFont: { size: 13, weight: 'bold' },
+                        padding: 12,
+                        cornerRadius: 12,
+                        callbacks: {
+                            label: function(context) {
+                                return ` ${context.dataset.label}: R$ ${context.raw.toFixed(2)}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { weight: 'bold' }, color: '#94a3b8', maxRotation:0 }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(148, 163, 184, 0.1)', borderDash: [2, 2] },
+                        ticks: { font: { weight: 'bold' }, color: '#94a3b8' }
+                    }
+                }
+            }
+        });
+
+        // Category Chart (Doughnut)
+        const catCtx = document.getElementById('categoryChart').getContext('2d');
+        const catLabels = {{ categories_data | map(attribute=0) | list | tojson }};
+        const catValues = {{ categories_data | map(attribute=1) | list | tojson }};
+
+        new Chart(catCtx, {
+            type: 'doughnut',
+            data: {
+                labels: catLabels,
+                datasets: [{
+                    data: catValues,
+                    backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4'],
+                    borderWidth: 0,
+                    hoverOffset: 15
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '75%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20,
+                            font: { weight: 'bold', size: 11 }
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

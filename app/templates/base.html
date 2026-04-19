@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ProntoAr | {% block title %}Início{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: 'var(--primary-color)',
+              secondary: 'var(--secondary-color)',
+            }
+          }
+        }
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
@@ -173,6 +185,7 @@
                         {% if has_license_feature('reports') %}
                         <a href="{{ url_for('reports.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/reports' in request.path %}active{% endif %}">Relatórios</a>
                         {% endif %}
+                        <a href="{{ url_for('finance.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/finance' in request.path %}active{% endif %}">Financeiro</a>
                         <a href="{{ url_for('clients.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/clients' in request.path %}active{% endif %}">Clientes</a>
                         <a href="{{ url_for('equipment.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/equipment' in request.path %}active{% endif %}">Equipamentos</a>
                         <a href="{{ url_for('services.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/services' in request.path %}active{% endif %}">Serviços</a>
@@ -255,6 +268,7 @@
                 {% if has_license_feature('reports') %}
                 <a href="{{ url_for('reports.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Relatórios</a>
                 {% endif %}
+                <a href="{{ url_for('finance.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Financeiro</a>
                 {% elif current_user.permission_level == 'secretary' %}
                 <a href="{{ url_for('secretary.dashboard') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Dashboard</a>
                 {% else %}

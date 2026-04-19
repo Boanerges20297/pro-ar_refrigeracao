@@ -13,6 +13,7 @@ from app.utils.decorators import roles_required, get_technician_client_ids
 from app.utils.images import save_and_resize_image
 from app.utils.maintenance import sync_schedule_with_workorder
 from app.utils.audit import log_action
+from app.utils.finance import sync_wo_to_finance, sync_expense_to_finance, delete_finance_sync
 import io
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -526,6 +527,10 @@ def add():
         )
         db.session.add(wo)
         db.session.commit()
+        
+        # Sincronizar com o financeiro
+        sync_wo_to_finance(wo)
+        
         flash('Ordem de Serviço criada com sucesso!', 'success')
         return redirect(url_for('services.index'))
 
@@ -583,6 +588,9 @@ def edit(id):
         elif wo.status != 'Completed' and previous_status == 'Completed':
             wo.completed_date = None
 
+        # Novo campo is_paid
+        wo.is_paid = 'is_paid' in request.form
+
         scheduled_date_str = request.form.get('scheduled_date')
         if scheduled_date_str:
             wo.scheduled_date = datetime.strptime(scheduled_date_str, '%Y-%m-%dT%H:%M')
@@ -600,6 +608,10 @@ def edit(id):
         sync_schedule_with_workorder(wo, previous_status=previous_status)
 
         db.session.commit()
+        
+        # Sincronizar com o financeiro
+        sync_wo_to_finance(wo)
+
         log_action(
             action='UPDATE',
             resource_type='WorkOrder',
@@ -1015,6 +1027,9 @@ def add_expense(id):
     db.session.add(expense)
     db.session.commit()
 
+    # Sincronizar com o financeiro (Despesa de OS é sempre "Paga")
+    sync_expense_to_finance(expense)
+
     total_expenses = round(sum(e.total for e in wo.expenses), 2)
     return jsonify({
         'ok': True,
@@ -1043,6 +1058,9 @@ def delete_expense(id, expense_id):
     expense = WorkOrderExpense.query.filter_by(id=expense_id, work_order_id=id).first_or_404()
     db.session.delete(expense)
     db.session.commit()
+
+    # Remover do financeiro
+    delete_finance_sync(work_order_expense_id=expense_id)
 
     total_expenses = round(sum(e.total for e in wo.expenses), 2)
     return jsonify({'ok': True, 'message': 'Despesa removida.', 'total_expenses': total_expenses})

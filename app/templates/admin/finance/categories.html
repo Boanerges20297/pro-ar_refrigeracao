@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Categorias Financeiras{% endblock %}
+{% block content %}
+<div class="mb-8 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+        <h2 class="text-3xl font-extrabold text-gray-900 tracking-tight">Categorias Financeiras</h2>
+        <p class="text-gray-500 font-medium">Gerencie os tipos de receita e despesa do sistema.</p>
+    </div>
+    <div class="flex items-center gap-3">
+        <a href="{{ url_for('finance.index') }}" class="px-5 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-bold transition-all hover:bg-gray-200">
+            <i class="fas fa-arrow-left mr-2"></i>Dashboard
+        </a>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
+    <!-- Form Col -->
+    <div class="lg:col-span-1">
+        <div class="sticky top-8 rounded-3xl bg-white p-8 shadow-sm border border-gray-100">
+            <h3 class="text-xl font-extrabold text-gray-900 tracking-tight mb-6">Nova Categoria</h3>
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="mb-5">
+                    <label for="name" class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Nome da Categoria</label>
+                    <input type="text" name="name" id="name" required placeholder="Ex: Aluguel, Peças, Internet..."
+                           class="w-full rounded-2xl border-gray-200 bg-gray-50 py-3 text-sm font-semibold focus:border-primary focus:ring-primary shadow-sm border-2">
+                </div>
+                <div class="mb-6">
+                    <label for="type" class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Tipo de Fluxo</label>
+                    <select name="type" id="type" required class="w-full rounded-2xl border-gray-200 bg-gray-50 py-3 text-sm font-semibold focus:border-primary focus:ring-primary shadow-sm border-2">
+                        <option value="revenue">Receita (+)</option>
+                        <option value="expense">Despesa (-)</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full rounded-2xl bg-gray-900 py-3 text-sm font-bold text-white shadow-xl shadow-gray-200 transition-all hover:bg-gray-800 hover:scale-[1.02] active:scale-[0.98]">
+                    Criar Categoria
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- List Col -->
+    <div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Revenue List -->
+        <div class="rounded-3xl bg-white p-8 shadow-sm border border-gray-100">
+            <div class="mb-6 flex items-center gap-3">
+                <div class="h-10 w-10 rounded-xl bg-green-100 text-green-600 flex items-center justify-center">
+                    <i class="fas fa-arrow-up"></i>
+                </div>
+                <h3 class="text-lg font-black text-gray-900">Receitas</h3>
+            </div>
+            <ul class="divide-y divide-gray-100">
+                {% for cat in revenue_categories %}
+                <li class="py-4 flex items-center justify-between group">
+                    <span class="font-bold text-gray-700">{{ cat.name }}</span>
+                    <span class="text-xs font-bold text-gray-300 uppercase tracking-widest group-hover:text-green-500 transition-colors">Ativo</span>
+                </li>
+                {% else %}
+                <p class="text-sm text-gray-400 italic">Nenhuma categoria de receita.</p>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Expense List -->
+        <div class="rounded-3xl bg-white p-8 shadow-sm border border-gray-100">
+            <div class="mb-6 flex items-center gap-3">
+                <div class="h-10 w-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center">
+                    <i class="fas fa-arrow-down"></i>
+                </div>
+                <h3 class="text-lg font-black text-gray-900">Despesas</h3>
+            </div>
+            <ul class="divide-y divide-gray-100">
+                {% for cat in expense_categories %}
+                <li class="py-4 flex items-center justify-between group">
+                    <span class="font-bold text-gray-700">{{ cat.name }}</span>
+                    <span class="text-xs font-bold text-gray-300 uppercase tracking-widest group-hover:text-red-500 transition-colors">Ativo</span>
+                </li>
+                {% else %}
+                <p class="text-sm text-gray-400 italic">Nenhuma categoria de despesa.</p>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

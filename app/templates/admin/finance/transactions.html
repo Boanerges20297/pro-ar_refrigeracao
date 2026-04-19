@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Extrato Financeiro{% endblock %}
+{% block content %}
+<div class="mb-8 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+        <h2 class="text-3xl font-extrabold text-gray-900 tracking-tight">Extrato Financeiro</h2>
+        <p class="text-gray-500 font-medium">Histórico detalhado de todas as movimentações.</p>
+    </div>
+    <div class="flex items-center gap-3">
+        <a href="{{ url_for('finance.index') }}" class="px-5 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-bold transition-all hover:bg-gray-200">
+            <i class="fas fa-arrow-left mr-2"></i>Dashboard
+        </a>
+        <a href="{{ url_for('finance.add_transaction') }}" class="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] hover:opacity-90 active:scale-[0.98]">
+            <i class="fas fa-plus mr-2"></i>Novo Lançamento
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="mb-8 rounded-2xl bg-white p-6 shadow-sm border border-gray-100">
+    <form method="GET" class="grid grid-cols-1 gap-4 md:grid-cols-4 items-end">
+        <div>
+            <label for="type" class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Tipo</label>
+            <select name="type" id="type" class="w-full rounded-xl border-gray-200 bg-gray-50 text-sm font-semibold focus:border-primary focus:ring-primary">
+                <option value="">Todos</option>
+                <option value="revenue" {% if type_filter == 'revenue' %}selected{% endif %}>Receita</option>
+                <option value="expense" {% if type_filter == 'expense' %}selected{% endif %}>Despesa</option>
+            </select>
+        </div>
+        <div>
+            <label for="status" class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Status</label>
+            <select name="status" id="status" class="w-full rounded-xl border-gray-200 bg-gray-50 text-sm font-semibold focus:border-primary focus:ring-primary">
+                <option value="">Todos</option>
+                <option value="paid" {% if status_filter == 'paid' %}selected{% endif %}>Pago / Recebido</option>
+                <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pendente</option>
+            </select>
+        </div>
+        <div>
+            <label for="category_id" class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Categoria</label>
+            <select name="category_id" id="category_id" class="w-full rounded-xl border-gray-200 bg-gray-50 text-sm font-semibold focus:border-primary focus:ring-primary">
+                <option value="">Todas</option>
+                {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if selected_category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex gap-2">
+            <button type="submit" class="flex-1 bg-gray-900 text-white rounded-xl py-2.5 text-sm font-bold transition-all hover:bg-gray-800">Filtrar</button>
+            <a href="{{ url_for('finance.transactions') }}" class="px-4 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-bold transition-all hover:bg-gray-200">Limpar</a>
+        </div>
+    </form>
+</div>
+
+<!-- Transactions Table -->
+<div class="overflow-hidden rounded-3xl bg-white shadow-sm border border-gray-100">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-gray-50/50">
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Data</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Descrição</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Categoria</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Valor</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
+                    <th class="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-center">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for t in pagination.items %}
+                <tr class="hover:bg-gray-50/50 transition-colors">
+                    <td class="px-6 py-4 text-sm font-bold text-gray-900">{{ t.date.strftime('%d/%m/%Y') }}</td>
+                    <td class="px-6 py-4">
+                        <p class="text-sm font-bold text-gray-900">{{ t.description }}</p>
+                        {% if t.is_automated %}
+                            <span class="inline-flex items-center text-[10px] font-bold text-primary uppercase tracking-tighter">
+                                <i class="fas fa-sync-alt mr-1"></i> Sincronizado
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-600">
+                            {{ t.category.name if t.category else 'Sem categoria' }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="text-sm font-black {% if t.type == 'revenue' %}text-green-600{% else %}text-red-600{% endif %}">
+                            {{ '+' if t.type == 'revenue' else '-' }} R$ {{ "%.2f"|format(t.amount) }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        {% if t.status == 'paid' %}
+                            <span class="inline-flex items-center px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest bg-green-100 text-green-700">
+                                <i class="fas fa-check-circle mr-1.5"></i> Pago
+                            </span>
+                        {% else %}
+                            <span class="inline-flex items-center px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest bg-yellow-100 text-yellow-700">
+                                <i class="fas fa-clock mr-1.5"></i> Pendente
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <div class="flex items-center justify-center gap-2">
+                            <a href="{{ url_for('finance.edit_transaction', id=t.id) }}" class="p-2 text-gray-400 hover:text-primary transition-colors">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            {% if not t.is_automated %}
+                            <form action="{{ url_for('finance.delete_transaction', id=t.id) }}" method="POST" onsubmit="return confirm('Excluir este lançamento?')">
+                                <button type="submit" class="p-2 text-gray-400 hover:text-red-500 transition-colors">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="px-6 py-12 text-center">
+                        <div class="flex flex-col items-center">
+                            <i class="fas fa-receipt text-4xl text-gray-200 mb-4"></i>
+                            <p class="text-gray-400 font-bold">Nenhuma transação encontrada.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if pagination.pages > 1 %}
+<div class="mt-8 flex justify-center">
+    <nav class="inline-flex gap-2 p-1 bg-white rounded-2xl border border-gray-100 shadow-sm">
+        {% for page in pagination.iter_pages() %}
+            {% if page %}
+                <a href="{{ url_for('finance.transactions', page=page, type=type_filter, status=status_filter, category_id=selected_category_id) }}" 
+                   class="inline-flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold transition-all {% if page == pagination.page %}bg-primary text-white shadow-lg shadow-primary/30{% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-900{% endif %}">
+                    {{ page }}
+                </a>
+            {% else %}
+                <span class="inline-flex h-10 w-10 items-center justify-center text-gray-300">...</span>
+            {% endif %}
+        {% endfor %}
+    </nav>
+</div>
+{% endif %}
+
+{% endblock %}

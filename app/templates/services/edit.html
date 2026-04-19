@@ -88,6 +88,16 @@
                 <input type="number" step="0.01" min="0" name="total_value" id="total_value" value="{{ "%.2f"|format(wo.total_value) if wo.total_value else '0.00' }}" class="mt-1 block w-full bg-gray-100 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none sm:text-sm" {% if current_user.permission_level == 'user' or is_completed_locked %}disabled{% endif %}>
             </div>
 
+            <div class="flex items-center">
+                <div class="flex h-5 items-center">
+                    <input id="is_paid" name="is_paid" type="checkbox" {% if wo.is_paid %}checked{% endif %} class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" {% if is_completed_locked %}disabled{% endif %}>
+                </div>
+                <div class="ml-3 text-sm">
+                    <label for="is_paid" class="font-medium text-gray-700">Marcar como Pago</label>
+                    <p class="text-gray-500 text-xs">A receita será lançada como concluída no financeiro.</p>
+                </div>
+            </div>
+
             <!-- ── Total Despesas ── -->
             <div>
                 <label class="block text-sm font-medium text-gray-700">Total Despesas (R$)</label>
