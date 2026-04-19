@@ -300,14 +300,14 @@ const csrfToken = document.querySelector('input[name="csrf_token"]').value;
 
 function confirmDeleteOS(id) {
     Swal.fire({
-        title: 'Tem certeza?',
-        text: "Esta OS e TODOS os registros vinculados (receitas e despesas) serão removidos permanentemente. Isso afetará diretamente o seu balanço financeiro e saldo do mês!",
+        title: 'Excluir Ordem de Serviço?',
+        text: "Isso removerá os registros vinculados e afetará o balanço financeiro. Confirmar exclusão?",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#d33',
         cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Sim, excluir!',
-        cancelButtonText: 'Cancelar',
+        confirmButtonText: 'Sim',
+        cancelButtonText: 'Não',
         reverseButtons: true
     }).then((result) => {
         if (result.isConfirmed) {
@@ -329,19 +329,22 @@ function confirmDeleteOS(id) {
             })
             .then(response => response.json())
             .then(data => {
-                if (data.ok) {
-                    Swal.fire({
-                        title: 'Excluído!',
-                        text: data.message,
-                        icon: 'success',
-                        timer: 2000,
-                        showConfirmButton: false
-                    }).then(() => {
-                        window.location.href = returnToUrl;
-                    });
-                } else {
-                    Swal.fire('Erro!', data.message || 'Houve um erro ao processar sua solicitação.', 'error');
-                }
+                // Garantir que o loading apareça por pelo menos 2 segundos para feedback
+                setTimeout(() => {
+                    if (data.ok) {
+                        Swal.fire({
+                            title: 'Excluído!',
+                            text: data.message,
+                            icon: 'success',
+                            timer: 2000,
+                            showConfirmButton: false
+                        }).then(() => {
+                            window.location.href = returnToUrl;
+                        });
+                    } else {
+                        Swal.fire('Erro!', data.message || 'Houve um erro ao processar sua solicitação.', 'error');
+                    }
+                }, 2000);
             })
             .catch(error => {
                 console.error('Error:', error);
