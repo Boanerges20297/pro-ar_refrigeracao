@@ -205,6 +205,38 @@ def categories():
                            revenue_categories=revenue_categories, 
                            expense_categories=expense_categories)
 
+@finance_bp.route('/category/edit/<int:id>', methods=['POST'])
+@roles_required('admin')
+def edit_category(id):
+    """Edita uma categoria existente"""
+    category = FinancialCategory.query.get_or_404(id)
+    name = request.form.get('name')
+    type = request.form.get('type')
+    
+    if not name or not type:
+        flash('Nome e tipo são obrigatórios.', 'danger')
+        return redirect(url_for('finance.categories'))
+        
+    category.name = name
+    category.type = type
+    db.session.commit()
+    flash('Categoria atualizada com sucesso!', 'success')
+    return redirect(url_for('finance.categories'))
+
+@finance_bp.route('/category/delete/<int:id>', methods=['POST'])
+@roles_required('admin')
+def delete_category(id):
+    """Exclui uma categoria e desvincula transações"""
+    category = FinancialCategory.query.get_or_404(id)
+    
+    # Desvincula transações antes de excluir
+    FinancialTransaction.query.filter_by(category_id=id).update({FinancialTransaction.category_id: None})
+    
+    db.session.delete(category)
+    db.session.commit()
+    flash('Categoria excluída com sucesso!', 'success')
+    return redirect(url_for('finance.categories'))
+
 @finance_bp.route('/category/add/api', methods=['POST'])
 @roles_required('admin')
 def add_category_api():

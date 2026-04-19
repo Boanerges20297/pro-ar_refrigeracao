@@ -53,7 +53,14 @@
                 {% for cat in revenue_categories %}
                 <li class="py-4 flex items-center justify-between group">
                     <span class="font-bold text-gray-700">{{ cat.name }}</span>
-                    <span class="text-xs font-bold text-gray-300 uppercase tracking-widest group-hover:text-green-500 transition-colors">Ativo</span>
+                    <div class="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onclick="openEditModal({{ cat.id }}, '{{ cat.name }}', '{{ cat.type }}')" class="p-2 text-gray-400 hover:text-primary transition-colors" title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="confirmDelete({{ cat.id }}, '{{ cat.name }}')" class="p-2 text-gray-400 hover:text-red-500 transition-colors" title="Excluir">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
                 </li>
                 {% else %}
                 <p class="text-sm text-gray-400 italic">Nenhuma categoria de receita.</p>
@@ -73,7 +80,14 @@
                 {% for cat in expense_categories %}
                 <li class="py-4 flex items-center justify-between group">
                     <span class="font-bold text-gray-700">{{ cat.name }}</span>
-                    <span class="text-xs font-bold text-gray-300 uppercase tracking-widest group-hover:text-red-500 transition-colors">Ativo</span>
+                    <div class="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onclick="openEditModal({{ cat.id }}, '{{ cat.name }}', '{{ cat.type }}')" class="p-2 text-gray-400 hover:text-primary transition-colors" title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="confirmDelete({{ cat.id }}, '{{ cat.name }}')" class="p-2 text-gray-400 hover:text-red-500 transition-colors" title="Excluir">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
                 </li>
                 {% else %}
                 <p class="text-sm text-gray-400 italic">Nenhuma categoria de despesa.</p>
@@ -82,4 +96,104 @@
         </div>
     </div>
 </div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="hidden fixed inset-0 z-[100] overflow-y-auto bg-gray-900/60 backdrop-blur-sm px-4">
+    <div class="flex min-h-screen items-center justify-center">
+        <div class="w-full max-w-md rounded-[2.5rem] bg-white p-10 shadow-2xl border border-gray-100">
+            <div class="mb-8 flex items-center justify-between">
+                <div>
+                    <h3 class="text-2xl font-black text-gray-900 tracking-tight">Editar Categoria</h3>
+                    <p class="text-gray-400 text-sm font-medium mt-1">Atualize os detalhes da categoria.</p>
+                </div>
+                <button onclick="closeEditModal()" class="h-10 w-10 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 transition-all">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="editForm" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="mb-6">
+                    <label for="edit_name" class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Nome da Categoria</label>
+                    <input type="text" name="name" id="edit_name" required
+                           class="w-full rounded-2xl border-gray-100 bg-gray-50 p-4 text-sm font-bold focus:border-primary focus:ring-primary shadow-inner border-2 transition-all">
+                </div>
+                <div class="mb-8">
+                    <label for="edit_type" class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Tipo de Fluxo</label>
+                    <select name="type" id="edit_type" required class="w-full rounded-2xl border-gray-100 bg-gray-50 p-4 text-sm font-bold focus:border-primary focus:ring-primary shadow-inner border-2 transition-all appearance-none">
+                        <option value="revenue">Receita (+)</option>
+                        <option value="expense">Despesa (-)</option>
+                    </select>
+                </div>
+                <div class="flex flex-col gap-3">
+                    <button type="submit" class="w-full rounded-2xl bg-gray-900 py-4 text-sm font-black text-white shadow-xl shadow-gray-200 transition-all hover:bg-gray-800 hover:scale-[1.02] active:scale-[0.98]">
+                        Salvar Alterações
+                    </button>
+                    <button type="button" onclick="closeEditModal()" class="w-full rounded-2xl bg-gray-100 py-4 text-sm font-bold text-gray-500 transition-all hover:bg-gray-200">
+                        Cancelar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function openEditModal(id, name, type) {
+    const modal = document.getElementById('editModal');
+    const form = document.getElementById('editForm');
+    const nameInput = document.getElementById('edit_name');
+    const typeSelect = document.getElementById('edit_type');
+    
+    form.action = `/finance/category/edit/${id}`;
+    nameInput.value = name;
+    typeSelect.value = type;
+    
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeEditModal() {
+    const modal = document.getElementById('editModal');
+    modal.classList.add('hidden');
+    document.body.style.overflow = 'auto';
+}
+
+function confirmDelete(id, name) {
+    Swal.fire({
+        title: 'Tem certeza?',
+        text: `Deseja excluir a categoria "${name}"? Todas as transações vinculadas ficarão "Sem categoria".`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#111827',
+        cancelButtonColor: '#f3f4f6',
+        confirmButtonText: 'Sim, excluir!',
+        cancelButtonText: 'Cancelar',
+        customClass: {
+            confirmButton: 'rounded-2xl px-6 py-3 font-bold',
+            cancelButton: 'rounded-2xl px-6 py-3 font-bold text-gray-500'
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/finance/category/delete/${id}`;
+            
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = '{{ csrf_token() }}';
+            
+            form.appendChild(csrfInput);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    });
+}
+
+// Fechar modal ao clicar fora
+document.getElementById('editModal').addEventListener('click', function(e) {
+    if (e.target === this) closeEditModal();
+});
+</script>
+
 {% endblock %}
