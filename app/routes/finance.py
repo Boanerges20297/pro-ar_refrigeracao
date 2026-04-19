@@ -229,3 +229,11 @@ def add_category_api():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
+
+@finance_bp.cli.command('sync')
+def sync_finance_command():
+    """Comando CLI para sincronização retroativa de OS e Despesas"""
+    from app.utils.finance import run_retroactive_sync
+    print("Iniciando sincronização retroativa...")
+    wo_count, exp_count = run_retroactive_sync()
+    print(f"Sincronização concluída: {wo_count} O.S. e {exp_count} Despesas processadas.")
