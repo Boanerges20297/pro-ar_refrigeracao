@@ -64,13 +64,25 @@ def index():
         ).filter(FinancialTransaction.date >= start_dt, FinancialTransaction.date <= end_dt)\
         .group_by('label').all()
     else:
-        # SQLite format
+        # DB Agnostic grouping by date
         trend_query = db.session.query(
-            func.strftime('%Y-%m-%d', FinancialTransaction.date).label('label'),
+            func.date(FinancialTransaction.date).label('label'),
             func.sum(db.case((FinancialTransaction.type == 'revenue', FinancialTransaction.amount), else_=0)).label('revenue'),
             func.sum(db.case((FinancialTransaction.type == 'expense', FinancialTransaction.amount), else_=0)).label('expense')
         ).filter(FinancialTransaction.date >= start_dt, FinancialTransaction.date <= end_dt)\
-        .group_by('label').order_by('label').all()
+        .group_by(func.date(FinancialTransaction.date)).order_by(func.date(FinancialTransaction.date)).all()
+    
+    # Prepara dados para JSON de forma segura
+    trend_data_list = []
+    for row in trend_query:
+        label = row.label
+        if hasattr(label, 'strftime'):
+            label = label.strftime('%Y-%m-%d')
+        trend_data_list.append({
+            'label': str(label),
+            'revenue': float(row.revenue or 0),
+            'expense': float(row.expense or 0)
+        })
 
     return render_template('admin/finance/dashboard.html',
                            total_revenue=total_revenue,
@@ -78,7 +90,7 @@ def index():
                            pending_revenue=pending_revenue,
                            cash_flow=cash_flow,
                            categories_data=categories_data,
-                           trend_data=trend_query,
+                           trend_data=trend_data_list,
                            period=period)
 
 @finance_bp.route('/transactions')
