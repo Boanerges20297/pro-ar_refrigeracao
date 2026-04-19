@@ -1093,3 +1093,31 @@ def delete_workorder(id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'ok': False, 'message': f'Erro ao excluir: {str(e)}'}), 500
+
+
+@services_bp.route('/check_duplicate', methods=['POST'])
+@roles_required('admin', 'secretary', 'user')
+def check_duplicate():
+    try:
+        data = request.get_json()
+        client_id = data.get('client_id')
+        # A data vem do input datetime-local como YYYY-MM-DDTHH:MM
+        # Pegamos apenas a parte YYYY-MM-DD
+        scheduled_date_str = data.get('date')
+        
+        if not client_id or not scheduled_date_str:
+            return jsonify({'duplicate': False})
+            
+        # Extrair apenas a data (YYYY-MM-DD)
+        date_part = scheduled_date_str.split('T')[0]
+        check_date = datetime.strptime(date_part, '%Y-%m-%d').date()
+        
+        # Buscar OS para o mesmo cliente na mesma data
+        duplicate = WorkOrder.query.filter(
+            WorkOrder.client_id == client_id,
+            func.date(WorkOrder.scheduled_date) == check_date
+        ).first()
+        
+        return jsonify({'duplicate': duplicate is not None})
+    except Exception as e:
+        return jsonify({'duplicate': False, 'error': str(e)})

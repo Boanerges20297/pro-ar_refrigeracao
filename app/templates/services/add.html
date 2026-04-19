@@ -6,7 +6,7 @@
 </div>
 
 <div class="bg-white shadow overflow-hidden sm:rounded-lg max-w-4xl mx-auto p-6">
-    <form method="POST" action="{{ url_for('services.add') }}" enctype="multipart/form-data">
+    <form id="addWorkOrderForm" method="POST" action="{{ url_for('services.add') }}" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -344,6 +344,71 @@ serviceCatalogForm.addEventListener('submit', async (event) => {
         errorBox.classList.remove('hidden');
     }
 });
+}
+
+// ── Verificação de Duplicidade ────────────────────────
+const addWOForm = document.getElementById('addWorkOrderForm');
+if (addWOForm) {
+    addWOForm.addEventListener('submit', async function(e) {
+        // Se já confirmamos a duplicidade, deixa o form enviar normalmente
+        if (this.getAttribute('data-skip-check') === 'true') {
+            return;
+        }
+
+        const clientId = document.getElementById('client_id').value;
+        const scheduledDate = document.getElementById('scheduled_date').value;
+
+        // Se faltar cliente ou data, deixa o HTML5 validar o required
+        if (!clientId || !scheduledDate) {
+            return;
+        }
+
+        e.preventDefault(); // Intercepta o envio para checar duplicidade
+
+        try {
+            const response = await fetch("{{ url_for('services.check_duplicate') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': "{{ csrf_token() }}"
+                },
+                body: JSON.stringify({
+                    client_id: clientId,
+                    date: scheduledDate
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.duplicate) {
+                const result = await Swal.fire({
+                    title: 'OS Duplicada?',
+                    text: 'Já existe uma Ordem de Serviço agendada para este cliente nesta data. Deseja criar outra mesmo assim?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Sim, criar outra',
+                    cancelButtonText: 'Não, cancelar',
+                    reverseButtons: true
+                });
+
+                if (result.isConfirmed) {
+                    this.setAttribute('data-skip-check', 'true');
+                    this.submit();
+                }
+            } else {
+                // Sem duplicidade, envia direto
+                this.setAttribute('data-skip-check', 'true');
+                this.submit();
+            }
+        } catch (error) {
+            console.error('Erro ao verificar duplicidade:', error);
+            // Em caso de erro técnico na checagem, permite o envio para não travar o sistema
+            this.setAttribute('data-skip-check', 'true');
+            this.submit();
+        }
+    });
 }
 </script>
 {% endblock %}
