@@ -70,3 +70,7 @@ license_api/keys/
 !instance/*.db
 !instance/*.db-wal
 !instance/*.db-shm
+
+# Arquivoa de deploy
+*.ps1
+*.ps1xml
