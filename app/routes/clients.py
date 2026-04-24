@@ -100,3 +100,44 @@ def api_get_equipment(client_id):
             'view_url': url_for('equipment.view_by_serial', serial_number=eq.serial_number or eq.id)
         })
     return jsonify({'client_name': client.name, 'equipments': equipments})
+
+@clients_bp.route('/search')
+@roles_required('admin', 'secretary', 'technician')
+def search_clients():
+    query_str = request.args.get('q', '').strip()
+    if not query_str:
+        return jsonify([])
+    
+    # Get current user
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id) if current_user_id else None
+    is_technician = current_user and current_user.permission_level == 'user'
+
+    query = Client.query
+    if is_technician:
+        client_ids = get_technician_client_ids(current_user.id)
+        if client_ids:
+            query = query.filter(Client.id.in_(client_ids))
+        else:
+            query = query.filter(Client.id == None)
+
+    search_term = f'%{query_str}%'
+    clients = query.filter(
+        or_(
+            Client.name.ilike(search_term),
+            Client.email.ilike(search_term),
+            Client.phone.ilike(search_term),
+            Client.address.ilike(search_term)
+        )
+    ).limit(10).all()
+    
+    results = [
+        {
+            'id': c.id,
+            'name': c.name,
+            'email': c.email,
+            'phone': c.phone,
+            'address': c.address
+        } for c in clients
+    ]
+    return jsonify(results)

@@ -11,15 +11,25 @@
 
         <div class="grid grid-cols-1 gap-6">
 
-            <div>
-                <label for="client_id" class="block text-sm font-medium text-gray-700">Cliente Proprietário *</label>
-                <select id="client_id" name="client_id" required class="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
-                    <option value="" disabled selected>Selecione um cliente...</option>
-                    {% for client in clients %}
-                        <option value="{{ client.id }}">{{ client.name }}</option>
-                    {% endfor %}
-                </select>
-                {% if not clients %}
+            <div class="relative" id="client-autocomplete">
+                <label for="client_search" class="block text-sm font-medium text-gray-700">Cliente Proprietário *</label>
+                <div class="mt-1 relative">
+                    <input type="text" id="client_search" placeholder="Digite nome, e-mail, telefone ou endereço..." autocomplete="off" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                    <input type="hidden" name="client_id" id="client_id" required>
+                    <div id="client-results" class="hidden absolute z-50 w-full bg-white border border-gray-200 rounded-md shadow-xl mt-1 max-h-64 overflow-y-auto">
+                        <!-- Results injected here -->
+                    </div>
+                </div>
+                <div id="selected-client-info" class="hidden mt-2 p-3 bg-blue-50 border border-blue-100 rounded-md flex justify-between items-center">
+                    <div>
+                        <p id="display-client-name" class="text-sm font-bold text-blue-900"></p>
+                        <p id="display-client-details" class="text-xs text-blue-700"></p>
+                    </div>
+                    <button type="button" onclick="clearClientSelection()" class="text-blue-500 hover:text-blue-700 p-1">
+                        <i class="fas fa-times-circle"></i>
+                    </button>
+                </div>
+                {% if not has_clients %}
                 <p class="text-xs text-red-500 mt-1">Atenção: Você precisa cadastrar um cliente antes de adicionar equipamentos.</p>
                 {% endif %}
             </div>
@@ -81,7 +91,7 @@
                 <a href="{{ url_for('equipment.index') }}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mr-3">
                     Cancelar
                 </a>
-                <button type="submit" class="bg-primary border border-transparent rounded-md shadow-sm py-2 px-4 inline-flex justify-center text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {% if not clients %}disabled{% endif %}>
+                <button type="submit" class="bg-primary border border-transparent rounded-md shadow-sm py-2 px-4 inline-flex justify-center text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {% if not has_clients %}disabled{% endif %}>
                     Salvar Equipamento
                 </button>
             </div>
@@ -154,5 +164,80 @@
     function onScanFailure(error) {
         // handle scan failure, usually better to ignore and keep scanning.
     }
+
+    // --- Client Autocomplete Logic ---
+    const clientSearch = document.getElementById('client_search');
+    const clientResults = document.getElementById('client-results');
+    const clientIdInput = document.getElementById('client_id');
+    const selectedClientInfo = document.getElementById('selected-client-info');
+    const displayClientName = document.getElementById('display-client-name');
+    const displayClientDetails = document.getElementById('display-client-details');
+
+    let debounceTimer;
+
+    clientSearch.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        const query = this.value.trim();
+
+        if (query.length < 2) {
+            clientResults.classList.add('hidden');
+            return;
+        }
+
+        debounceTimer = setTimeout(() => {
+            fetch(`/clients/search?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    renderResults(data);
+                })
+                .catch(error => console.error('Error fetching clients:', error));
+        }, 300);
+    });
+
+    function renderResults(clients) {
+        clientResults.innerHTML = '';
+        if (clients.length === 0) {
+            clientResults.innerHTML = '<div class="p-3 text-sm text-gray-500 italic">Nenhum cliente encontrado.</div>';
+        } else {
+            clients.forEach(client => {
+                const div = document.createElement('div');
+                div.className = 'p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors';
+                div.innerHTML = `
+                    <p class="text-sm font-bold text-gray-900">${client.name}</p>
+                    <p class="text-xs text-gray-500">${client.email || ''} ${client.phone ? ' | ' + client.phone : ''}</p>
+                    <p class="text-xs text-gray-400 truncate">${client.address || ''}</p>
+                `;
+                div.onclick = () => selectClient(client);
+                clientResults.appendChild(div);
+            });
+        }
+        clientResults.classList.remove('hidden');
+    }
+
+    function selectClient(client) {
+        clientIdInput.value = client.id;
+        displayClientName.textContent = client.name;
+        displayClientDetails.textContent = `${client.phone || ''} ${client.email ? ' • ' + client.email : ''}`;
+        
+        clientSearch.value = '';
+        clientSearch.parentElement.classList.add('hidden');
+        clientResults.classList.add('hidden');
+        selectedClientInfo.classList.remove('hidden');
+    }
+
+    function clearClientSelection() {
+        clientIdInput.value = '';
+        clientSearch.value = '';
+        clientSearch.parentElement.classList.remove('hidden');
+        selectedClientInfo.classList.add('hidden');
+        clientSearch.focus();
+    }
+
+    // Close results when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!document.getElementById('client-autocomplete').contains(e.target)) {
+            clientResults.classList.add('hidden');
+        }
+    });
 </script>
 {% endblock %}

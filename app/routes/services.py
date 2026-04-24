@@ -473,7 +473,7 @@ def index():
 @services_bp.route('/add', methods=['GET', 'POST'])
 @roles_required('admin', 'secretary')
 def add():
-    clients = Client.query.all()
+    has_clients = Client.query.first() is not None
     equipments = Equipment.query.all()
     services = ServiceCatalog.query.all()
     service_catalog_items = [serialize_service_catalog(service) for service in services]
@@ -534,7 +534,7 @@ def add():
         flash('Ordem de Serviço criada com sucesso!', 'success')
         return redirect(url_for('services.index'))
 
-    return render_template('services/add.html', clients=clients, equipments=equipments, services=services, service_catalog_items=service_catalog_items, technicians=technicians)
+    return render_template('services/add.html', has_clients=has_clients, equipments=equipments, services=services, service_catalog_items=service_catalog_items, technicians=technicians)
 @services_bp.route('/edit/<int:id>', methods=['GET', 'POST'])
 @roles_required('admin', 'secretary', 'technician')
 def edit(id):

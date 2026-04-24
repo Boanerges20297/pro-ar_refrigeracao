@@ -108,7 +108,8 @@ def view_by_serial(serial_number):
 @equip_bp.route('/add', methods=['GET', 'POST'])
 @roles_required('admin', 'secretary')
 def add():
-    clients = Client.query.all()
+    # Only check if at least one client exists for the warning
+    has_clients = Client.query.first() is not None
     if request.method == 'POST':
         name       = request.form.get('name')
         brand      = request.form.get('brand')
@@ -149,13 +150,12 @@ def add():
 
         flash('Equipamento adicionado com sucesso! QR Code gerado.', 'success')
         return redirect(url_for('equipment.index'))
-    return render_template('equipment/add.html', clients=clients)
+    return render_template('equipment/add.html', has_clients=has_clients)
 
 @equip_bp.route('/edit/<int:id>', methods=['GET', 'POST'])
 @roles_required('admin', 'secretary')
 def edit(id):
     equip = Equipment.query.get_or_404(id)
-    clients = Client.query.all()
     if request.method == 'POST':
         equip.name = request.form.get('name')
         equip.brand = request.form.get('brand')
@@ -184,7 +184,7 @@ def edit(id):
         flash('Equipamento atualizado com sucesso!', 'success')
         return redirect(url_for('equipment.index'))
         
-    return render_template('equipment/edit.html', equip=equip, clients=clients)
+    return render_template('equipment/edit.html', equip=equip)
 
 @equip_bp.route('/regenerate-qr/<int:equip_id>', methods=['POST'])
 @roles_required('admin', 'secretary')
