@@ -31,47 +31,16 @@ def index():
         else:
             query = query.filter(Client.id == None)
 
-    if search:
-        search_term = f'%{remove_accents(search)}%'
-        
-        # Check engine to avoid crashes on Postgres if extension is missing
-        is_postgres = db.engine.name == 'postgresql'
-        
-        if is_postgres:
-            # On Postgres, we use ILIKE which is case-insensitive. 
-            # We try to use unaccent if available, but fallback to normal ilike to avoid 500 errors.
-            try:
-                query = query.filter(
-                    or_(
-                        func.unaccent(Client.name).ilike(search_term),
-                        func.unaccent(Client.email).ilike(search_term),
-                        func.unaccent(Client.phone).ilike(search_term),
-                        func.unaccent(Client.address).ilike(search_term),
-                    )
-                )
-            except Exception:
-                db.session.rollback()
-                search_term_raw = f'%{search}%'
-                query = query.filter(
-                    or_(
-                        Client.name.ilike(search_term_raw),
-                        Client.email.ilike(search_term_raw),
-                        Client.phone.ilike(search_term_raw),
-                        Client.address.ilike(search_term_raw),
-                    )
-                )
-        else:
-            # SQLite - use our custom registered unaccent
-            query = query.filter(
-                or_(
-                    func.unaccent(Client.name).like(search_term),
-                    func.unaccent(Client.email).like(search_term),
-                    func.unaccent(Client.phone).like(search_term),
-                    func.unaccent(Client.address).like(search_term),
-                )
-            )
-
     clients = query.order_by(Client.name.asc()).all()
+    
+    if search:
+        search_norm = remove_accents(search)
+        filtered_clients = []
+        for c in clients:
+            searchable = f"{c.name} {c.email or ''} {c.phone or ''} {c.address or ''}"
+            if search_norm in remove_accents(searchable):
+                filtered_clients.append(c)
+        clients = filtered_clients
     
     return render_template('clients/index.html', clients=clients, search=search)
 
@@ -149,55 +118,28 @@ def search_clients():
         if client_ids:
             query = query.filter(Client.id.in_(client_ids))
         else:
-            query = query.filter(Client.id == None)
+            return jsonify([])
 
-    # Normalize query for accent-insensitive search
-    search_term = f'%{remove_accents(query_str)}%'
+    # Fetch all relevant clients to filter in Python (more robust for accents/engines)
+    # We order by created_at desc to show newest first
+    all_clients = query.order_by(Client.created_at.desc()).all()
     
-    is_postgres = db.engine.name == 'postgresql'
+    q_norm = remove_accents(query_str)
+    results = []
     
-    if is_postgres:
-        try:
-            clients = query.filter(
-                or_(
-                    func.unaccent(Client.name).ilike(search_term),
-                    func.unaccent(Client.email).ilike(search_term),
-                    func.unaccent(Client.phone).ilike(search_term),
-                    func.unaccent(Client.address).ilike(search_term)
-                )
-            ).order_by(Client.created_at.desc()).limit(10).all()
-        except Exception:
-            db.session.rollback()
-            # Fallback for Postgres without unaccent extension
-            search_term_raw = f'%{query_str}%'
-            clients = query.filter(
-                or_(
-                    Client.name.ilike(search_term_raw),
-                    Client.email.ilike(search_term_raw),
-                    Client.phone.ilike(search_term_raw),
-                    Client.address.ilike(search_term_raw)
-                )
-            ).order_by(Client.created_at.desc()).limit(10).all()
-    else:
-        # SQLite
-        clients = query.filter(
-            or_(
-                func.unaccent(Client.name).like(search_term),
-                func.unaccent(Client.email).like(search_term),
-                func.unaccent(Client.phone).like(search_term),
-                func.unaccent(Client.address).like(search_term)
-            )
-        ).order_by(Client.created_at.desc()).limit(10).all()
-    
-    results = [
-        {
-            'id': c.id,
-            'name': c.name,
-            'email': c.email,
-            'phone': c.phone,
-            'address': c.address
-        } for c in clients
-    ]
+    for c in all_clients:
+        # Check name, email, phone, address with normalization
+        searchable_text = f"{c.name} {c.email or ''} {c.phone or ''} {c.address or ''}"
+        if q_norm in remove_accents(searchable_text):
+            results.append({
+                'id': c.id,
+                'name': c.name,
+                'email': c.email,
+                'phone': c.phone,
+                'address': c.address
+            })
+            if len(results) >= 10:
+                break
     
     response = jsonify(results)
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
