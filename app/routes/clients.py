@@ -33,14 +33,43 @@ def index():
 
     if search:
         search_term = f'%{remove_accents(search)}%'
-        query = query.filter(
-            or_(
-                func.unaccent(Client.name).like(search_term),
-                func.unaccent(Client.email).like(search_term),
-                func.unaccent(Client.phone).like(search_term),
-                func.unaccent(Client.address).like(search_term),
+        
+        # Check engine to avoid crashes on Postgres if extension is missing
+        is_postgres = db.engine.name == 'postgresql'
+        
+        if is_postgres:
+            # On Postgres, we use ILIKE which is case-insensitive. 
+            # We try to use unaccent if available, but fallback to normal ilike to avoid 500 errors.
+            try:
+                query = query.filter(
+                    or_(
+                        func.unaccent(Client.name).ilike(search_term),
+                        func.unaccent(Client.email).ilike(search_term),
+                        func.unaccent(Client.phone).ilike(search_term),
+                        func.unaccent(Client.address).ilike(search_term),
+                    )
+                )
+            except Exception:
+                db.session.rollback()
+                search_term_raw = f'%{search}%'
+                query = query.filter(
+                    or_(
+                        Client.name.ilike(search_term_raw),
+                        Client.email.ilike(search_term_raw),
+                        Client.phone.ilike(search_term_raw),
+                        Client.address.ilike(search_term_raw),
+                    )
+                )
+        else:
+            # SQLite - use our custom registered unaccent
+            query = query.filter(
+                or_(
+                    func.unaccent(Client.name).like(search_term),
+                    func.unaccent(Client.email).like(search_term),
+                    func.unaccent(Client.phone).like(search_term),
+                    func.unaccent(Client.address).like(search_term),
+                )
             )
-        )
 
     clients = query.order_by(Client.name.asc()).all()
     
@@ -125,14 +154,40 @@ def search_clients():
     # Normalize query for accent-insensitive search
     search_term = f'%{remove_accents(query_str)}%'
     
-    clients = query.filter(
-        or_(
-            func.unaccent(Client.name).like(search_term),
-            func.unaccent(Client.email).like(search_term),
-            func.unaccent(Client.phone).like(search_term),
-            func.unaccent(Client.address).like(search_term)
-        )
-    ).order_by(Client.created_at.desc()).limit(10).all()
+    is_postgres = db.engine.name == 'postgresql'
+    
+    if is_postgres:
+        try:
+            clients = query.filter(
+                or_(
+                    func.unaccent(Client.name).ilike(search_term),
+                    func.unaccent(Client.email).ilike(search_term),
+                    func.unaccent(Client.phone).ilike(search_term),
+                    func.unaccent(Client.address).ilike(search_term)
+                )
+            ).order_by(Client.created_at.desc()).limit(10).all()
+        except Exception:
+            db.session.rollback()
+            # Fallback for Postgres without unaccent extension
+            search_term_raw = f'%{query_str}%'
+            clients = query.filter(
+                or_(
+                    Client.name.ilike(search_term_raw),
+                    Client.email.ilike(search_term_raw),
+                    Client.phone.ilike(search_term_raw),
+                    Client.address.ilike(search_term_raw)
+                )
+            ).order_by(Client.created_at.desc()).limit(10).all()
+    else:
+        # SQLite
+        clients = query.filter(
+            or_(
+                func.unaccent(Client.name).like(search_term),
+                func.unaccent(Client.email).like(search_term),
+                func.unaccent(Client.phone).like(search_term),
+                func.unaccent(Client.address).like(search_term)
+            )
+        ).order_by(Client.created_at.desc()).limit(10).all()
     
     results = [
         {

@@ -61,6 +61,15 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
         cursor.execute("PRAGMA foreign_keys=ON")
         dbapi_connection.create_function("unaccent", 1, remove_accents)
         cursor.close()
+    elif 'psycopg' in str(type(dbapi_connection)):
+        # For Postgres, we try to ensure unaccent is available
+        try:
+            cursor = dbapi_connection.cursor()
+            cursor.execute("CREATE EXTENSION IF NOT EXISTS unaccent")
+            cursor.close()
+        except Exception:
+            # Fallback if user doesn't have permission to create extensions
+            pass
 
 
 
