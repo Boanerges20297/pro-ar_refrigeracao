@@ -84,7 +84,7 @@ def index():
     return render_template('equipment/index.html', equipments=equipments, search=search)
 
 @equip_bp.route('/view/<serial_number>')
-@roles_required('admin', 'secretary', 'technician')
+@roles_required('admin', 'secretary', 'technician', 'client')
 def view_by_serial(serial_number):
     # Get current user
     current_user_id = get_jwt_identity()
@@ -92,13 +92,17 @@ def view_by_serial(serial_number):
     
     equip, normalized_reference = resolve_equipment_lookup(serial_number)
     
-    # Verificar se técnico tem acesso a este equipamento
-    is_technician = current_user and current_user.permission_level == 'user'
-    if is_technician:
-        client_ids = get_technician_client_ids(current_user.id)
-        if not equip or equip.client_id not in client_ids:
-            flash('Você não tem acesso a este equipamento.', 'danger')
-            return redirect(url_for('equipment.index'))
+    # Permission checks
+    if current_user:
+        if current_user.permission_level == 'user': # technician
+            client_ids = get_technician_client_ids(current_user.id)
+            if not equip or equip.client_id not in client_ids:
+                flash('Você não tem acesso a este equipamento.', 'danger')
+                return redirect(url_for('equipment.index'))
+        elif current_user.permission_level == 'client':
+            if not equip or equip.client_id != current_user.client_id:
+                flash('Você não tem acesso a este equipamento.', 'danger')
+                return redirect(url_for('client_portal.dashboard'))
     
     if not equip:
         flash(f'Equipamento com número de série/código {normalized_reference or serial_number} não encontrado.', 'danger')

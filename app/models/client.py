@@ -12,6 +12,7 @@ class Client(db.Model):
     # Relationships
     equipments = db.relationship('Equipment', backref='owner', lazy=True)
     work_orders = db.relationship('WorkOrder', backref='client', lazy=True)
+    users = db.relationship('User', backref='client_record', lazy=True)
 
     def __repr__(self):
         return f'<Client {self.name}>'

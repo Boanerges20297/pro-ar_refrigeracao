@@ -189,15 +189,19 @@ def get_license_record(create=False):
 def get_user_counts():
     active_users = User.query.filter_by(is_active=True).all()
     counts = {
-        'total': len(active_users),
+        'staff_total': 0,
         'admin': 0,
         'secretary': 0,
         'user': 0,
+        'client': 0,
     }
 
     for user in active_users:
         if user.permission_level in counts:
             counts[user.permission_level] += 1
+        
+        if user.permission_level in ['admin', 'secretary', 'user']:
+            counts['staff_total'] += 1
 
     return counts
 
@@ -247,7 +251,7 @@ def _apply_limit_issues(state):
     counts = state['current_counts']
 
     checks = (
-        ('max_users', 'total', 'Total de usuários ativos acima do contratado.'),
+        ('max_users', 'staff_total', 'Total de funcionários ativos acima do contratado.'),
         ('max_admin_users', 'admin', 'Quantidade de administradores acima do contratado.'),
         ('max_secretary_users', 'secretary', 'Quantidade de secretárias acima do contratado.'),
     )
@@ -614,17 +618,19 @@ def check_user_limit(permission_level, existing_user=None, is_active=True):
     projected_counts = dict(current_counts)
 
     if existing_user and existing_user.is_active:
-        projected_counts['total'] -= 1
+        if existing_user.permission_level in ['admin', 'secretary', 'user']:
+            projected_counts['staff_total'] -= 1
         if existing_user.permission_level in projected_counts:
             projected_counts[existing_user.permission_level] -= 1
 
     if is_active:
-        projected_counts['total'] += 1
+        if permission_level in ['admin', 'secretary', 'user']:
+            projected_counts['staff_total'] += 1
         if permission_level in projected_counts:
             projected_counts[permission_level] += 1
 
     checks = (
-        ('max_users', 'total', 'O plano atual atingiu o limite total de usuários ativos.'),
+        ('max_users', 'staff_total', 'O plano atual atingiu o limite total de funcionários ativos.'),
         ('max_admin_users', 'admin', 'O plano atual atingiu o limite de administradores.'),
         ('max_secretary_users', 'secretary', 'O plano atual atingiu o limite de secretárias.'),
     )

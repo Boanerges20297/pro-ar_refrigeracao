@@ -536,7 +536,7 @@ def add():
 
     return render_template('services/add.html', has_clients=has_clients, equipments=equipments, services=services, service_catalog_items=service_catalog_items, technicians=technicians)
 @services_bp.route('/edit/<int:id>', methods=['GET', 'POST'])
-@roles_required('admin', 'secretary', 'technician')
+@roles_required('admin', 'secretary', 'technician', 'client')
 def edit(id):
     current_user = get_current_user()
     prompt_receipt_requested = request.method == 'GET' and request.args.get('prompt_receipt', type=int) == 1
@@ -548,10 +548,19 @@ def edit(id):
     
     # Verificar se técnico tem acesso a este serviço
     is_technician = current_user and current_user.permission_level == 'user'
+    is_client = current_user and current_user.permission_level == 'client'
+    
     if is_technician:
         if wo.technician_id != current_user.id:
             flash('Você não tem permissão para editar este serviço.', 'danger')
             return redirect(url_for('services.index'))
+    elif is_client:
+        if wo.client_id != current_user.client_id:
+            flash('Você não tem permissão para visualizar este serviço.', 'danger')
+            return redirect(url_for('client_portal.dashboard'))
+        if request.method == 'POST':
+            flash('Clientes não podem editar ordens de serviço.', 'danger')
+            return redirect(url_for('services.edit', id=id))
 
     clients = Client.query.all()
     equipments = Equipment.query.all()

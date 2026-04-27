@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Funcionários{% endblock %}
+{% block title %}Usuários{% endblock %}
 {% block content %}
 <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-    <h2 class="text-2xl font-bold text-gray-800">Funcionários</h2>
+    <h2 class="text-2xl font-bold text-gray-800">Usuários</h2>
     <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
         <a href="{{ url_for('tech.message_all_users') }}" class="w-full sm:w-auto bg-gray-900 hover:bg-black text-white font-bold py-2 px-4 rounded text-center">
             <i class="fas fa-paper-plane mr-2"></i>Mensagem para Todos
         </a>
         <a href="{{ url_for('tech.add_technician') }}" class="w-full sm:w-auto bg-primary hover:opacity-90 text-white font-bold py-2 px-4 rounded text-center">
-            <i class="fas fa-plus mr-2"></i>Novo Funcionário
+            <i class="fas fa-plus mr-2"></i>Novo Usuário
         </a>
     </div>
 </div>
@@ -61,11 +61,16 @@
                     <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
                         {% if tech.permission_level == 'admin' %}bg-purple-100 text-purple-800
                         {% elif tech.permission_level == 'secretary' %}bg-blue-100 text-blue-800
+                        {% elif tech.permission_level == 'client' %}bg-green-100 text-green-800
                         {% else %}bg-gray-100 text-gray-800{% endif %}">
                         {% if tech.permission_level == 'admin' %}Admin
                         {% elif tech.permission_level == 'secretary' %}Secretária
+                        {% elif tech.permission_level == 'client' %}Cliente
                         {% else %}Técnico{% endif %}
                     </span>
+                    {% if tech.permission_level == 'client' and tech.client %}
+                    <div class="text-[10px] text-gray-500 mt-1">Empresa: {{ tech.client.name }}</div>
+                    {% endif %}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                     {% if tech.is_active %}
@@ -83,7 +88,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">{% if search %}Nenhum funcionário encontrado para o filtro informado.{% else %}Nenhum funcionário cadastrado.{% endif %}</td>
+                <td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">{% if search %}Nenhum usuário encontrado para o filtro informado.{% else %}Nenhum usuário cadastrado.{% endif %}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -124,11 +129,16 @@
                     <span class="inline-flex text-xs font-semibold rounded-full px-2 py-0.5
                         {% if tech.permission_level == 'admin' %}bg-purple-100 text-purple-800
                         {% elif tech.permission_level == 'secretary' %}bg-blue-100 text-blue-800
+                        {% elif tech.permission_level == 'client' %}bg-green-100 text-green-800
                         {% else %}bg-gray-100 text-gray-800{% endif %}">
                         {% if tech.permission_level == 'admin' %}Admin
                         {% elif tech.permission_level == 'secretary' %}Secretária
+                        {% elif tech.permission_level == 'client' %}Cliente
                         {% else %}Técnico{% endif %}
                     </span>
+                    {% if tech.permission_level == 'client' and tech.client %}
+                    <div class="text-[10px] text-gray-500 mt-1 font-medium">Empresa: {{ tech.client.name }}</div>
+                    {% endif %}
                 </div>
             </div>
 
@@ -148,7 +158,7 @@
     {% else %}
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
         <i class="fas fa-users text-4xl text-gray-200 mb-2 block"></i>
-        <p class="text-sm text-gray-500">{% if search %}Nenhum funcionário encontrado para o filtro informado.{% else %}Nenhum funcionário cadastrado.{% endif %}</p>
+        <p class="text-sm text-gray-500">{% if search %}Nenhum usuário encontrado para o filtro informado.{% else %}Nenhum usuário cadastrado.{% endif %}</p>
     </div>
     {% endfor %}
 </div>

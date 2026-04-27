@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Área do Cliente - {{ client.name }}{% endblock %}
+{% block content %}
+<div class="mb-8 flex justify-between items-center">
+    <div>
+        <h2 class="text-3xl font-extrabold text-gray-900 tracking-tight">Bem-vindo, {{ client.name }}</h2>
+        <p class="text-sm text-gray-500 mt-1">Acompanhe seus equipamentos e serviços contratados.</p>
+    </div>
+    <div class="flex items-center space-x-4">
+        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+            Cliente Ativo
+        </span>
+    </div>
+</div>
+
+<!-- Metrics Overview -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+    <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
+        <div class="flex items-center">
+            <div class="p-3 rounded-xl bg-blue-50 text-blue-600 mr-4">
+                <i class="fas fa-tools fa-lg"></i>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Equipamentos</p>
+                <p class="text-2xl font-bold text-gray-900">{{ equipments_count }}</p>
+            </div>
+        </div>
+        <div class="mt-4">
+            <a href="{{ url_for('client_portal.equipments') }}" class="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center">
+                Ver todos <i class="fas fa-chevron-right ml-1 text-xs"></i>
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
+        <div class="flex items-center">
+            <div class="p-3 rounded-xl bg-purple-50 text-purple-600 mr-4">
+                <i class="fas fa-clipboard-list fa-lg"></i>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Total Investido</p>
+                <p class="text-2xl font-bold text-gray-900">R$ {{ "%.2f"|format(total_spent) }}</p>
+            </div>
+        </div>
+        <div class="mt-4">
+            <a href="{{ url_for('client_portal.services') }}" class="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center">
+                Histórico de serviços <i class="fas fa-chevron-right ml-1 text-xs"></i>
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
+        <div class="flex items-center">
+            <div class="p-3 rounded-xl {% if pending_payments > 0 %}bg-orange-50 text-orange-600{% else %}bg-green-50 text-green-600{% endif %} mr-4">
+                <i class="fas fa-wallet fa-lg"></i>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Pendências</p>
+                <p class="text-2xl font-bold text-gray-900">R$ {{ "%.2f"|format(pending_payments) }}</p>
+            </div>
+        </div>
+        <div class="mt-4">
+            <a href="{{ url_for('client_portal.payments') }}" class="text-sm text-orange-600 hover:text-orange-700 font-medium flex items-center">
+                Ver faturas <i class="fas fa-chevron-right ml-1 text-xs"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <!-- Recent Services -->
+    <div class="bg-white shadow-sm border border-gray-100 rounded-2xl overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <h3 class="text-lg font-bold text-gray-900">Atividades Recentes</h3>
+            <a href="{{ url_for('client_portal.services') }}" class="text-xs text-primary font-semibold hover:underline">VER TODAS</a>
+        </div>
+        <div class="divide-y divide-gray-50">
+            {% for os in recent_os %}
+            <div class="px-6 py-4 hover:bg-gray-50 transition-colors">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-sm font-bold text-gray-900">OS #{{ os.id }} - {{ os.equipment.name if os.equipment else 'Sem Equip.' }}</p>
+                        <p class="text-xs text-gray-500 mt-1">{{ os.description[:100] }}{% if os.description|length > 100 %}...{% endif %}</p>
+                        <div class="flex items-center mt-2 space-x-3">
+                            <span class="text-[10px] text-gray-400 flex items-center uppercase font-semibold">
+                                <i class="far fa-calendar-alt mr-1"></i> {{ os.created_at.strftime('%d/%m/%Y') }}
+                            </span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase
+                                {% if os.status == 'Pending' %}bg-yellow-100 text-yellow-800
+                                {% elif os.status == 'In Progress' %}bg-blue-100 text-blue-800
+                                {% elif os.status == 'Completed' %}bg-green-100 text-green-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ os.status }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-bold text-gray-900">R$ {{ "%.2f"|format(os.total_value) }}</p>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="px-6 py-10 text-center">
+                <p class="text-sm text-gray-400">Nenhuma ordem de serviço encontrada.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Contact Card -->
+    <div class="bg-gradient-to-br from-primary to-blue-700 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden">
+        <div class="relative z-10">
+            <h3 class="text-2xl font-bold mb-4">Precisa de ajuda técnica?</h3>
+            <p class="text-blue-100 mb-8 max-w-sm">Nossa equipe está pronta para lhe atender. Solicite uma manutenção preventiva ou reporte um problema agora mesmo.</p>
+            <div class="space-y-6 pr-2">
+                <!-- WhatsApp Fixo -->
+                <div class="flex items-center">
+                    <a href="https://wa.me/5585996611158" target="_blank" class="flex items-center hover:text-green-300 transition-colors group">
+                        <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center mr-4 group-hover:bg-white/30 transition-all">
+                            <i class="fab fa-whatsapp text-lg"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-blue-200">WhatsApp Suporte</p>
+                            <p class="text-lg font-bold">(85) 99661-1158</p>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Emails dos Admins -->
+                <div class="space-y-4 pt-4 border-t border-white/10">
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-blue-200 mb-2">E-mail para Contato</p>
+                    {% for admin in admins %}
+                    <a href="mailto:{{ admin.email }}" class="flex items-center hover:text-blue-100 transition-colors text-sm font-medium">
+                        <div class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center mr-3">
+                            <i class="fas fa-envelope text-xs"></i>
+                        </div>
+                        {{ admin.email }}
+                    </a>
+                    {% else %}
+                    <p class="text-xs text-blue-200 italic">E-mail não disponível.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <!-- Decorative blobs -->
+        <div class="absolute -bottom-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+        <div class="absolute top-10 -left-10 w-20 h-20 bg-blue-400/20 rounded-full blur-2xl"></div>
+    </div>
+</div>
+{% endblock %}

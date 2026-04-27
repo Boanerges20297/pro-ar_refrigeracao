@@ -30,6 +30,8 @@ def permission_level_required(*levels):
                     return redirect(url_for("secretary.dashboard"))
                 elif user and user.permission_level == 'user':
                     return redirect(url_for("tech.dashboard"))
+                elif user and user.permission_level == 'client':
+                    return redirect(url_for("client_portal.dashboard"))
                 else:
                     return redirect(url_for("auth.login"))
 
@@ -68,6 +70,8 @@ def license_feature_required(feature_name):
                 return redirect(url_for('secretary.dashboard'))
             if user and user.permission_level == 'user':
                 return redirect(url_for('tech.dashboard'))
+            if user and user.permission_level == 'client':
+                return redirect(url_for('client_portal.dashboard'))
             return redirect(url_for('auth.login'))
 
         return decorator

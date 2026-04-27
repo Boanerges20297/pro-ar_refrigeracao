@@ -532,8 +532,8 @@ As notificações são carregadas no contexto global via `app.utils.notification
 - Python 3.10 ou superior
 - pip
 - ambiente virtual recomendado
-- SQLite para desenvolvimento
-- PostgreSQL recomendado para produção
+- **Desenvolvimento:** SQLite (praticidade e zero configuração local)
+- **Produção:** PostgreSQL (recomendado para alta performance e concorrência na VPS)
 
 ## Instalação
 
@@ -610,9 +610,19 @@ $env:LICENSE_ALLOW_LEGACY_TOKENS = "false"
 
 ## Banco de Dados e Migrações
 
-O projeto usa Alembic via Flask-Migrate.
+O projeto usa Alembic via Flask-Migrate para gerenciar o schema em ambos os ambientes.
 
-Comandos principais:
+### SQLite (Desenvolvimento)
+- O arquivo fica em `instance/pronto_ar.db`.
+- Representa o estado local e não deve ser enviado ao servidor.
+- Para buscas genéricas (sem acento), o sistema registra uma função customizada `unaccent` no motor do SQLite ao iniciar o app.
+
+### PostgreSQL (Produção/VPS)
+- Configurado via `DATABASE_URL` no `.env` do servidor.
+- Utiliza o driver `psycopg`.
+- **Nota sobre Busca:** Para garantir que a busca de clientes (autocomplete) funcione de forma idêntica e sem erros em ambos os bancos, o sistema utiliza uma **filtragem em nível de aplicação (Python)**. Isso evita a necessidade de instalar extensões complexas como `unaccent` no Postgres da VPS, mantendo o sistema leve e compatível.
+
+### Comandos de Migração
 
 ```bash
 flask db upgrade
@@ -620,15 +630,9 @@ flask db migrate -m "descricao"
 flask db downgrade
 ```
 
-Migração relevante do estado atual:
-
-- criação da tabela `audit_log`;
-- criação da tabela `license` para armazenamento do estado local da licença.
-
-Observação operacional:
-
-- o arquivo SQLite de desenvolvimento fica em `instance/pronto_ar.db`;
-- esse arquivo representa estado local de execução e não deve ser tratado como fonte de verdade de deploy.
+### Migrações Recentes
+- Criação da tabela `audit_log`.
+- Criação da tabela `license` para armazenamento do estado local da licença.
 
 ## Execução
 

@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Editar Funcionário{% endblock %}
+{% block title %}Editar Usuário{% endblock %}
 {% block content %}
 <div class="mb-6">
-    <h2 class="text-2xl font-bold text-gray-800">Editar Funcionário</h2>
+    <h2 class="text-2xl font-bold text-gray-800">Editar Usuário</h2>
 </div>
 
 <div class="bg-white shadow overflow-hidden sm:rounded-lg max-w-2xl mx-auto p-6">
@@ -33,10 +33,21 @@
                     <option value="user" {% if user.permission_level == 'user' %}selected{% endif %}>Técnico (Sem acesso ao admin)</option>
                     <option value="secretary" {% if user.permission_level == 'secretary' %}selected{% endif %}>Secretária (Acesso administrativo limitado)</option>
                     <option value="admin" {% if user.permission_level == 'admin' %}selected{% endif %}>Administrador (Acesso completo)</option>
+                    <option value="client" {% if user.permission_level == 'client' %}selected{% endif %}>Cliente (Acesso apenas aos próprios dados)</option>
                 </select>
             </div>
 
-            <div>
+            <div id="client_selection_group" style="display: {% if user.permission_level == 'client' %}block{% else %}none{% endif %};">
+                <label for="client_id" class="block text-sm font-medium text-gray-700">Empresa Vinculada *</label>
+                <select name="client_id" id="client_id" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                    <option value="">-- Selecione o Cliente --</option>
+                    {% for client in clients %}
+                    <option value="{{ client.id }}" {% if user.client_id == client.id %}selected{% endif %}>{{ client.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div id="job_title_group" style="display: {% if user.permission_level == 'client' %}none{% else %}block{% endif %};">
                 <label for="job_title" class="block text-sm font-medium text-gray-700">Função *</label>
                 <select name="job_title" id="job_title" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" onchange="toggleOtherJobTitle()">
                     <option value="Técnico" {% if user.job_title == 'Técnico' %}selected{% endif %}>Técnico</option>
@@ -51,7 +62,7 @@
                 <input type="text" name="other_job_title" id="other_job_title" value="{% if user.job_title not in ['Técnico', 'Recepcionista', 'Administrador'] %}{{ user.job_title }}{% endif %}" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
             </div>
 
-            <div>
+            <div id="specialty_group" style="display: {% if user.permission_level == 'client' %}none{% else %}block{% endif %};">
                 <label for="specialty" class="block text-sm font-medium text-gray-700">Especialidade (Opcional - p/ Técnicos)</label>
                 <input type="text" name="specialty" id="specialty" value="{{ user.specialty or '' }}" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
             </div>
@@ -60,6 +71,13 @@
                 <input id="is_active" name="is_active" type="checkbox" {% if user.is_active %}checked{% endif %} class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
                 <label for="is_active" class="ml-2 block text-sm text-gray-900">
                     Ativo (Permite acesso ao sistema)
+                </label>
+            </div>
+
+            <div class="flex items-center mt-2">
+                <input id="must_change_password" name="must_change_password" type="checkbox" {% if user.must_change_password %}checked{% endif %} class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                <label for="must_change_password" class="ml-2 block text-sm text-gray-900">
+                    Exigir mudança de senha no próximo acesso
                 </label>
             </div>
 
@@ -84,5 +102,23 @@ function toggleOtherJobTitle() {
         group.style.display = "none";
     }
 }
+
+document.getElementById("permission_level").addEventListener("change", function() {
+    var clientGroup = document.getElementById("client_selection_group");
+    var jobTitleGroup = document.getElementById("job_title_group");
+    var specialtyGroup = document.getElementById("specialty_group");
+    
+    if (this.value === "client") {
+        clientGroup.style.display = "block";
+        document.getElementById("client_id").required = true;
+        jobTitleGroup.style.display = "none";
+        specialtyGroup.style.display = "none";
+    } else {
+        clientGroup.style.display = "none";
+        document.getElementById("client_id").required = false;
+        jobTitleGroup.style.display = "block";
+        specialtyGroup.style.display = "block";
+    }
+});
 </script>
 {% endblock %}

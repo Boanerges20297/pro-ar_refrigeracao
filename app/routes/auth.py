@@ -105,6 +105,8 @@ def login():
                 redirect_url = url_for('admin.dashboard')
             elif user.permission_level == 'secretary':
                 redirect_url = url_for('secretary.dashboard')
+            elif user.permission_level == 'client':
+                redirect_url = url_for('client_portal.dashboard')
             else:
                 redirect_url = url_for('tech.dashboard')
 
@@ -213,6 +215,8 @@ def reset_password(token):
             redirect_url = url_for('admin.dashboard')
         elif user.permission_level == 'secretary':
             redirect_url = url_for('secretary.dashboard')
+        elif user.permission_level == 'client':
+            redirect_url = url_for('client_portal.dashboard')
         else:
             redirect_url = url_for('tech.dashboard')
 

@@ -177,7 +177,7 @@
                     {% if current_user.permission_level == 'admin' %}
                     <div class="flex max-w-4xl flex-wrap items-center justify-center gap-x-1 gap-y-1">
                         <a href="{{ url_for('admin.dashboard') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('admin.dashboard') %}active{% endif %}">Dashboard Admin</a>
-                        <a href="{{ url_for('tech.list_technicians') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/tech/list' in request.path or '/tech/edit' in request.path or '/tech/add' in request.path %}active{% endif %}">Funcionários</a>
+                        <a href="{{ url_for('tech.list_technicians') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/tech/list' in request.path or '/tech/edit' in request.path or '/tech/add' in request.path %}active{% endif %}">Usuários</a>
                         <a href="{{ url_for('admin.settings') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('admin.settings') %}active{% endif %}">Configurações</a>
                         {% if has_license_feature('audit') %}
                         <a href="{{ url_for('admin.audit_logs') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/admin/audit-logs' in request.path %}active{% endif %}">Logs</a>
@@ -197,20 +197,28 @@
                     <div class="flex items-center flex-nowrap justify-center gap-x-1 min-w-0">
                         {% if current_user.permission_level == 'secretary' %}
                         <a href="{{ url_for('secretary.dashboard') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('secretary.dashboard') %}active{% endif %}">Dashboard</a>
+                        {% elif current_user.permission_level == 'client' %}
+                        <a href="{{ url_for('client_portal.dashboard') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('client_portal.dashboard') %}active{% endif %}">Início</a>
+                        <a href="{{ url_for('client_portal.equipments') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('client_portal.equipments') %}active{% endif %}">Meus Equipamentos</a>
+                        <a href="{{ url_for('client_portal.services') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('client_portal.services') %}active{% endif %}">Serviços</a>
+                        <a href="{{ url_for('client_portal.payments') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('client_portal.payments') %}active{% endif %}">Financeiro</a>
                         {% else %}
                         <a href="{{ url_for('tech.dashboard') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('tech.dashboard') %}active{% endif %}">Meu Dashboard</a>
                         {% endif %}
+                        
+                        {% if current_user.permission_level != 'client' %}
                         <a href="{{ url_for('clients.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/clients' in request.path %}active{% endif %}">Clientes</a>
                         <a href="{{ url_for('equipment.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/equipment' in request.path %}active{% endif %}">Equipamentos</a>
                         <a href="{{ url_for('services.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/services' in request.path %}active{% endif %}">Serviços</a>
                         {% if has_license_feature('maintenance') %}
                         <a href="{{ url_for('maintenance.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/maintenance' in request.path %}active{% endif %}">Manutenção</a>
                         {% endif %}
+                        {% endif %}
                     </div>
                     {% endif %}
                     <div class="flex items-center border-l border-gray-200 border-opacity-30 pl-4 gap-2 flex-shrink-0">
                         <!-- Notifications Bell -->
-                        {% if alerts and alerts.total_count > 0 %}
+                        {% if alerts and alerts.total_count > 0 and current_user.permission_level != 'client' %}
                         <div class="relative group">
                             <button onclick="toggleNotifications()" class="relative p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-all" title="Notificações">
                                 <i class="fas fa-bell text-lg"></i>
@@ -260,7 +268,7 @@
             <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-gray-50 border-b border-gray-200">
                 {% if current_user.permission_level == 'admin' %}
                 <a href="{{ url_for('admin.dashboard') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Dashboard Admin</a>
-                <a href="{{ url_for('tech.list_technicians') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Funcionários</a>
+                <a href="{{ url_for('tech.list_technicians') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Usuários</a>
                 <a href="{{ url_for('admin.settings') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Configurações</a>
             {% if has_license_feature('audit') %}
             <a href="{{ url_for('admin.audit_logs') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Logs de Auditoria</a>
@@ -271,14 +279,22 @@
                 <a href="{{ url_for('finance.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Financeiro</a>
                 {% elif current_user.permission_level == 'secretary' %}
                 <a href="{{ url_for('secretary.dashboard') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Dashboard</a>
+                {% elif current_user.permission_level == 'client' %}
+                <a href="{{ url_for('client_portal.dashboard') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Início</a>
+                <a href="{{ url_for('client_portal.equipments') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Meus Equipamentos</a>
+                <a href="{{ url_for('client_portal.services') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Serviços</a>
+                <a href="{{ url_for('client_portal.payments') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Financeiro</a>
                 {% else %}
                 <a href="{{ url_for('tech.dashboard') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Meu Dashboard</a>
                 {% endif %}
+                
+                {% if current_user.permission_level != 'client' %}
                 <a href="{{ url_for('clients.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Clientes</a>
                 <a href="{{ url_for('equipment.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Equipamentos</a>
                 <a href="{{ url_for('services.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Serviços</a>
                 {% if has_license_feature('maintenance') %}
                 <a href="{{ url_for('maintenance.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Manutenção</a>
+                {% endif %}
                 {% endif %}
             </div>
             <div class="pt-4 pb-3 border-t border-gray-200 bg-gray-50">
@@ -302,7 +318,7 @@
         {% endif %}
     </nav>
 
-    {% if current_user and alerts and alerts.total_count > 0 %}
+    {% if current_user and alerts and alerts.total_count > 0 and current_user.permission_level != 'client' %}
     <div id="notificationsModal" class="hidden fixed inset-0 z-[60] overflow-y-auto bg-gray-900/60 p-3 sm:p-4">
         <div class="mx-auto mt-3 flex min-h-[calc(100vh-1.5rem)] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl sm:mt-8 sm:min-h-0 sm:max-h-[86vh]">
             <div class="flex flex-col gap-4 border-b border-gray-100 px-4 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-8">

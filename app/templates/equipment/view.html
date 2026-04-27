@@ -3,7 +3,11 @@
 {% block content %}
 <div class="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
     <h2 class="text-2xl font-bold text-gray-800">Detalhes do Equipamento</h2>
+    {% if current_user.permission_level == 'client' %}
+    <a href="{{ url_for('client_portal.equipments') }}" class="text-gray-600 hover:text-primary text-center sm:text-right"><i class="fas fa-arrow-left mr-1"></i> Voltar</a>
+    {% else %}
     <a href="{{ url_for('equipment.index') }}" class="text-gray-600 hover:text-primary text-center sm:text-right"><i class="fas fa-arrow-left mr-1"></i> Voltar</a>
+    {% endif %}
 </div>
 
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -39,12 +43,14 @@
             </dl>
         </div>
 
+        {% if current_user.permission_level != 'client' %}
         <div class="mt-6 space-y-3">
             <a href="{{ url_for('services.add') }}?equipment_id={{ equip.id }}&client_id={{ equip.owner.id }}"
                class="w-full bg-primary hover:opacity-90 text-white font-bold py-2 px-4 rounded text-center block text-sm">
                 <i class="fas fa-plus mr-2"></i>Criar Nova OS
             </a>
         </div>
+        {% endif %}
     </div>
 
     <!-- QR Code Card -->
@@ -55,13 +61,20 @@
         {% if equip.qr_code_path %}
             <div id="qr-print-area" class="border border-gray-200 rounded-lg p-4 bg-gray-50 flex flex-col items-center gap-2 w-full">
                 <img src="{{ equip.qr_code_path }}" alt="QR Code"
+                     {% if current_user.permission_level != 'client' %}
                      onclick="askPrint()"
                      title="Clique para imprimir"
-                     class="w-full max-w-xs h-auto object-contain cursor-pointer transition-transform duration-150 hover:scale-105 active:scale-95 rounded-lg">
+                     class="w-full max-w-xs h-auto object-contain cursor-pointer transition-transform duration-150 hover:scale-105 active:scale-95 rounded-lg"
+                     {% else %}
+                     class="w-full max-w-xs h-auto object-contain rounded-lg"
+                     {% endif %}>
                 <p class="text-xs text-gray-400 text-center font-mono">{{ equip.serial_number or ('ID-' + equip.id|string) }}</p>
                 <p class="text-xs text-gray-400 text-center">{{ equip.name }}</p>
+                {% if current_user.permission_level != 'client' %}
                 <p class="text-[10px] text-gray-300 italic">Clique na imagem para imprimir</p>
+                {% endif %}
             </div>
+            {% if current_user.permission_level != 'client' %}
             <div class="flex flex-col sm:flex-row gap-2 mt-4 w-full">
                 <a href="{{ equip.qr_code_path }}" download="qrcode_{{ equip.serial_number or equip.id }}.png"
                    class="flex-1 text-center text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-3 rounded-md transition">
@@ -72,16 +85,19 @@
                     <i class="fas fa-print mr-1"></i> Imprimir
                 </button>
             </div>
+            {% endif %}
         {% else %}
             <div class="text-center py-6 text-gray-400 w-full">
                 <i class="fas fa-qrcode text-5xl mb-3"></i>
-                <p class="text-sm">QR Code não gerado ainda.</p>
+                <p class="text-sm">QR Code não disponível.</p>
+                {% if current_user.permission_level != 'client' %}
                 <form method="POST" action="{{ url_for('equipment.regenerate_qr', equip_id=equip.id) }}" class="mt-3">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="text-xs bg-primary text-white px-4 py-2 rounded-md hover:opacity-90">
                         <i class="fas fa-sync mr-1"></i> Gerar QR Code
                     </button>
                 </form>
+                {% endif %}
             </div>
         {% endif %}
     </div>
@@ -175,14 +191,14 @@ document.getElementById('print-confirm-modal').addEventListener('click', functio
                         <p class="text-xs text-gray-500 mt-1">
                             Status: <span class="font-semibold">{{ wo.status }}</span> | Técnico: {{ wo.technician.name if wo.technician else 'N/A' }}
                         </p>
-                        {% if wo.description %}
+                        {% if wo.description and current_user.permission_level != 'client' %}
                         <p class="text-xs text-gray-600 italic mt-2 bg-gray-50 p-2 rounded border-l-4 border-gray-200">
                             "{{ wo.description }}"
                         </p>
                         {% endif %}
 
                         <!-- Photos -->
-                        {% if wo.photo_before or wo.photo_after %}
+                        {% if (wo.photo_before or wo.photo_after) and current_user.permission_level != 'client' %}
                         <div class="flex gap-4 mt-3 overflow-x-auto pb-2">
                             {% if wo.photo_before %}
                             <div class="flex flex-col flex-shrink-0">

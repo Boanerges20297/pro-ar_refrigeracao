@@ -226,10 +226,13 @@ def create_app(config_class=Config):
         current_user = getattr(g, 'current_user', None)
 
         if g.license_state['status'] in {'expiring', 'expired', 'invalid'}:
-            last_notice_key = session.get('license_notice_key')
-            if last_notice_key != g.license_state['notice_key']:
-                flash(g.license_state['message'], g.license_state['flash_category'])
-                session['license_notice_key'] = g.license_state['notice_key']
+            # Apenas administradores e secretários vêem avisos de licença
+            is_staff = current_user and current_user.permission_level in {'admin', 'secretary'}
+            if is_staff:
+                last_notice_key = session.get('license_notice_key')
+                if last_notice_key != g.license_state['notice_key']:
+                    flash(g.license_state['message'], g.license_state['flash_category'])
+                    session['license_notice_key'] = g.license_state['notice_key']
 
         if not g.license_state['blocking']:
             return None
@@ -359,6 +362,7 @@ def create_app(config_class=Config):
     from app.routes.maintenance import maint_bp
     from app.routes.reports import reports_bp
     from app.routes.finance import finance_bp
+    from app.routes.client_portal import client_portal_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -371,5 +375,6 @@ def create_app(config_class=Config):
     app.register_blueprint(maint_bp, url_prefix='/maintenance')
     app.register_blueprint(reports_bp, url_prefix='/reports')
     app.register_blueprint(finance_bp, url_prefix='/admin/finance')
+    app.register_blueprint(client_portal_bp)
 
     return app

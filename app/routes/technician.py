@@ -227,6 +227,9 @@ def normalize_job_title(permission_level, job_title, other_job_title=None):
 @tech_bp.route('/add', methods=['GET', 'POST'])
 @roles_required('admin')
 def add_technician():
+    from app.models.client import Client
+    clients = Client.query.order_by(Client.name.asc()).all()
+
     if request.method == 'POST':
         name = request.form.get('name')
         email = normalize_email(request.form.get('email'))
@@ -234,6 +237,22 @@ def add_technician():
         specialty = request.form.get('specialty')
         is_active = request.form.get('is_active') == 'on'
         permission_level = request.form.get('permission_level', 'user')
+        client_id = request.form.get('client_id')
+        must_change_password = request.form.get('must_change_password') == 'on'
+
+        job_title = normalize_job_title(
+            permission_level,
+            request.form.get('job_title'),
+            request.form.get('other_job_title')
+        )
+
+        if permission_level == 'client':
+            job_title = 'Cliente'
+            if not client_id:
+                flash('Para o perfil Cliente, é obrigatório selecionar uma empresa vinculada.', 'danger')
+                return render_template('technician/add.html', clients=clients)
+        else:
+            client_id = None
         job_title = normalize_job_title(
             permission_level,
             request.form.get('job_title'),
@@ -250,26 +269,38 @@ def add_technician():
             return render_template('technician/add.html')
 
         if User.query.filter_by(email=email).first():
-            flash('Já existe um funcionário cadastrado com este e-mail.', 'danger')
+            flash('Já existe um usuário cadastrado com este e-mail.', 'danger')
             return render_template('technician/add.html')
 
         limit_error = check_user_limit(permission_level=permission_level, is_active=is_active)
         if limit_error:
             flash(limit_error, 'danger')
-            return render_template('technician/add.html')
+            return render_template('technician/add.html', clients=clients)
 
-        user = User(name=name, email=email, role='technician', permission_level=permission_level, job_title=job_title, specialty=specialty, is_active=is_active)
+        user = User(
+            name=name, 
+            email=email, 
+            role='technician', 
+            permission_level=permission_level, 
+            job_title=job_title, 
+            specialty=specialty, 
+            is_active=is_active,
+            client_id=client_id,
+            must_change_password=must_change_password
+        )
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
-        flash('Funcionário adicionado com sucesso!', 'success')
+        flash('Usuário adicionado com sucesso!', 'success')
         return redirect(url_for('tech.list_technicians'))
-    return render_template('technician/add.html')
+    return render_template('technician/add.html', clients=clients)
 
 @tech_bp.route('/edit/<int:user_id>', methods=['GET', 'POST'])
 @roles_required('admin')
 def edit_technician(user_id):
     user = User.query.get_or_404(user_id)
+    from app.models.client import Client
+    clients = Client.query.order_by(Client.name.asc()).all()
 
     if request.method == 'POST':
         name = request.form.get('name')
@@ -277,6 +308,8 @@ def edit_technician(user_id):
         specialty = request.form.get('specialty')
         is_active = request.form.get('is_active') == 'on'
         permission_level = request.form.get('permission_level', 'user')
+        client_id = request.form.get('client_id')
+        must_change_password = request.form.get('must_change_password') == 'on'
         job_title = normalize_job_title(
             permission_level,
             request.form.get('job_title'),
@@ -295,7 +328,7 @@ def edit_technician(user_id):
 
         existing_user = User.query.filter(User.email == email, User.id != user.id).first()
         if existing_user:
-            flash('Já existe um funcionário cadastrado com este e-mail.', 'danger')
+            flash('Já existe um usuário cadastrado com este e-mail.', 'danger')
             return render_template('technician/edit.html', user=user)
 
         limit_error = check_user_limit(permission_level=permission_level, existing_user=user, is_active=is_active)
@@ -309,12 +342,18 @@ def edit_technician(user_id):
         user.is_active = is_active
         user.permission_level = permission_level
         user.job_title = job_title
+        user.must_change_password = must_change_password
+        
+        if permission_level == 'client':
+            user.client_id = client_id
+        else:
+            user.client_id = None
 
         if password:
             user.set_password(password)
 
         db.session.commit()
-        flash('Funcionário atualizado com sucesso!', 'success')
+        flash('Usuário atualizado com sucesso!', 'success')
         return redirect(url_for('tech.list_technicians'))
 
-    return render_template('technician/edit.html', user=user)
+    return render_template('technician/edit.html', user=user, clients=clients)

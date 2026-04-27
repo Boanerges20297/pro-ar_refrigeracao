@@ -58,39 +58,39 @@
 
             <div>
                 <label for="technician_id" class="block text-sm font-medium text-gray-700">Técnico Responsável</label>
-                <select id="technician_id" name="technician_id" class="mt-1 block w-full bg-gray-100 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none sm:text-sm" {% if current_user.permission_level == 'user' or is_completed_locked %}disabled{% endif %}>
+                <select id="technician_id" name="technician_id" class="mt-1 block w-full bg-gray-100 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none sm:text-sm" {% if current_user.permission_level == 'user' or current_user.permission_level == 'client' or is_completed_locked %}disabled{% endif %}>
                     <option value="" {% if not wo.technician_id %}selected{% endif %}>Não atribuído</option>
                     {% for tech in technicians %}
                         <option value="{{ tech.id }}" {% if wo.technician_id == tech.id %}selected{% endif %}>{{ tech.name }}</option>
                     {% endfor %}
                 </select>
-                {% if current_user.permission_level == 'user' or is_completed_locked %}<input type="hidden" name="technician_id" value="{{ wo.technician_id or '' }}">{% endif %}
+                {% if current_user.permission_level == 'user' or current_user.permission_level == 'client' or is_completed_locked %}<input type="hidden" name="technician_id" value="{{ wo.technician_id or '' }}">{% endif %}
             </div>
 
             <div>
                 <label for="scheduled_date" class="block text-sm font-medium text-gray-700">Data e Hora Agendada</label>
-                <input type="datetime-local" name="scheduled_date" id="scheduled_date" value="{{ wo.scheduled_date.strftime('%Y-%m-%dT%H:%M') if wo.scheduled_date else '' }}" class="mt-1 block w-full bg-gray-100 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none sm:text-sm" {% if current_user.permission_level == 'user' or is_completed_locked %}disabled{% endif %}>
+                <input type="datetime-local" name="scheduled_date" id="scheduled_date" value="{{ wo.scheduled_date.strftime('%Y-%m-%dT%H:%M') if wo.scheduled_date else '' }}" class="mt-1 block w-full bg-gray-100 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none sm:text-sm" {% if current_user.permission_level == 'user' or current_user.permission_level == 'client' or is_completed_locked %}disabled{% endif %}>
             </div>
 
             <div>
                 <label for="status" class="block text-sm font-medium text-gray-700">Status da OS *</label>
-                <select id="status" name="status" required class="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" {% if is_completed_locked %}disabled{% endif %}>
+                <select id="status" name="status" required class="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" {% if current_user.permission_level == 'client' or is_completed_locked %}disabled{% endif %}>
                     <option value="Pending" {% if wo.status == 'Pending' %}selected{% endif %}>Pendente</option>
                     <option value="In Progress" {% if wo.status == 'In Progress' %}selected{% endif %}>Em Progresso</option>
                     <option value="Completed" {% if wo.status == 'Completed' %}selected{% endif %}>Concluído</option>
                     <option value="Canceled" {% if wo.status == 'Canceled' %}selected{% endif %}>Cancelado</option>
                 </select>
-                {% if is_completed_locked %}<input type="hidden" name="status" value="{{ wo.status }}">{% endif %}
+                {% if current_user.permission_level == 'client' or is_completed_locked %}<input type="hidden" name="status" value="{{ wo.status }}">{% endif %}
             </div>
 
             <div>
                 <label for="total_value" class="block text-sm font-medium text-gray-700">Valor Cobrado (R$)</label>
-                <input type="number" step="0.01" min="0" name="total_value" id="total_value" value="{{ "%.2f"|format(wo.total_value) if wo.total_value else '0.00' }}" class="mt-1 block w-full bg-gray-100 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none sm:text-sm" {% if current_user.permission_level == 'user' or is_completed_locked %}disabled{% endif %}>
+                <input type="number" step="0.01" min="0" name="total_value" id="total_value" value="{{ "%.2f"|format(wo.total_value) if wo.total_value else '0.00' }}" class="mt-1 block w-full bg-gray-100 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none sm:text-sm" {% if current_user.permission_level == 'user' or current_user.permission_level == 'client' or is_completed_locked %}disabled{% endif %}>
             </div>
 
             <div class="flex items-center">
                 <div class="flex h-5 items-center">
-                    <input id="is_paid" name="is_paid" type="checkbox" {% if wo.is_paid %}checked{% endif %} class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" {% if is_completed_locked %}disabled{% endif %}>
+                    <input id="is_paid" name="is_paid" type="checkbox" {% if wo.is_paid %}checked{% endif %} class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" {% if current_user.permission_level == 'client' or is_completed_locked %}disabled{% endif %}>
                 </div>
                 <div class="ml-3 text-sm">
                     <label for="is_paid" class="font-medium text-gray-700">Marcar como Pago</label>
@@ -107,7 +107,7 @@
                     </div>
                     <button type="button" id="btnNovaDepesa"
                         onclick="openExpenseModal()"
-                        class="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 whitespace-nowrap">
+                        class="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 whitespace-nowrap {% if current_user.permission_level == 'client' %}opacity-50 cursor-not-allowed{% endif %}" {% if current_user.permission_level == 'client' %}disabled{% endif %}>
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
                         Nova Despesa
                     </button>
@@ -159,8 +159,8 @@
 
             <div class="md:col-span-2">
                 <label for="description" class="block text-sm font-medium text-gray-700">Observações / Descrição do Problema</label>
-                <textarea id="description" name="description" rows="3" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" {% if is_completed_locked %}disabled{% endif %}>{{ wo.description or '' }}</textarea>
-                {% if is_completed_locked %}<input type="hidden" name="description" value="{{ wo.description or '' }}">{% endif %}
+                <textarea id="description" name="description" rows="3" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" {% if current_user.permission_level == 'client' or is_completed_locked %}disabled{% endif %}>{{ wo.description or '' }}</textarea>
+                {% if current_user.permission_level == 'client' or is_completed_locked %}<input type="hidden" name="description" value="{{ wo.description or '' }}">{% endif %}
             </div>
 
             <!-- Photos Section -->
@@ -205,7 +205,7 @@
                 </button>
                 {% endif %}
 
-                <button type="submit" class="w-full sm:w-auto inline-flex justify-center bg-primary border border-transparent rounded-md shadow-sm py-2 px-4 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {% if is_completed_locked %}disabled{% endif %}>
+                <button type="submit" class="w-full sm:w-auto inline-flex justify-center bg-primary border border-transparent rounded-md shadow-sm py-2 px-4 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary {% if current_user.permission_level == 'client' %}hidden{% endif %}" {% if is_completed_locked %}disabled{% endif %}>
                     Salvar Alterações
                 </button>
             </div>
