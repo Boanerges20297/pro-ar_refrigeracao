@@ -441,7 +441,7 @@ if (addWOForm) {
             }
 
             debounceTimer = setTimeout(() => {
-                fetch(`/clients/search?q=${encodeURIComponent(query)}`)
+                fetch(`/clients/search?q=${encodeURIComponent(query)}&_=${new Date().getTime()}`)
                     .then(response => response.json())
                     .then(data => {
                         renderResults(data);

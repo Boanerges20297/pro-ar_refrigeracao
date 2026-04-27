@@ -5,7 +5,8 @@ from app.models.user import User
 from app import db
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.utils.decorators import roles_required, get_technician_client_ids
-from sqlalchemy import or_
+from sqlalchemy import or_, func
+from app.utils.text import remove_accents
 
 clients_bp = Blueprint('clients', __name__)
 
@@ -31,13 +32,13 @@ def index():
             query = query.filter(Client.id == None)
 
     if search:
-        search_term = f'%{search}%'
+        search_term = f'%{remove_accents(search)}%'
         query = query.filter(
             or_(
-                Client.name.ilike(search_term),
-                Client.email.ilike(search_term),
-                Client.phone.ilike(search_term),
-                Client.address.ilike(search_term),
+                func.unaccent(Client.name).like(search_term),
+                func.unaccent(Client.email).like(search_term),
+                func.unaccent(Client.phone).like(search_term),
+                func.unaccent(Client.address).like(search_term),
             )
         )
 
@@ -121,15 +122,17 @@ def search_clients():
         else:
             query = query.filter(Client.id == None)
 
-    search_term = f'%{query_str}%'
+    # Normalize query for accent-insensitive search
+    search_term = f'%{remove_accents(query_str)}%'
+    
     clients = query.filter(
         or_(
-            Client.name.ilike(search_term),
-            Client.email.ilike(search_term),
-            Client.phone.ilike(search_term),
-            Client.address.ilike(search_term)
+            func.unaccent(Client.name).like(search_term),
+            func.unaccent(Client.email).like(search_term),
+            func.unaccent(Client.phone).like(search_term),
+            func.unaccent(Client.address).like(search_term)
         )
-    ).limit(10).all()
+    ).order_by(Client.created_at.desc()).limit(10).all()
     
     results = [
         {
@@ -140,4 +143,9 @@ def search_clients():
             'address': c.address
         } for c in clients
     ]
-    return jsonify(results)
+    
+    response = jsonify(results)
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response

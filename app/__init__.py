@@ -17,6 +17,7 @@ from werkzeug.exceptions import RequestEntityTooLarge
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from app.utils.security import build_password_version, build_user_agent_fingerprint, is_same_origin_request
+from app.utils.text import remove_accents
 
 
 db = SQLAlchemy()
@@ -50,13 +51,15 @@ def _resolve_logo_path(config):
 
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
-    if isinstance(dbapi_connection, sqlite3.Connection):
+    # Check if it's a sqlite connection (either directly or via a wrapper)
+    if hasattr(dbapi_connection, 'create_function'):
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA synchronous=NORMAL")
         cursor.execute("PRAGMA busy_timeout=30000")
         cursor.execute("PRAGMA wal_autocheckpoint=1000")
         cursor.execute("PRAGMA foreign_keys=ON")
+        dbapi_connection.create_function("unaccent", 1, remove_accents)
         cursor.close()
 
 
