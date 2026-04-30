@@ -1,28 +1,22 @@
-import os
+from dotenv import load_dotenv
+load_dotenv()
+
 from app import create_app, db
 from sqlalchemy import text
 
 app = create_app()
 with app.app_context():
+    print("Conectado a:", app.config['SQLALCHEMY_DATABASE_URI'])
     try:
         # Verifica o que tem no banco
         result = db.session.execute(text("SELECT * FROM alembic_version")).fetchall()
-        print("Banco (alembic_version) ->", result)
+        print("Antes do reparo, o banco tinha:", result)
 
-        print("\nArquivos na pasta migrations/versions:")
-        versions_dir = 'migrations/versions'
-        for root, dirs, files in os.walk(versions_dir):
-            for file in files:
-                if file.endswith('.py') or file.endswith('.pyc'):
-                    print(file)
-                    
-        print("\nLendo arquivos para achar quem tem down_revision = '1a2b3c4d5e6f'...")
-        for file in os.listdir(versions_dir):
-            if file.endswith('.py'):
-                with open(os.path.join(versions_dir, file), 'r') as f:
-                    content = f.read()
-                    if '1a2b3c4d5e6f' in content:
-                        print(f"ACHEI A REFERENCIA NO ARQUIVO: {file}")
-
+        # Deleta tudo e forca a versao base
+        db.session.execute(text("DELETE FROM alembic_version"))
+        db.session.execute(text("INSERT INTO alembic_version (version_num) VALUES ('cafd02fb47b0')"))
+        db.session.commit()
+        
+        print("Agora o Postgres tem apenas cafd02fb47b0!")
     except Exception as e:
-        print("Erro:", e)
+        print("Erro profundo:", e)
