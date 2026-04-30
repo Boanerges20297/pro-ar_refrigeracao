@@ -66,10 +66,10 @@ docs/
 license_api/data/
 license_api/keys/
 
-# SQLite local em fase de testes: manter versionado por enquanto
-!instance/*.db
-!instance/*.db-wal
-!instance/*.db-shm
+# SQLite local: não deve ser versionado para evitar sobrescrever a produção
+instance/*.db
+instance/*.db-wal
+instance/*.db-shm
 
 # Arquivoa de deploy
 *.ps1
