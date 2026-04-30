@@ -1,13 +1,23 @@
 {% extends "base.html" %}
 {% block title %}Área do Cliente - {{ client.name }}{% endblock %}
 {% block content %}
-<div class="mb-8 flex justify-between items-center">
+<div class="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
     <div>
         <h2 class="text-3xl font-extrabold text-gray-900 tracking-tight">Bem-vindo, {{ client.name }}</h2>
         <p class="text-sm text-gray-500 mt-1">Acompanhe seus equipamentos e serviços contratados.</p>
     </div>
-    <div class="flex items-center space-x-4">
-        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+    <div class="flex flex-col sm:items-end space-y-2">
+        {% if all_clients %}
+        <div class="relative inline-block text-left">
+            <label for="client_switcher" class="sr-only">Trocar Empresa</label>
+            <select id="client_switcher" onchange="window.location.href='?client_id=' + this.value" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md">
+                {% for c in all_clients %}
+                <option value="{{ c.id }}" {% if c.id == client.id %}selected{% endif %}>{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 self-start sm:self-auto">
             Cliente Ativo
         </span>
     </div>
@@ -26,7 +36,7 @@
             </div>
         </div>
         <div class="mt-4">
-            <a href="{{ url_for('client_portal.equipments') }}" class="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center">
+            <a href="{{ url_for('client_portal.equipments', client_id=client.id) }}" class="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center">
                 Ver todos <i class="fas fa-chevron-right ml-1 text-xs"></i>
             </a>
         </div>
@@ -43,7 +53,7 @@
             </div>
         </div>
         <div class="mt-4">
-            <a href="{{ url_for('client_portal.services') }}" class="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center">
+            <a href="{{ url_for('client_portal.services', client_id=client.id) }}" class="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center">
                 Histórico de serviços <i class="fas fa-chevron-right ml-1 text-xs"></i>
             </a>
         </div>
@@ -60,7 +70,7 @@
             </div>
         </div>
         <div class="mt-4">
-            <a href="{{ url_for('client_portal.payments') }}" class="text-sm text-orange-600 hover:text-orange-700 font-medium flex items-center">
+            <a href="{{ url_for('client_portal.payments', client_id=client.id) }}" class="text-sm text-orange-600 hover:text-orange-700 font-medium flex items-center">
                 Ver faturas <i class="fas fa-chevron-right ml-1 text-xs"></i>
             </a>
         </div>
@@ -72,7 +82,7 @@
     <div class="bg-white shadow-sm border border-gray-100 rounded-2xl overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
             <h3 class="text-lg font-bold text-gray-900">Atividades Recentes</h3>
-            <a href="{{ url_for('client_portal.services') }}" class="text-xs text-primary font-semibold hover:underline">VER TODAS</a>
+            <a href="{{ url_for('client_portal.services', client_id=client.id) }}" class="text-xs text-primary font-semibold hover:underline">VER TODAS</a>
         </div>
         <div class="divide-y divide-gray-50">
             {% for os in recent_os %}

@@ -237,7 +237,7 @@ def add_technician():
         specialty = request.form.get('specialty')
         is_active = request.form.get('is_active') == 'on'
         permission_level = request.form.get('permission_level', 'user')
-        client_id = request.form.get('client_id')
+        client_ids = request.form.getlist('client_ids')
         must_change_password = request.form.get('must_change_password') == 'on'
         cpf = (request.form.get('cpf') or '').strip()
         phone = (request.form.get('phone') or '').strip()
@@ -250,29 +250,24 @@ def add_technician():
 
         if permission_level == 'client':
             job_title = 'Cliente'
-            if not client_id:
-                flash('Para o perfil Cliente, é obrigatório selecionar uma empresa vinculada.', 'danger')
+            if not client_ids:
+                flash('Para o perfil Cliente, é obrigatório selecionar ao menos uma empresa vinculada.', 'danger')
                 return render_template('technician/add.html', clients=clients)
         else:
-            client_id = None
-        job_title = normalize_job_title(
-            permission_level,
-            request.form.get('job_title'),
-            request.form.get('other_job_title')
-        )
+            client_ids = []
 
         # Backend validation for password
         if not is_password_strong(password):
             flash(PASSWORD_POLICY_MESSAGE, 'danger')
-            return render_template('technician/add.html')
+            return render_template('technician/add.html', clients=clients)
 
         if not email:
             flash('Informe um e-mail válido para continuar.', 'danger')
-            return render_template('technician/add.html')
+            return render_template('technician/add.html', clients=clients)
 
         if User.query.filter_by(email=email).first():
             flash('Já existe um usuário cadastrado com este e-mail.', 'danger')
-            return render_template('technician/add.html')
+            return render_template('technician/add.html', clients=clients)
 
         # Mandatory CPF and Phone for non-admin
         if permission_level != 'admin':
@@ -300,11 +295,18 @@ def add_technician():
             job_title=job_title, 
             specialty=specialty, 
             is_active=is_active,
-            client_id=client_id,
+            client_id=int(client_ids[0]) if client_ids else None, # Legacy support
             must_change_password=must_change_password,
             cpf=cpf or None,
             phone=phone or None
         )
+        
+        # Associated clients (Many-to-Many)
+        if client_ids:
+            from app.models.client import Client
+            selected_clients = Client.query.filter(Client.id.in_(client_ids)).all()
+            user.clients = selected_clients
+
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
@@ -325,7 +327,7 @@ def edit_technician(user_id):
         specialty = request.form.get('specialty')
         is_active = request.form.get('is_active') == 'on'
         permission_level = request.form.get('permission_level', 'user')
-        client_id = request.form.get('client_id')
+        client_ids = request.form.getlist('client_ids')
         must_change_password = request.form.get('must_change_password') == 'on'
         cpf = (request.form.get('cpf') or '').strip()
         phone = (request.form.get('phone') or '').strip()
@@ -339,16 +341,16 @@ def edit_technician(user_id):
         if password: # only update if a new password was provided
             if not is_password_strong(password):
                 flash(PASSWORD_POLICY_MESSAGE, 'danger')
-                return render_template('technician/edit.html', user=user)
+                return render_template('technician/edit.html', user=user, clients=clients)
 
         if not email:
             flash('Informe um e-mail válido para continuar.', 'danger')
-            return render_template('technician/edit.html', user=user)
+            return render_template('technician/edit.html', user=user, clients=clients)
 
         existing_user = User.query.filter(User.email == email, User.id != user.id).first()
         if existing_user:
             flash('Já existe um usuário cadastrado com este e-mail.', 'danger')
-            return render_template('technician/edit.html', user=user)
+            return render_template('technician/edit.html', user=user, clients=clients)
 
         # Mandatory CPF and Phone for non-admin
         if permission_level != 'admin':
@@ -368,7 +370,7 @@ def edit_technician(user_id):
         limit_error = check_user_limit(permission_level=permission_level, existing_user=user, is_active=is_active)
         if limit_error:
             flash(limit_error, 'danger')
-            return render_template('technician/edit.html', user=user)
+            return render_template('technician/edit.html', user=user, clients=clients)
 
         user.name = name
         user.email = email
@@ -381,8 +383,16 @@ def edit_technician(user_id):
         user.phone = phone or None
         
         if permission_level == 'client':
-            user.client_id = client_id
+            if not client_ids:
+                flash('Para o perfil Cliente, é obrigatório selecionar ao menos uma empresa vinculada.', 'danger')
+                return render_template('technician/edit.html', user=user, clients=clients)
+            
+            from app.models.client import Client
+            selected_clients = Client.query.filter(Client.id.in_(client_ids)).all()
+            user.clients = selected_clients
+            user.client_id = int(client_ids[0]) if client_ids else None # Legacy support
         else:
+            user.clients = []
             user.client_id = None
 
         if password:

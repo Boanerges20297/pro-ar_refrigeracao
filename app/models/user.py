@@ -2,6 +2,12 @@ from app import db
 from datetime import datetime
 from flask_bcrypt import generate_password_hash, check_password_hash
 
+user_client_association = db.Table('user_client_association',
+    db.Column('id', db.Integer, primary_key=True, autoincrement=True),
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), nullable=False),
+    db.Column('client_id', db.Integer, db.ForeignKey('client.id'), nullable=False)
+)
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -13,6 +19,8 @@ class User(db.Model):
     specialty = db.Column(db.String(100), nullable=True) # E.g., Refrigeration, Electrical
     is_active = db.Column(db.Boolean, default=True)
     must_change_password = db.Column(db.Boolean, default=False, nullable=False)
+    # Deprecated: use 'clients' relationship (many-to-many) instead. 
+    # Kept for backward compatibility during migration.
     client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=True)
     cpf = db.Column(db.String(14), unique=True, nullable=True)
     phone = db.Column(db.String(20), nullable=True)
@@ -20,6 +28,7 @@ class User(db.Model):
 
     # Relationships
     work_orders = db.relationship('WorkOrder', backref='technician', lazy=True)
+    clients = db.relationship('Client', secondary=user_client_association, backref=db.backref('associated_users', lazy='dynamic'))
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password).decode('utf-8')

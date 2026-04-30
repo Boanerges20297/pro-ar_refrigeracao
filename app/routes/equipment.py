@@ -109,7 +109,11 @@ def view_by_serial(serial_number):
                 flash('Você não tem acesso a este equipamento.', 'danger')
                 return redirect(url_for('equipment.index'))
         elif current_user.permission_level == 'client':
-            if not equip or equip.client_id != current_user.client_id:
+            user_client_ids = [c.id for c in current_user.clients]
+            if current_user.client_id and current_user.client_id not in user_client_ids:
+                user_client_ids.append(current_user.client_id)
+                
+            if not equip or equip.client_id not in user_client_ids:
                 flash('Você não tem acesso a este equipamento.', 'danger')
                 return redirect(url_for('client_portal.dashboard'))
     
