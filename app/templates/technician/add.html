@@ -196,11 +196,11 @@ if (dropdownBtn) {
         cb.addEventListener('change', updateSelectedLabel);
     });
 
-    // Search Filtering
+    // Search Filtering with Accent Normalization
     searchInput.addEventListener('input', (e) => {
-        const term = e.target.value.toLowerCase().trim();
+        const term = e.target.value.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         checkboxes.forEach(cb => {
-            const labelText = cb.parentElement.querySelector('span').textContent.toLowerCase();
+            const labelText = cb.parentElement.querySelector('span').textContent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             if (labelText.includes(term)) {
                 cb.parentElement.style.display = 'flex';
             } else {
