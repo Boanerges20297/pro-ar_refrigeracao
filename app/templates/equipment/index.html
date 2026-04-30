@@ -3,9 +3,11 @@
 {% block content %}
 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
     <h2 class="text-2xl font-bold text-gray-800">Equipamentos por Cliente</h2>
+    {% if current_user.permission_level in ['admin', 'secretary'] %}
     <a href="{{ url_for('equipment.add') }}" class="w-full sm:w-auto bg-primary hover:opacity-90 text-white font-bold py-2 px-4 rounded text-center">
         <i class="fas fa-plus mr-2"></i>Novo Equipamento
     </a>
+    {% endif %}
 </div>
 
 <form method="GET" action="{{ url_for('equipment.index') }}" class="mb-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -33,114 +35,173 @@
     {% endif %}
 {% endwith %}
 
-<!-- Desktop View (Table) -->
-<div class="bg-white shadow overflow-hidden sm:rounded-lg hidden sm:block">
-    <table class="w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-            <tr>
-                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
-                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Equipamento</th>
-                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Marca/Modelo</th>
-                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nº Série</th>
-                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Local / Setor</th>
-                <th scope="col" class="relative px-4 py-3">
-                    <span class="sr-only">Ações</span>
-                </th>
-            </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
-            {% for equip in equipments %}
-            <tr class="hover:bg-gray-50 transition-colors">
-                <td class="px-4 py-4 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">{{ equip.owner.name }}</div></td>
-                <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="text-sm font-bold text-gray-900">{{ equip.name }}</div>
-                    {% if equip.serial_number %}
-                    <span class="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 uppercase font-bold">{{ equip.serial_number }}</span>
-                    {% endif %}
-                </td>
-                <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="text-xs text-gray-900 font-semibold">{{ equip.brand or '-' }}</div>
-                    <div class="text-[10px] text-gray-500">{{ equip.model or '-' }}</div>
-                </td>
-                <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="flex items-center">
-                        <i class="fas fa-barcode text-gray-400 mr-2 text-xs"></i>
-                        <span class="text-sm text-gray-500">{{ equip.serial_number or '-' }}</span>
-                    </div>
-                </td>
-                <td class="px-4 py-4 whitespace-nowrap"><div class="text-sm text-gray-500">{{ equip.location or '-' }}</div></td>
-                <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div class="flex items-center justify-end gap-2">
-                        <a href="{{ url_for('equipment.view_by_serial', serial_number=equip.serial_number or equip.id) }}" class="text-gray-600 hover:text-gray-900 bg-gray-100 px-2 py-1 rounded transition-all" title="Ver Detalhes">
-                            <i class="fas fa-eye"></i>
-                        </a>
-                        <a href="{{ url_for('equipment.edit', id=equip.id) }}" class="text-primary hover:text-blue-900 bg-blue-50 px-2 py-1 rounded transition-all" title="Editar">
-                            <i class="fas fa-edit"></i>
-                        </a>
-                    </div>
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="6" class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 text-center">{% if search %}Nenhum equipamento encontrado para o filtro informado.{% else %}Nenhum equipamento cadastrado.{% endif %}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-<!-- Mobile View (Cards) -->
-<div class="sm:hidden space-y-3">
-    {% for equip in equipments %}
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div class="space-y-3">
-            <!-- Header do Card -->
-            <div class="flex items-start justify-between gap-2">
-                <div class="flex-1">
-                    <h3 class="text-sm font-bold text-gray-900">{{ equip.name }}</h3>
-                    <p class="text-xs text-gray-600">{{ equip.owner.name }}</p>
+<!-- Accordion View -->
+<div class="space-y-4">
+    {% for client in clients %}
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <!-- Client Header (Accordion Trigger) -->
+        <button type="button" 
+                onclick="toggleAccordion('client-{{ client.id }}')"
+                class="w-full flex items-center justify-between p-4 sm:p-5 bg-gray-50 hover:bg-gray-100 transition-colors">
+            <div class="flex items-center gap-3">
+                <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-primary font-bold">
+                    {{ client.name[0].upper() }}
+                </div>
+                <div class="text-left">
+                    <h3 class="text-sm sm:text-base font-bold text-gray-900">{{ client.name }}</h3>
+                    <p class="text-xs text-gray-500">{{ client.equipments|length }} Equipamento(s)</p>
                 </div>
             </div>
-
-            <!-- Info Principal -->
-            <div class="space-y-2 text-xs">
-                {% if equip.brand or equip.model %}
-                <div class="flex items-center gap-2">
-                    <span class="font-medium text-gray-600">Marca/Modelo:</span>
-                    <span class="text-gray-900">{{ equip.brand or '-' }} {{ equip.model or '-' }}</span>
-                </div>
-                {% endif %}
-                
-                {% if equip.serial_number %}
-                <div class="flex items-center gap-2">
-                    <i class="fas fa-barcode text-gray-400"></i>
-                    <span class="text-gray-900 font-mono text-xs">{{ equip.serial_number }}</span>
-                </div>
-                {% endif %}
-                
-                {% if equip.location %}
-                <div class="flex items-center gap-2">
-                    <span class="font-medium text-gray-600">Local:</span>
-                    <span class="text-gray-900">{{ equip.location }}</span>
-                </div>
-                {% endif %}
+            <div class="flex items-center gap-4">
+                <i id="icon-client-{{ client.id }}" class="fas fa-chevron-down text-gray-400 transition-transform"></i>
             </div>
+        </button>
 
-            <!-- Botões de Ação -->
-            <div class="flex gap-2 pt-2 border-t border-gray-100">
-                <a href="{{ url_for('equipment.view_by_serial', serial_number=equip.serial_number or equip.id) }}" class="flex-1 text-center text-gray-700 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 px-2 py-2 rounded text-xs font-medium transition-all">
-                    <i class="fas fa-eye mr-1"></i>Ver
-                </a>
-                <a href="{{ url_for('equipment.edit', id=equip.id) }}" class="flex-1 text-center text-primary hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-2 py-2 rounded text-xs font-medium transition-all">
-                    <i class="fas fa-edit mr-1"></i>Editar
-                </a>
+        <!-- Equipment List (Accordion Content) -->
+        <div id="content-client-{{ client.id }}" class="hidden border-t border-gray-200">
+            <div class="overflow-x-auto">
+                <table class="w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">Equipamento</th>
+                            <th class="px-4 py-3 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">Marca/Modelo</th>
+                            <th class="px-4 py-3 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">Série</th>
+                            <th class="px-4 py-3 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">Local</th>
+                            <th class="px-4 py-3 text-right text-[10px] font-bold text-gray-500 uppercase tracking-wider">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        {% for equip in client.equipments %}
+                        <tr class="hover:bg-blue-50/30 transition-colors">
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                <div class="text-sm font-semibold text-gray-900">{{ equip.name }}</div>
+                            </td>
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                <div class="text-xs text-gray-700">{{ equip.brand or '-' }}</div>
+                                <div class="text-[10px] text-gray-500">{{ equip.model or '-' }}</div>
+                            </td>
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                <span class="text-xs font-mono text-gray-600">{{ equip.serial_number or '-' }}</span>
+                            </td>
+                            <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-600">
+                                {{ equip.location or '-' }}
+                            </td>
+                            <td class="px-4 py-3 whitespace-nowrap text-right">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <a href="{{ url_for('equipment.view_by_serial', serial_number=equip.serial_number or equip.id) }}" 
+                                       class="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all" 
+                                       title="Ver Detalhes">
+                                        <i class="fas fa-eye text-sm"></i>
+                                    </a>
+                                    
+                                    {% if current_user.permission_level == 'admin' %}
+                                    <a href="{{ url_for('equipment.edit', id=equip.id) }}" 
+                                       class="p-2 text-primary hover:bg-blue-50 rounded-lg transition-all" 
+                                       title="Editar">
+                                        <i class="fas fa-edit text-sm"></i>
+                                    </a>
+                                    <button type="button" 
+                                            onclick="confirmDelete('{{ equip.id }}', '{{ equip.name }}')"
+                                            class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all" 
+                                            title="Excluir">
+                                        <i class="fas fa-trash-alt text-sm"></i>
+                                    </button>
+                                    <form id="delete-form-{{ equip.id }}" action="{{ url_for('equipment.delete', id=equip.id) }}" method="POST" style="display: none;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
     {% else %}
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center">
-        <p class="text-sm text-gray-500">{% if search %}Nenhum equipamento encontrado para o filtro informado.{% else %}Nenhum equipamento cadastrado.{% endif %}</p>
+    <div class="bg-white border border-dashed border-gray-300 rounded-xl p-12 text-center">
+        <div class="inline-flex items-center justify-center h-16 w-16 rounded-full bg-gray-100 text-gray-400 mb-4">
+            <i class="fas fa-tools text-2xl"></i>
+        </div>
+        <p class="text-gray-500 font-medium">{% if search %}Nenhum cliente ou equipamento encontrado.{% else %}Nenhum equipamento cadastrado.{% endif %}</p>
     </div>
     {% endfor %}
 </div>
+
+<!-- Pagination -->
+{% if pagination.pages > 1 %}
+<div class="mt-8 flex items-center justify-center gap-2">
+    {% if pagination.has_prev %}
+    <a href="{{ url_for('equipment.index', page=pagination.prev_num, search=search) }}" class="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 text-gray-600 transition-all">
+        <i class="fas fa-chevron-left"></i>
+    </a>
+    {% endif %}
+    
+    <div class="flex items-center gap-1">
+        {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if page_num %}
+                {% if page_num == pagination.page %}
+                <span class="h-10 w-10 flex items-center justify-center rounded-lg bg-primary text-white font-bold shadow-md shadow-blue-200">
+                    {{ page_num }}
+                </span>
+                {% else %}
+                <a href="{{ url_for('equipment.index', page=page_num, search=search) }}" class="h-10 w-10 flex items-center justify-center rounded-lg border border-gray-300 hover:bg-gray-50 text-gray-600 transition-all">
+                    {{ page_num }}
+                </a>
+                {% endif %}
+            {% else %}
+                <span class="px-2 text-gray-400">...</span>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    {% if pagination.has_next %}
+    <a href="{{ url_for('equipment.index', page=pagination.next_num, search=search) }}" class="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 text-gray-600 transition-all">
+        <i class="fas fa-chevron-right"></i>
+    </a>
+    {% endif %}
+</div>
+{% endif %}
+
+<script>
+function toggleAccordion(id) {
+    const content = document.getElementById('content-' + id);
+    const icon = document.getElementById('icon-' + id);
+    
+    if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        icon.classList.add('rotate-180');
+    } else {
+        content.classList.add('hidden');
+        icon.classList.remove('rotate-180');
+    }
+}
+
+function confirmDelete(id, name) {
+    Swal.fire({
+        title: 'Excluir Equipamento?',
+        html: `Você está prestes a excluir <b>${name}</b>.<br><br>` +
+              `<div class="text-left text-sm p-3 bg-red-50 border border-red-100 rounded-lg text-red-700">` +
+              `<b>Consequências:</b><br>` +
+              `• Todo o histórico de manutenções preventivas será removido.<br>` +
+              `• Agendamentos futuros serão cancelados.<br>` +
+              `• O QR Code impresso deixará de funcionar.<br>` +
+              `• As Ordens de Serviço permanecerão no histórico geral, mas sem vínculo a este item.` +
+              `</div><br>` +
+              `Tem certeza que deseja continuar?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Sim, excluir permanentemente',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('delete-form-' + id).submit();
+        }
+    });
+}
+</script>
 {% endblock %}

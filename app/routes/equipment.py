@@ -48,27 +48,30 @@ def resolve_equipment_lookup(raw_reference):
 @equip_bp.route('/')
 @roles_required('admin', 'secretary', 'technician')
 def index():
+    page = request.args.get('page', 1, type=int)
+    search = (request.args.get('search') or '').strip()
+    
     # Get current user
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id) if current_user_id else None
-    search = (request.args.get('search') or '').strip()
     
     # Check if user is technician
     is_technician = current_user and current_user.permission_level == 'user'
 
-    query = Equipment.query.join(Equipment.owner)
+    # Query clients who have equipments (or filter by search)
+    client_query = Client.query.join(Client.equipments)
     
     if is_technician:
         # Técnico vê apenas equipamentos de clientes que atendeu
         client_ids = get_technician_client_ids(current_user.id)
         if client_ids:
-            query = query.filter(Equipment.client_id.in_(client_ids))
+            client_query = client_query.filter(Client.id.in_(client_ids))
         else:
-            query = query.filter(Equipment.id == None)
+            client_query = client_query.filter(Client.id == None)
 
     if search:
         search_term = f'%{search}%'
-        query = query.filter(
+        client_query = client_query.filter(
             or_(
                 Client.name.ilike(search_term),
                 Equipment.name.ilike(search_term),
@@ -77,11 +80,17 @@ def index():
                 Equipment.serial_number.ilike(search_term),
                 Equipment.location.ilike(search_term),
             )
-        )
+        ).distinct()
 
-    equipments = query.order_by(Client.name.asc(), Equipment.name.asc()).all()
+    # Paginate by Client (10 per page)
+    pagination = client_query.order_by(Client.name.asc()).paginate(page=page, per_page=10)
+    clients = pagination.items
     
-    return render_template('equipment/index.html', equipments=equipments, search=search)
+    return render_template('equipment/index.html', 
+                           clients=clients, 
+                           pagination=pagination, 
+                           search=search, 
+                           current_user=current_user)
 
 @equip_bp.route('/view/<serial_number>')
 @roles_required('admin', 'secretary', 'technician', 'client')
@@ -157,7 +166,7 @@ def add():
     return render_template('equipment/add.html', has_clients=has_clients)
 
 @equip_bp.route('/edit/<int:id>', methods=['GET', 'POST'])
-@roles_required('admin', 'secretary')
+@roles_required('admin')
 def edit(id):
     equip = Equipment.query.get_or_404(id)
     if request.method == 'POST':
@@ -189,6 +198,22 @@ def edit(id):
         return redirect(url_for('equipment.index'))
         
     return render_template('equipment/edit.html', equip=equip)
+
+@equip_bp.route('/delete/<int:id>', methods=['POST'])
+@roles_required('admin')
+def delete(id):
+    equip = Equipment.query.get_or_404(id)
+    try:
+        # Delete related maintenance schedules first to avoid FK constraint error
+        MaintenanceSchedule.query.filter_by(equipment_id=equip.id).delete()
+        
+        db.session.delete(equip)
+        db.session.commit()
+        flash('Equipamento e seu histórico de manutenção foram excluídos com sucesso.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erro ao excluir equipamento: {str(e)}', 'danger')
+    return redirect(url_for('equipment.index'))
 
 @equip_bp.route('/regenerate-qr/<int:equip_id>', methods=['POST'])
 @roles_required('admin', 'secretary')
