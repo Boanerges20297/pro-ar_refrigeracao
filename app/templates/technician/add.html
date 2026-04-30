@@ -52,16 +52,38 @@
             </div>
 
             <div id="client_selection_group" style="display: none;">
-                <label for="client_ids" class="block text-sm font-medium text-gray-700">Empresa(s) Vinculada(s) *</label>
-                <select name="client_ids" id="client_ids" multiple class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" style="min-height: 120px;">
-                    {% for client in clients %}
-                    <option value="{{ client.id }}">{{ client.name }}</option>
-                    {% endfor %}
-                </select>
-                <p class="text-xs text-gray-500 mt-1">Segure Ctrl (ou Cmd) para selecionar múltiplas empresas.</p>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Empresa(s) Vinculada(s) *</label>
+                <div class="relative">
+                    <button type="button" id="client_dropdown_btn" class="relative w-full bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-10 py-2.5 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm transition-all duration-200">
+                        <span class="block truncate text-gray-400" id="selected_clients_label">Selecionar empresas...</span>
+                        <span class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                            <i class="fas fa-chevron-down text-gray-400 text-xs"></i>
+                        </span>
+                    </button>
+
+                    <div id="client_dropdown_list" class="hidden absolute z-50 mt-1 w-full bg-white shadow-2xl max-h-60 rounded-lg py-1 ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none transition-all duration-200">
+                        <div class="sticky top-0 bg-gray-50 px-3 py-2 border-b border-gray-100 flex justify-between items-center">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Lista de Empresas</span>
+                            <button type="button" onclick="clearClientSelections()" class="text-[10px] font-bold text-primary hover:underline">Limpar</button>
+                        </div>
+                        <div class="p-1" id="checkbox_container">
+                            {% for client in clients %}
+                            <label class="flex items-center px-3 py-2.5 hover:bg-gray-50 rounded-md cursor-pointer transition-colors group">
+                                <input type="checkbox" name="client_ids" value="{{ client.id }}" 
+                                    class="client-checkbox h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded transition-all cursor-pointer">
+                                <span class="ml-3 block text-sm font-medium text-gray-700 group-hover:text-primary transition-colors">{{ client.name }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                    <i class="fas fa-info-circle opacity-70"></i>
+                    Selecione todas as empresas que este usuário poderá visualizar.
+                </p>
             </div>
 
-            <div>
+            <div id="job_title_group">
                 <label for="job_title" class="block text-sm font-medium text-gray-700">Função *</label>
                 <select name="job_title" id="job_title" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" onchange="toggleOtherJobTitle()">
                     <option value="Técnico">Técnico</option>
@@ -76,7 +98,7 @@
                 <input type="text" name="other_job_title" id="other_job_title" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
             </div>
 
-            <div>
+            <div id="specialty_group">
                 <label for="specialty" class="block text-sm font-medium text-gray-700">Especialidade (Opcional - p/ Técnicos)</label>
                 <input type="text" name="specialty" id="specialty" placeholder="Ex: Refrigeração, Elétrica" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
             </div>
@@ -117,10 +139,55 @@ function toggleOtherJobTitle() {
     }
 }
 
+// Client MultiSelect Logic
+const dropdownBtn = document.getElementById('client_dropdown_btn');
+const dropdownList = document.getElementById('client_dropdown_list');
+const checkboxes = document.querySelectorAll('.client-checkbox');
+const label = document.getElementById('selected_clients_label');
+
+function updateSelectedLabel() {
+    const selected = Array.from(checkboxes)
+        .filter(cb => cb.checked)
+        .map(cb => cb.parentElement.querySelector('span').textContent);
+    
+    if (selected.length === 0) {
+        label.textContent = "Selecionar empresas...";
+        label.classList.add('text-gray-400');
+    } else if (selected.length <= 2) {
+        label.textContent = selected.join(', ');
+        label.classList.remove('text-gray-400');
+    } else {
+        label.textContent = `${selected.length} empresas selecionadas`;
+        label.classList.remove('text-gray-400');
+    }
+}
+
+function clearClientSelections() {
+    checkboxes.forEach(cb => cb.checked = false);
+    updateSelectedLabel();
+}
+
+if (dropdownBtn) {
+    dropdownBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdownList.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!dropdownList.contains(e.target) && e.target !== dropdownBtn) {
+            dropdownList.classList.add('hidden');
+        }
+    });
+
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', updateSelectedLabel);
+    });
+}
+
 document.getElementById("permission_level").addEventListener("change", function() {
     var clientGroup = document.getElementById("client_selection_group");
-    var jobTitleGroup = document.getElementById("job_title").closest('div');
-    var specialtyGroup = document.getElementById("specialty").closest('div');
+    var jobTitleGroup = document.getElementById("job_title_group");
+    var specialtyGroup = document.getElementById("specialty_group");
     
     var cpfMark = document.getElementById("cpf-required-mark");
     var phoneMark = document.getElementById("phone-required-mark");
@@ -142,13 +209,11 @@ document.getElementById("permission_level").addEventListener("change", function(
 
     if (this.value === "client") {
         clientGroup.style.display = "block";
-        document.getElementById("client_ids").required = true;
         // Hide technical fields
         jobTitleGroup.style.display = "none";
         specialtyGroup.style.display = "none";
     } else {
         clientGroup.style.display = "none";
-        document.getElementById("client_ids").required = false;
         jobTitleGroup.style.display = "block";
         specialtyGroup.style.display = "block";
     }
@@ -157,6 +222,7 @@ document.getElementById("permission_level").addEventListener("change", function(
 // Initialize on page load
 window.addEventListener('DOMContentLoaded', (event) => {
     document.getElementById("permission_level").dispatchEvent(new Event('change'));
+    updateSelectedLabel();
 });
 </script>
 {% endblock %}
