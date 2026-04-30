@@ -14,6 +14,8 @@ class User(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     must_change_password = db.Column(db.Boolean, default=False, nullable=False)
     client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=True)
+    cpf = db.Column(db.String(14), unique=True, nullable=True)
+    phone = db.Column(db.String(20), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships

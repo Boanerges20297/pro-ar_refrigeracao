@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from app.models.client import Client
 from app.models.equipment import Equipment
 from app.models.user import User
@@ -13,10 +13,15 @@ clients_bp = Blueprint('clients', __name__)
 @clients_bp.route('/')
 @roles_required('admin', 'secretary', 'technician')
 def index():
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    if per_page not in [10, 20, 50]:
+        per_page = 10
+    search = (request.args.get('search') or '').strip()
+    
     # Get current user
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id) if current_user_id else None
-    search = (request.args.get('search') or '').strip()
     
     # Check if user is technician
     is_technician = current_user and current_user.permission_level == 'user'
@@ -31,18 +36,46 @@ def index():
         else:
             query = query.filter(Client.id == None)
 
-    clients = query.order_by(Client.name.asc()).all()
-    
     if search:
-        search_norm = remove_accents(search)
-        filtered_clients = []
-        for c in clients:
-            searchable = f"{c.name} {c.email or ''} {c.phone or ''} {c.address or ''}"
-            if search_norm in remove_accents(searchable):
-                filtered_clients.append(c)
-        clients = filtered_clients
+        search_term = f'%{search}%'
+        query = query.filter(
+            or_(
+                Client.name.ilike(search_term),
+                Client.email.ilike(search_term),
+                Client.phone.ilike(search_term),
+                Client.address.ilike(search_term)
+            )
+        )
+
+    pagination = query.order_by(Client.name.asc()).paginate(page=page, per_page=per_page)
+    clients = pagination.items
     
-    return render_template('clients/index.html', clients=clients, search=search)
+    return render_template('clients/index.html', 
+                           clients=clients, 
+                           pagination=pagination, 
+                           search=search, 
+                           per_page=per_page)
+
+@clients_bp.route('/delete/<int:id>', methods=['POST'])
+@roles_required('admin')
+def delete(id):
+    client = Client.query.get_or_404(id)
+    try:
+        # Check if client has related data that would prevent deletion
+        if client.equipments or client.work_orders:
+            # For safety, we could prevent deletion here, but the DB will catch it anyway.
+            # I'll try to delete and handle the exception if it fails due to FK constraints.
+            pass
+            
+        db.session.delete(client)
+        db.session.commit()
+        flash('Cliente excluído com sucesso.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        # Common error is ForeignKeyViolation
+        flash('Não foi possível excluir o cliente pois ele possui equipamentos ou ordens de serviço vinculadas.', 'danger')
+        current_app.logger.error(f"Erro ao excluir cliente: {str(e)}")
+    return redirect(url_for('clients.index'))
 
 @clients_bp.route('/add', methods=['GET', 'POST'])
 @roles_required('admin', 'secretary')

@@ -19,6 +19,18 @@
                 <input type="email" name="email" id="email" value="{{ user.email }}" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
             </div>
 
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="cpf" class="block text-sm font-medium text-gray-700">CPF <span id="cpf-required-mark">*</span></label>
+                    <input type="text" name="cpf" id="cpf" value="{{ user.cpf or '' }}" placeholder="000.000.000-00" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                </div>
+                <div>
+                    <label for="phone" class="block text-sm font-medium text-gray-700">Telefone <span id="phone-required-mark">*</span></label>
+                    <input type="text" name="phone" id="phone" value="{{ user.phone or '' }}" placeholder="(00) 00000-0000" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                </div>
+            </div>
+            <p class="text-xs text-gray-500" id="fields-note">CPF e Telefone são obrigatórios para todos os perfis, exceto Administrador.</p>
+
             <div>
                 <label for="password" class="block text-sm font-medium text-gray-700">Nova Senha (deixe em branco para não alterar)</label>
                 <input type="password" name="password" id="password"
@@ -108,6 +120,24 @@ document.getElementById("permission_level").addEventListener("change", function(
     var jobTitleGroup = document.getElementById("job_title_group");
     var specialtyGroup = document.getElementById("specialty_group");
     
+    var cpfMark = document.getElementById("cpf-required-mark");
+    var phoneMark = document.getElementById("phone-required-mark");
+    var fieldsNote = document.getElementById("fields-note");
+
+    if (this.value === "admin") {
+        cpfMark.style.display = "none";
+        phoneMark.style.display = "none";
+        fieldsNote.classList.add('opacity-50');
+        document.getElementById("cpf").required = false;
+        document.getElementById("phone").required = false;
+    } else {
+        cpfMark.style.display = "inline";
+        phoneMark.style.display = "inline";
+        fieldsNote.classList.remove('opacity-50');
+        document.getElementById("cpf").required = true;
+        document.getElementById("phone").required = true;
+    }
+
     if (this.value === "client") {
         clientGroup.style.display = "block";
         document.getElementById("client_id").required = true;
@@ -119,6 +149,11 @@ document.getElementById("permission_level").addEventListener("change", function(
         jobTitleGroup.style.display = "block";
         specialtyGroup.style.display = "block";
     }
+});
+
+// Initialize on page load
+window.addEventListener('DOMContentLoaded', (event) => {
+    document.getElementById("permission_level").dispatchEvent(new Event('change'));
 });
 </script>
 {% endblock %}

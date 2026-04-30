@@ -239,6 +239,8 @@ def add_technician():
         permission_level = request.form.get('permission_level', 'user')
         client_id = request.form.get('client_id')
         must_change_password = request.form.get('must_change_password') == 'on'
+        cpf = (request.form.get('cpf') or '').strip()
+        phone = (request.form.get('phone') or '').strip()
 
         job_title = normalize_job_title(
             permission_level,
@@ -272,6 +274,19 @@ def add_technician():
             flash('Já existe um usuário cadastrado com este e-mail.', 'danger')
             return render_template('technician/add.html')
 
+        # Mandatory CPF and Phone for non-admin
+        if permission_level != 'admin':
+            if not cpf:
+                flash('O CPF é obrigatório para este perfil.', 'danger')
+                return render_template('technician/add.html', clients=clients)
+            if not phone:
+                flash('O Telefone é obrigatório para este perfil.', 'danger')
+                return render_template('technician/add.html', clients=clients)
+
+        if cpf and User.query.filter(User.cpf == cpf).first():
+            flash('Já existe um usuário cadastrado com este CPF.', 'danger')
+            return render_template('technician/add.html', clients=clients)
+
         limit_error = check_user_limit(permission_level=permission_level, is_active=is_active)
         if limit_error:
             flash(limit_error, 'danger')
@@ -286,7 +301,9 @@ def add_technician():
             specialty=specialty, 
             is_active=is_active,
             client_id=client_id,
-            must_change_password=must_change_password
+            must_change_password=must_change_password,
+            cpf=cpf or None,
+            phone=phone or None
         )
         user.set_password(password)
         db.session.add(user)
@@ -310,6 +327,8 @@ def edit_technician(user_id):
         permission_level = request.form.get('permission_level', 'user')
         client_id = request.form.get('client_id')
         must_change_password = request.form.get('must_change_password') == 'on'
+        cpf = (request.form.get('cpf') or '').strip()
+        phone = (request.form.get('phone') or '').strip()
         job_title = normalize_job_title(
             permission_level,
             request.form.get('job_title'),
@@ -331,6 +350,21 @@ def edit_technician(user_id):
             flash('Já existe um usuário cadastrado com este e-mail.', 'danger')
             return render_template('technician/edit.html', user=user)
 
+        # Mandatory CPF and Phone for non-admin
+        if permission_level != 'admin':
+            if not cpf:
+                flash('O CPF é obrigatório para este perfil.', 'danger')
+                return render_template('technician/edit.html', user=user, clients=clients)
+            if not phone:
+                flash('O Telefone é obrigatório para este perfil.', 'danger')
+                return render_template('technician/edit.html', user=user, clients=clients)
+
+        if cpf:
+            existing_cpf = User.query.filter(User.cpf == cpf, User.id != user.id).first()
+            if existing_cpf:
+                flash('Já existe outro usuário cadastrado com este CPF.', 'danger')
+                return render_template('technician/edit.html', user=user, clients=clients)
+
         limit_error = check_user_limit(permission_level=permission_level, existing_user=user, is_active=is_active)
         if limit_error:
             flash(limit_error, 'danger')
@@ -343,6 +377,8 @@ def edit_technician(user_id):
         user.permission_level = permission_level
         user.job_title = job_title
         user.must_change_password = must_change_password
+        user.cpf = cpf or None
+        user.phone = phone or None
         
         if permission_level == 'client':
             user.client_id = client_id
