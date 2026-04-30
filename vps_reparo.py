@@ -4,9 +4,15 @@ from sqlalchemy import text
 app = create_app()
 with app.app_context():
     try:
-        # Tenta atualizar primeiro, caso a tabela tenha linhas
-        db.session.execute(text("UPDATE alembic_version SET version_num='cafd02fb47b0'"))
+        # Verifica o que tem no banco
+        result = db.session.execute(text("SELECT * FROM alembic_version")).fetchall()
+        print("Antes do reparo, o banco tinha:", result)
+
+        # Deleta tudo e forca a versao base
+        db.session.execute(text("DELETE FROM alembic_version"))
+        db.session.execute(text("INSERT INTO alembic_version (version_num) VALUES ('cafd02fb47b0')"))
         db.session.commit()
-        print("Versao ajustada com UPDATE!")
+        
+        print("Agora o banco tem apenas cafd02fb47b0!")
     except Exception as e:
-        print("Erro no update:", e)
+        print("Erro profundo:", e)
