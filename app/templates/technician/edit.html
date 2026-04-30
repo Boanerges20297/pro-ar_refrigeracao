@@ -59,12 +59,21 @@
                         </span>
                     </button>
 
-                    <div id="client_dropdown_list" class="hidden absolute z-50 mt-1 w-full bg-white shadow-2xl max-h-60 rounded-lg py-1 ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none transition-all duration-200">
-                        <div class="sticky top-0 bg-gray-50 px-3 py-2 border-b border-gray-100 flex justify-between items-center">
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Lista de Empresas</span>
-                            <button type="button" onclick="clearClientSelections()" class="text-[10px] font-bold text-primary hover:underline">Limpar</button>
+                    <div id="client_dropdown_list" class="hidden absolute z-50 mt-1 w-full bg-white shadow-2xl max-h-80 rounded-lg py-1 ring-1 ring-black ring-opacity-5 overflow-hidden focus:outline-none transition-all duration-200">
+                        <div class="sticky top-0 bg-gray-50 z-10">
+                            <div class="px-3 py-2 border-b border-gray-100 flex justify-between items-center bg-gray-100/50">
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Lista de Empresas</span>
+                                <button type="button" onclick="clearClientSelections()" class="text-[10px] font-bold text-primary hover:underline">Limpar</button>
+                            </div>
+                            <div class="p-2 border-b border-gray-100">
+                                <div class="relative">
+                                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                                    <input type="text" id="client_search" placeholder="Pesquisar empresa..." 
+                                        class="w-full pl-8 pr-3 py-2 bg-white border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all">
+                                </div>
+                            </div>
                         </div>
-                        <div class="p-1" id="checkbox_container">
+                        <div class="p-1 overflow-y-auto max-h-48" id="checkbox_container">
                             {% set user_client_ids = user.clients | map(attribute='id') | list %}
                             {% for client in clients %}
                             <label class="flex items-center px-3 py-2.5 hover:bg-gray-50 rounded-md cursor-pointer transition-colors group">
@@ -144,6 +153,7 @@ const dropdownBtn = document.getElementById('client_dropdown_btn');
 const dropdownList = document.getElementById('client_dropdown_list');
 const checkboxes = document.querySelectorAll('.client-checkbox');
 const label = document.getElementById('selected_clients_label');
+const searchInput = document.getElementById('client_search');
 
 function updateSelectedLabel() {
     const selected = Array.from(checkboxes)
@@ -171,6 +181,9 @@ if (dropdownBtn) {
     dropdownBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         dropdownList.classList.toggle('hidden');
+        if (!dropdownList.classList.contains('hidden')) {
+            searchInput.focus();
+        }
     });
 
     document.addEventListener('click', (e) => {
@@ -181,6 +194,19 @@ if (dropdownBtn) {
 
     checkboxes.forEach(cb => {
         cb.addEventListener('change', updateSelectedLabel);
+    });
+
+    // Search Filtering
+    searchInput.addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase().trim();
+        checkboxes.forEach(cb => {
+            const labelText = cb.parentElement.querySelector('span').textContent.toLowerCase();
+            if (labelText.includes(term)) {
+                cb.parentElement.style.display = 'flex';
+            } else {
+                cb.parentElement.style.display = 'none';
+            }
+        });
     });
 }
 
