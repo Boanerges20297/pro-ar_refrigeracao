@@ -98,5 +98,34 @@
     // Set minimum date to today
     const today = new Date().toISOString().slice(0, 16);
     document.getElementById('scheduled_date').min = today;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        new SlimSelect({
+            select: '#client_id',
+            settings: {
+                placeholderText: 'Selecione um cliente',
+                searchText: 'Nenhum cliente encontrado',
+                searchPlaceholder: 'Buscar cliente...'
+            }
+        });
+
+        new SlimSelect({
+            select: '#equipment_id',
+            settings: {
+                placeholderText: 'Selecione um equipamento',
+                searchText: 'Nenhum equipamento encontrado',
+                searchPlaceholder: 'Buscar equipamento...'
+            }
+        });
+
+        new SlimSelect({
+            select: '#technician_id',
+            settings: {
+                placeholderText: 'Selecione um técnico',
+                searchText: 'Nenhum técnico encontrado',
+                searchPlaceholder: 'Buscar técnico...'
+            }
+        });
+    });
 </script>
 {% endblock %}

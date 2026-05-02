@@ -22,6 +22,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://unpkg.com/imask"></script>
     {% if app_config %}
     <style>
         :root {
@@ -103,6 +104,7 @@
     </style>
     {% endif %}
     <style>
+
         /* FAB Scanner Button */
         #fab-scanner {
             position: fixed;
@@ -1093,9 +1095,90 @@
             }, delay);
         });
 
+        // --- Input Masking & Validation Utilities ---
+        function validateCPF(cpf) {
+            cpf = cpf.replace(/[^\d]+/g, '');
+            if (cpf.length !== 11 || !!cpf.match(/(\d)\1{10}/)) return false;
+            let sum = 0, rest;
+            for (let i = 1; i <= 9; i++) sum = sum + parseInt(cpf.substring(i - 1, i)) * (11 - i);
+            rest = (sum * 10) % 11;
+            if ((rest == 10) || (rest == 11)) rest = 0;
+            if (rest != parseInt(cpf.substring(9, 10))) return false;
+            sum = 0;
+            for (let i = 1; i <= 10; i++) sum = sum + parseInt(cpf.substring(i - 1, i)) * (12 - i);
+            rest = (sum * 10) % 11;
+            if ((rest == 10) || (rest == 11)) rest = 0;
+            if (rest != parseInt(cpf.substring(10, 11))) return false;
+            return true;
+        }
+
+        function validateCNPJ(cnpj) {
+            cnpj = cnpj.replace(/[^\d]+/g, '');
+            if (cnpj.length !== 14 || !!cnpj.match(/(\d)\1{13}/)) return false;
+            let size = cnpj.length - 2;
+            let numbers = cnpj.substring(0, size);
+            let digits = cnpj.substring(size);
+            let sum = 0;
+            let pos = size - 7;
+            for (let i = size; i >= 1; i--) {
+                sum += numbers.charAt(size - i) * pos--;
+                if (pos < 2) pos = 9;
+            }
+            let result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+            if (result != digits.charAt(0)) return false;
+            size = size + 1;
+            numbers = cnpj.substring(0, size);
+            sum = 0;
+            pos = size - 7;
+            for (let i = size; i >= 1; i--) {
+                sum += numbers.charAt(size - i) * pos--;
+                if (pos < 2) pos = 9;
+            }
+            result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+            if (result != digits.charAt(1)) return false;
+            return true;
+        }
+
+        function initMasks() {
+            if (typeof IMask === 'undefined') return;
+
+            document.querySelectorAll('.mask-cpf').forEach(el => {
+                IMask(el, { mask: '000.000.000-00' });
+                el.addEventListener('blur', function() {
+                    if (this.value && !validateCPF(this.value)) {
+                        this.classList.add('border-red-500');
+                        // Optional: show a small error message
+                    } else {
+                        this.classList.remove('border-red-500');
+                    }
+                });
+            });
+
+            document.querySelectorAll('.mask-cnpj').forEach(el => {
+                IMask(el, { mask: '00.000.000/0000-00' });
+                el.addEventListener('blur', function() {
+                    if (this.value && !validateCNPJ(this.value)) {
+                        this.classList.add('border-red-500');
+                    } else {
+                        this.classList.remove('border-red-500');
+                    }
+                });
+            });
+
+            document.querySelectorAll('.mask-phone').forEach(el => {
+                IMask(el, {
+                    mask: [
+                        { mask: '(00) 0000-0000' },
+                        { mask: '(00) 00000-0000' }
+                    ]
+                });
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', initMasks);
+
         startTechnicianAssignmentWatcher();
     </script>
-    <script src="https://unpkg.com/slim-select@latest/dist/slimselect.min.js"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

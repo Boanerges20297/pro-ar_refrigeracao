@@ -13,30 +13,14 @@
 
             <!-- Equipamento -->
             <div>
-                <label for="equipment_search" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Equipamento (Máquina) *</label>
+                <label for="equipment_id" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Equipamento (Máquina) *</label>
                 <div class="relative">
-                    <input type="text" 
-                        id="equipment_search" 
-                        list="equip_list" 
-                        autocomplete="off"
-                        placeholder="Digite o nome, série ou cliente para buscar..."
-                        class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary text-sm"
-                        oninput="syncEquipmentId()">
-                    
-                    <datalist id="equip_list">
+                    <select name="equipment_id" id="equipment_id" required class="w-full">
+                        <option value="">Selecione o equipamento...</option>
                         {% for equip in equipments %}
-                            <option value="{{ equip.name }} - S/N: {{ equip.serial_number or 'N/A' }} (Cliente: {{ equip.owner.name }})" data-id="{{ equip.id }}"></option>
+                            <option value="{{ equip.id }}">{{ equip.name }} - S/N: {{ equip.serial_number or 'N/A' }} (Cliente: {{ equip.owner.name }})</option>
                         {% endfor %}
-                    </datalist>
-                    
-                    <!-- Hidden field to send the ID -->
-                    <input type="hidden" name="equipment_id" id="equipment_id" required>
-                    
-                    <div id="selection_feedback" class="mt-2 text-xs hidden">
-                        <span class="text-green-600 font-bold bg-green-50 px-2 py-1 rounded border border-green-200 inline-flex items-center gap-1">
-                            <i class="fas fa-check-circle"></i>Equipamento identificado
-                        </span>
-                    </div>
+                    </select>
                 </div>
                 {% if not equipments %}
                 <p class="text-xs text-red-500 mt-2">⚠️ Você precisa cadastrar um equipamento primeiro.</p>
@@ -69,35 +53,18 @@
 </div>
 
 <script>
-    function syncEquipmentId() {
-        const input = document.getElementById('equipment_search');
-        const hiddenInput = document.getElementById('equipment_id');
-        const feedback = document.getElementById('selection_feedback');
-        const list = document.getElementById('equip_list');
-        const options = list.options;
-        
-        let foundId = "";
-        
-        // Find if the typed value matches any option
-        for (let i = 0; i < options.length; i++) {
-            if (options[i].value === input.value) {
-                foundId = options[i].getAttribute('data-id');
-                break;
-            }
-        }
-        
-        hiddenInput.value = foundId;
-        
-        // Visual feedback
-        if (foundId) {
-            feedback.classList.remove('hidden');
-        } else {
-            feedback.classList.add('hidden');
-        }
-    }
-
-    // Set default date to today
     document.addEventListener('DOMContentLoaded', function() {
+        // Initialize SlimSelect for Equipment
+        new SlimSelect({
+            select: '#equipment_id',
+            settings: {
+                placeholderText: 'Buscar equipamento...',
+                searchText: 'Nenhum equipamento encontrado',
+                searchPlaceholder: 'Digite nome, série ou cliente...'
+            }
+        });
+
+        // Set default date to today
         const dateInput = document.getElementById('next_maintenance_date');
         if (dateInput) {
             const today = new Date().toISOString().split('T')[0];

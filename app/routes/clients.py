@@ -82,11 +82,12 @@ def delete(id):
 def add():
     if request.method == 'POST':
         name = request.form.get('name')
+        cnpj = request.form.get('cnpj')
         email = request.form.get('email')
         phone = request.form.get('phone')
         address = request.form.get('address')
 
-        client = Client(name=name, email=email, phone=phone, address=address)
+        client = Client(name=name, cnpj=cnpj, email=email, phone=phone, address=address)
         db.session.add(client)
         db.session.commit()
         flash('Cliente adicionado com sucesso!', 'success')
@@ -99,6 +100,7 @@ def edit(id):
     client = Client.query.get_or_404(id)
     if request.method == 'POST':
         client.name = request.form.get('name')
+        client.cnpj = request.form.get('cnpj')
         client.email = request.form.get('email')
         client.phone = request.form.get('phone')
         client.address = request.form.get('address')
@@ -161,12 +163,13 @@ def search_clients():
     results = []
     
     for c in all_clients:
-        # Check name, email, phone, address with normalization
-        searchable_text = f"{c.name} {c.email or ''} {c.phone or ''} {c.address or ''}"
+        # Check name, email, phone, address, cnpj with normalization
+        searchable_text = f"{c.name} {c.email or ''} {c.phone or ''} {c.address or ''} {c.cnpj or ''}"
         if q_norm in remove_accents(searchable_text):
             results.append({
                 'id': c.id,
                 'name': c.name,
+                'cnpj': c.cnpj,
                 'email': c.email,
                 'phone': c.phone,
                 'address': c.address

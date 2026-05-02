@@ -35,14 +35,24 @@
                 {% endif %}
             </div>
 
-            <div>
-                <label for="equipment_id" class="block text-sm font-medium text-gray-700">Equipamento (Opcional)</label>
-                <select id="equipment_id" name="equipment_id" class="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
-                    <option value="" data-client="-1" selected>Serviço Geral (Sem equipamento específico)</option>
-                    {% for equip in equipments %}
-                        <option value="{{ equip.id }}" data-client="{{ equip.client_id }}">{{ equip.name }} (SN: {{ equip.serial_number or '-' }})</option>
-                    {% endfor %}
-                </select>
+            <div class="relative">
+                <label for="equipment_search_input" class="block text-sm font-medium text-gray-700">Equipamento (Opcional)</label>
+                <div class="mt-1 relative">
+                    <input type="text" id="equipment_search_input" placeholder="Busque por nome ou série..." autocomplete="off" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                    <input type="hidden" name="equipment_id" id="equipment_id">
+                    <div id="equipment-results" class="hidden absolute z-50 w-full bg-white border border-gray-200 rounded-md shadow-xl mt-1 max-h-64 overflow-y-auto">
+                        <!-- Results injected here -->
+                    </div>
+                </div>
+                <div id="selected-equipment-info" class="hidden mt-2 p-3 bg-green-50 border border-green-100 rounded-md flex justify-between items-center">
+                    <div>
+                        <p id="display-equipment-name" class="text-sm font-bold text-green-900"></p>
+                        <p id="display-equipment-details" class="text-xs text-green-700"></p>
+                    </div>
+                    <button type="button" onclick="clearEquipmentSelection()" class="text-green-500 hover:text-green-700 p-1">
+                        <i class="fas fa-times-circle"></i>
+                    </button>
+                </div>
             </div>
 
             <div>
@@ -69,14 +79,24 @@
                 {% endif %}
             </div>
 
-            <div>
-                <label for="technician_id" class="block text-sm font-medium text-gray-700">Técnico Responsável</label>
-                <select id="technician_id" name="technician_id" class="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
-                    <option value="" selected>Não atribuído</option>
-                    {% for tech in technicians %}
-                        <option value="{{ tech.id }}">{{ tech.name }} ({{ tech.specialty or 'Geral' }})</option>
-                    {% endfor %}
-                </select>
+            <div class="relative">
+                <label for="technician_search_input" class="block text-sm font-medium text-gray-700">Técnico Responsável</label>
+                <div class="mt-1 relative">
+                    <input type="text" id="technician_search_input" placeholder="Busque por nome ou especialidade..." autocomplete="off" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                    <input type="hidden" name="technician_id" id="technician_id">
+                    <div id="technician-results" class="hidden absolute z-50 w-full bg-white border border-gray-200 rounded-md shadow-xl mt-1 max-h-64 overflow-y-auto">
+                        <!-- Results injected here -->
+                    </div>
+                </div>
+                <div id="selected-technician-info" class="hidden mt-2 p-3 bg-indigo-50 border border-indigo-100 rounded-md flex justify-between items-center">
+                    <div>
+                        <p id="display-technician-name" class="text-sm font-bold text-indigo-900"></p>
+                        <p id="display-technician-details" class="text-xs text-indigo-700"></p>
+                    </div>
+                    <button type="button" onclick="clearTechnicianSelection()" class="text-indigo-500 hover:text-indigo-700 p-1">
+                        <i class="fas fa-times-circle"></i>
+                    </button>
+                </div>
             </div>
 
             <div>
@@ -174,11 +194,43 @@
 
 {% block scripts %}
 <script>
+// --- Global Data Arrays ---
 const serviceCatalog = {{ service_catalog_items | tojson }};
+const allEquipments = [
+    {% for equip in equipments %}
+    {
+        id: "{{ equip.id }}",
+        name: "{{ equip.name }}",
+        serial: "{{ equip.serial_number or '-' }}",
+        clientId: "{{ equip.client_id }}"
+    },
+    {% endfor %}
+];
+const allTechnicians = [
+    {% for tech in technicians %}
+    {
+        id: "{{ tech.id }}",
+        name: "{{ tech.name }}",
+        specialty: "{{ tech.specialty or 'Geral' }}"
+    },
+    {% endfor %}
+];
 
+// --- State Variables ---
+let currentClientId = null;
+let filteredEquipments = [];
+let debounceTimer;
+
+// --- Helper Functions: General ---
+function normalizeString(str) {
+    if (!str) return '';
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+// --- Helper Functions: Service Catalog ---
 function getServiceByName(name) {
-    const normalized = (name || '').trim().toLowerCase();
-    return serviceCatalog.find((service) => service.name.trim().toLowerCase() === normalized) || null;
+    const normalized = normalizeString(name);
+    return serviceCatalog.find((service) => normalizeString(service.name) === normalized) || null;
 }
 
 function setSelectedService(service) {
@@ -186,9 +238,7 @@ function setSelectedService(service) {
     const serviceHidden = document.getElementById('service_id');
     const totalValue = document.getElementById('total_value');
 
-    if (!service || !serviceInput || !serviceHidden) {
-        return;
-    }
+    if (!service || !serviceInput || !serviceHidden) return;
 
     serviceInput.value = service.name;
     serviceHidden.value = service.id;
@@ -201,9 +251,7 @@ function setSelectedService(service) {
 function syncServiceSelection() {
     const serviceInput = document.getElementById('service_search');
     const serviceHidden = document.getElementById('service_id');
-    if (!serviceInput || !serviceHidden) {
-        return;
-    }
+    if (!serviceInput || !serviceHidden) return;
 
     const service = getServiceByName(serviceInput.value);
     serviceHidden.value = service ? service.id : '';
@@ -217,9 +265,7 @@ function syncServiceSelection() {
 
 function refreshServiceCatalogList(service) {
     const datalist = document.getElementById('service_catalog_list');
-    if (!datalist || !service) {
-        return;
-    }
+    if (!datalist || !service) return;
 
     const option = document.createElement('option');
     option.value = service.name;
@@ -229,10 +275,7 @@ function refreshServiceCatalogList(service) {
 
 function openServiceModal() {
     const modal = document.getElementById('serviceModal');
-    if (!modal) {
-        return;
-    }
-
+    if (!modal) return;
     modal.classList.remove('hidden');
     modal.classList.add('flex');
     document.getElementById('service_name').focus();
@@ -240,272 +283,343 @@ function openServiceModal() {
 
 function closeServiceModal() {
     const modal = document.getElementById('serviceModal');
-    if (!modal) {
-        return;
-    }
-
+    if (!modal) return;
     modal.classList.add('hidden');
     modal.classList.remove('flex');
     document.getElementById('serviceCatalogError').classList.add('hidden');
 }
 
-function filterEquipment(clientId) {
-    const equipSelect = document.getElementById('equipment_id');
-    const options = equipSelect.options;
-    
-    let firstFound = false;
-    for (let i = 0; i < options.length; i++) {
-        const opt = options[i];
-        const optClient = opt.getAttribute('data-client');
-        
-        if (optClient === "-1" || optClient === clientId) {
-            opt.style.display = 'block';
-            if (!firstFound && optClient === clientId) {
-                opt.selected = true;
-                firstFound = true;
-            }
-        } else {
-            opt.style.display = 'none';
-        }
+// --- Autocomplete: Client ---
+function renderClientResults(clients) {
+    const clientResults = document.getElementById('client-results');
+    clientResults.innerHTML = '';
+    if (clients.length === 0) {
+        clientResults.innerHTML = '<div class="p-3 text-sm text-gray-500 italic">Nenhum cliente encontrado.</div>';
+    } else {
+        clients.forEach(client => {
+            const div = document.createElement('div');
+            div.className = 'p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors';
+            div.innerHTML = `
+                <p class="text-sm font-bold text-gray-900">${client.name}</p>
+                <p class="text-xs text-gray-500">${client.email || ''} ${client.phone ? ' | ' + client.phone : ''}</p>
+                <p class="text-xs text-gray-400 truncate">${client.address || ''}</p>
+            `;
+            div.onclick = () => selectClient(client);
+            clientResults.appendChild(div);
+        });
     }
-    
-    if (!firstFound) {
-        equipSelect.value = "";
-    }
+    clientResults.classList.remove('hidden');
 }
 
+function selectClient(client) {
+    document.getElementById('client_id').value = client.id;
+    document.getElementById('display-client-name').textContent = client.name;
+    document.getElementById('display-client-details').textContent = `${client.phone || ''} ${client.email ? ' • ' + client.email : ''}`;
+    
+    document.getElementById('client_search_input').value = '';
+    document.getElementById('client_search_input').parentElement.classList.add('hidden');
+    document.getElementById('client-results').classList.add('hidden');
+    document.getElementById('selected-client-info').classList.remove('hidden');
+    
+    filterEquipment(client.id);
+}
+
+function clearClientSelection() {
+    document.getElementById('client_id').value = '';
+    const input = document.getElementById('client_search_input');
+    input.value = '';
+    input.parentElement.classList.remove('hidden');
+    document.getElementById('selected-client-info').classList.add('hidden');
+    input.focus();
+    filterEquipment("-1");
+}
+
+// --- Autocomplete: Equipment ---
+function renderEquipResults(items) {
+    const equipResults = document.getElementById('equipment-results');
+    equipResults.innerHTML = '';
+    
+    // Always show "Serviço Geral" option
+    const generalDiv = document.createElement('div');
+    generalDiv.className = 'p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors';
+    generalDiv.innerHTML = '<p class="text-sm font-bold text-gray-900">Serviço Geral</p><p class="text-xs text-gray-500">Sem equipamento específico</p>';
+    generalDiv.onclick = () => selectEquipment({ id: '', name: 'Serviço Geral', serial: '-' });
+    equipResults.appendChild(generalDiv);
+
+    items.forEach(eq => {
+        const div = document.createElement('div');
+        div.className = 'p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors';
+        div.innerHTML = `
+            <p class="text-sm font-bold text-gray-900">${eq.name}</p>
+            <p class="text-xs text-gray-500">Série: ${eq.serial}</p>
+        `;
+        div.onclick = () => selectEquipment(eq);
+        equipResults.appendChild(div);
+    });
+    equipResults.classList.remove('hidden');
+}
+
+function selectEquipment(eq) {
+    document.getElementById('equipment_id').value = eq.id;
+    document.getElementById('display-equipment-name').textContent = eq.name;
+    document.getElementById('display-equipment-details').textContent = eq.id ? `Série: ${eq.serial}` : 'Equipamento não vinculado';
+    
+    document.getElementById('equipment_search_input').value = '';
+    document.getElementById('equipment_search_input').parentElement.classList.add('hidden');
+    document.getElementById('equipment-results').classList.add('hidden');
+    document.getElementById('selected-equipment-info').classList.remove('hidden');
+}
+
+function clearEquipmentSelection() {
+    document.getElementById('equipment_id').value = '';
+    const input = document.getElementById('equipment_search_input');
+    input.value = '';
+    input.parentElement.classList.remove('hidden');
+    document.getElementById('selected-equipment-info').classList.add('hidden');
+    input.focus();
+}
+
+function filterEquipment(clientId) {
+    currentClientId = clientId;
+    if (clientId === "-1") {
+        filteredEquipments = [];
+    } else {
+        filteredEquipments = allEquipments.filter(eq => eq.clientId == clientId);
+    }
+    clearEquipmentSelection();
+}
+
+// --- Autocomplete: Technician ---
+function renderTechResults(items) {
+    const techResults = document.getElementById('technician-results');
+    techResults.innerHTML = '';
+    
+    // Always show "Não atribuído" option
+    const noneDiv = document.createElement('div');
+    noneDiv.className = 'p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors';
+    noneDiv.innerHTML = '<p class="text-sm font-bold text-gray-900">Não atribuído</p>';
+    noneDiv.onclick = () => selectTechnician({ id: '', name: 'Não atribuído', specialty: '' });
+    techResults.appendChild(noneDiv);
+
+    items.forEach(t => {
+        const div = document.createElement('div');
+        div.className = 'p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors';
+        div.innerHTML = `
+            <p class="text-sm font-bold text-gray-900">${t.name}</p>
+            <p class="text-xs text-gray-500">${t.specialty}</p>
+        `;
+        div.onclick = () => selectTechnician(t);
+        techResults.appendChild(div);
+    });
+    techResults.classList.remove('hidden');
+}
+
+function selectTechnician(t) {
+    document.getElementById('technician_id').value = t.id;
+    document.getElementById('display-technician-name').textContent = t.name;
+    document.getElementById('display-technician-details').textContent = t.specialty;
+    
+    document.getElementById('technician_search_input').value = '';
+    document.getElementById('technician_search_input').parentElement.classList.add('hidden');
+    document.getElementById('technician-results').classList.add('hidden');
+    document.getElementById('selected-technician-info').classList.remove('hidden');
+}
+
+function clearTechnicianSelection() {
+    document.getElementById('technician_id').value = '';
+    const input = document.getElementById('technician_search_input');
+    input.value = '';
+    input.parentElement.classList.remove('hidden');
+    document.getElementById('selected-technician-info').classList.add('hidden');
+    input.focus();
+}
+
+// --- File Handling & Modal Helpers ---
 function checkFileSize(input) {
     if (input.files && input.files[0]) {
-        const fileSize = input.files[0].size / 1024 / 1024; // in MB
+        const fileSize = input.files[0].size / 1024 / 1024;
         if (fileSize > 2) {
-            alert(`A imagem selecionada possui ${fileSize.toFixed(2)}MB. \n\nO sistema irá redimensioná-la automaticamente para economizar espaço, mas recomendamos o uso de imagens menores para um upload mais rápido.`);
+            alert(`A imagem selecionada possui ${fileSize.toFixed(2)}MB. O sistema irá redimensioná-la automaticamente.`);
         }
     }
 }
 
-document.getElementById('service_search').addEventListener('input', syncServiceSelection);
-document.getElementById('service_search').addEventListener('change', syncServiceSelection);
-
-const openServiceModalButton = document.getElementById('openServiceModal');
-if (openServiceModalButton) {
-    openServiceModalButton.addEventListener('click', openServiceModal);
-}
-
-const serviceModal = document.getElementById('serviceModal');
-if (serviceModal) {
-    document.getElementById('closeServiceModal').addEventListener('click', closeServiceModal);
-    document.getElementById('cancelServiceModal').addEventListener('click', closeServiceModal);
-    serviceModal.addEventListener('click', (event) => {
-        if (event.target.id === 'serviceModal') {
-            closeServiceModal();
-        }
-    });
-}
-
-const serviceCatalogForm = document.getElementById('serviceCatalogForm');
-if (serviceCatalogForm) {
-serviceCatalogForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-
-    const errorBox = document.getElementById('serviceCatalogError');
-    errorBox.classList.add('hidden');
-    errorBox.textContent = '';
-
-    const payload = {
-        name: document.getElementById('service_name').value,
-        description: document.getElementById('service_description').value,
-        base_price: document.getElementById('service_base_price').value,
-        estimated_duration: document.getElementById('service_duration').value,
-        service_code: document.getElementById('service_code').value,
-        instructions: document.getElementById('service_instructions').value,
-        parts: document.getElementById('service_parts').value,
-    };
-
-    try {
-        const response = await fetch('{{ url_for('services.create_service_catalog') }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.getElementById('serviceCatalogCsrf').value,
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify(payload),
-        });
-
-        const rawResponse = await response.text();
-        let data = null;
-        try {
-            data = rawResponse ? JSON.parse(rawResponse) : null;
-        } catch (parseError) {
-            data = null;
-        }
-
-        if (!response.ok || !data || !data.ok) {
-            throw new Error((data && data.message) || 'Não foi possível cadastrar o tipo de serviço.');
-        }
-
-        refreshServiceCatalogList(data.service);
-        setSelectedService(data.service);
-        closeServiceModal();
-        document.getElementById('serviceCatalogForm').reset();
-        document.getElementById('service_base_price').value = '0.00';
-    } catch (error) {
-        errorBox.textContent = error.message;
-        errorBox.classList.remove('hidden');
-    }
-});
-}
-
-// ── Verificação de Duplicidade ────────────────────────
-const addWOForm = document.getElementById('addWorkOrderForm');
-if (addWOForm) {
-    addWOForm.addEventListener('submit', async function(e) {
-        // Se já confirmamos a duplicidade, deixa o form enviar normalmente
-        if (this.getAttribute('data-skip-check') === 'true') {
-            return;
-        }
-
-        const clientId = document.getElementById('client_id').value;
-        const scheduledDate = document.getElementById('scheduled_date').value;
-
-        // Se faltar cliente ou data, deixa o HTML5 validar o required
-        if (!clientId || !scheduledDate) {
-            return;
-        }
-
-        e.preventDefault(); // Intercepta o envio para checar duplicidade
-
-        try {
-            const response = await fetch("{{ url_for('services.check_duplicate') }}", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': "{{ csrf_token() }}"
-                },
-                body: JSON.stringify({
-                    client_id: clientId,
-                    date: scheduledDate
-                })
-            });
-
-            const data = await response.json();
-
-            if (data.duplicate) {
-                const result = await Swal.fire({
-                    title: 'OS Duplicada?',
-                    text: 'Já existe uma Ordem de Serviço agendada para este cliente nesta data. Deseja criar outra mesmo assim?',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#3085d6',
-                    cancelButtonColor: '#d33',
-                    confirmButtonText: 'Sim, criar outra',
-                    cancelButtonText: 'Não, cancelar',
-                    reverseButtons: true
-                });
-
-                if (result.isConfirmed) {
-                    this.setAttribute('data-skip-check', 'true');
-                    this.submit();
-                }
-            } else {
-                // Sem duplicidade, envia direto
-                this.setAttribute('data-skip-check', 'true');
-                this.submit();
-            }
-        } catch (error) {
-            console.error('Erro ao verificar duplicidade:', error);
-            // Em caso de erro técnico na checagem, permite o envio para não travar o sistema
-            this.setAttribute('data-skip-check', 'true');
-            this.submit();
-        }
-    });
-}
-    // --- Client Autocomplete Logic ---
-    const clientSearchInput = document.getElementById('client_search_input');
-    const clientResults = document.getElementById('client-results');
-    const clientIdInput = document.getElementById('client_id');
-    const selectedClientInfo = document.getElementById('selected-client-info');
-    const displayClientName = document.getElementById('display-client-name');
-    const displayClientDetails = document.getElementById('display-client-details');
-
-    let debounceTimer;
-
-    if (clientSearchInput) {
-        clientSearchInput.addEventListener('input', function() {
+// --- Main Document Events ---
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Client Search
+    const clientInput = document.getElementById('client_search_input');
+    if (clientInput) {
+        clientInput.addEventListener('input', function() {
             clearTimeout(debounceTimer);
             const query = this.value.trim();
-
             if (query.length < 2) {
-                clientResults.classList.add('hidden');
+                document.getElementById('client-results').classList.add('hidden');
                 return;
             }
-
             debounceTimer = setTimeout(() => {
                 fetch(`/clients/search?q=${encodeURIComponent(query)}&_=${new Date().getTime()}`)
                     .then(response => response.json())
-                    .then(data => {
-                        renderResults(data);
-                    })
+                    .then(data => renderClientResults(data))
                     .catch(error => console.error('Error fetching clients:', error));
             }, 300);
         });
     }
 
-    function renderResults(clients) {
-        clientResults.innerHTML = '';
-        if (clients.length === 0) {
-            clientResults.innerHTML = '<div class="p-3 text-sm text-gray-500 italic">Nenhum cliente encontrado.</div>';
-        } else {
-            clients.forEach(client => {
-                const div = document.createElement('div');
-                div.className = 'p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors';
-                div.innerHTML = `
-                    <p class="text-sm font-bold text-gray-900">${client.name}</p>
-                    <p class="text-xs text-gray-500">${client.email || ''} ${client.phone ? ' | ' + client.phone : ''}</p>
-                    <p class="text-xs text-gray-400 truncate">${client.address || ''}</p>
-                `;
-                div.onclick = () => selectClient(client);
-                clientResults.appendChild(div);
-            });
-        }
-        clientResults.classList.remove('hidden');
+    // 2. Equipment Search
+    const equipInput = document.getElementById('equipment_search_input');
+    if (equipInput) {
+        equipInput.addEventListener('input', function() {
+            const query = normalizeString(this.value.trim());
+            const source = currentClientId ? filteredEquipments : allEquipments;
+            const matches = source.filter(eq => 
+                normalizeString(eq.name).includes(query) || 
+                normalizeString(eq.serial).includes(query)
+            );
+            renderEquipResults(matches);
+        });
+        equipInput.addEventListener('focus', function() {
+            if (this.value === '') renderEquipResults(currentClientId ? filteredEquipments : allEquipments);
+        });
     }
 
-    function selectClient(client) {
-        clientIdInput.value = client.id;
-        displayClientName.textContent = client.name;
-        displayClientDetails.textContent = `${client.phone || ''} ${client.email ? ' • ' + client.email : ''}`;
-        
-        clientSearchInput.value = '';
-        clientSearchInput.parentElement.classList.add('hidden');
-        clientResults.classList.add('hidden');
-        selectedClientInfo.classList.remove('hidden');
-        
-        // Trigger equipment filtering
-        if (typeof filterEquipment === 'function') {
-            filterEquipment(client.id);
-        }
+    // 3. Technician Search
+    const techInput = document.getElementById('technician_search_input');
+    if (techInput) {
+        techInput.addEventListener('input', function() {
+            const query = normalizeString(this.value.trim());
+            const matches = allTechnicians.filter(t => 
+                normalizeString(t.name).includes(query) || 
+                normalizeString(t.specialty).includes(query)
+            );
+            renderTechResults(matches);
+        });
+        techInput.addEventListener('focus', function() {
+            if (this.value === '') renderTechResults(allTechnicians);
+        });
     }
 
-    function clearClientSelection() {
-        clientIdInput.value = '';
-        clientSearchInput.value = '';
-        clientSearchInput.parentElement.classList.remove('hidden');
-        selectedClientInfo.classList.add('hidden');
-        clientSearchInput.focus();
-        
-        // Reset equipment filtering
-        if (typeof filterEquipment === 'function') {
-            filterEquipment("-1");
-        }
+    // 4. Service Catalog
+    const serviceSearchInput = document.getElementById('service_search');
+    if (serviceSearchInput) {
+        serviceSearchInput.addEventListener('input', syncServiceSelection);
+        serviceSearchInput.addEventListener('change', syncServiceSelection);
     }
 
-    // Close results when clicking outside
+    const openServiceModalButton = document.getElementById('openServiceModal');
+    if (openServiceModalButton) openServiceModalButton.addEventListener('click', openServiceModal);
+
+    const serviceModal = document.getElementById('serviceModal');
+    if (serviceModal) {
+        document.getElementById('closeServiceModal').addEventListener('click', closeServiceModal);
+        document.getElementById('cancelServiceModal').addEventListener('click', closeServiceModal);
+        serviceModal.addEventListener('click', (e) => { if (e.target.id === 'serviceModal') closeServiceModal(); });
+    }
+
+    // 5. Global Clicks (Close results)
     document.addEventListener('click', function(e) {
-        const container = document.getElementById('client-autocomplete');
-        if (container && !container.contains(e.target)) {
-            clientResults.classList.add('hidden');
+        if (!e.target.closest('#client-autocomplete')) {
+            const results = document.getElementById('client-results');
+            if (results) results.classList.add('hidden');
+        }
+        if (!e.target.closest('#equipment_search_input') && !e.target.closest('#equipment-results')) {
+            const results = document.getElementById('equipment-results');
+            if (results) results.classList.add('hidden');
+        }
+        if (!e.target.closest('#technician_search_input') && !e.target.closest('#technician-results')) {
+            const results = document.getElementById('technician-results');
+            if (results) results.classList.add('hidden');
         }
     });
+
+    // 6. Service Catalog Form Submission
+    const serviceCatalogForm = document.getElementById('serviceCatalogForm');
+    if (serviceCatalogForm) {
+        serviceCatalogForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const errorBox = document.getElementById('serviceCatalogError');
+            errorBox.classList.add('hidden');
+            
+            const payload = {
+                name: document.getElementById('service_name').value,
+                description: document.getElementById('service_description').value,
+                base_price: document.getElementById('service_base_price').value,
+                estimated_duration: document.getElementById('service_duration').value,
+                service_code: document.getElementById('service_code').value,
+                instructions: document.getElementById('service_instructions').value,
+                parts: document.getElementById('service_parts').value,
+            };
+
+            try {
+                const response = await fetch('{{ url_for('services.create_service_catalog') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.getElementById('serviceCatalogCsrf').value,
+                    },
+                    body: JSON.stringify(payload),
+                });
+                const data = await response.json();
+                if (!response.ok || !data.ok) throw new Error(data.message || 'Erro ao cadastrar.');
+                
+                refreshServiceCatalogList(data.service);
+                setSelectedService(data.service);
+                closeServiceModal();
+                serviceCatalogForm.reset();
+            } catch (error) {
+                errorBox.textContent = error.message;
+                errorBox.classList.remove('hidden');
+            }
+        });
+    }
+
+    // 7. Form Submission (Duplicity Check)
+    const addWOForm = document.getElementById('addWorkOrderForm');
+    if (addWOForm) {
+        addWOForm.addEventListener('submit', async function(e) {
+            if (this.getAttribute('data-skip-check') === 'true') return;
+            e.preventDefault();
+            
+            const clientId = document.getElementById('client_id').value;
+            const equipId = document.getElementById('equipment_id').value;
+            const serviceId = document.getElementById('service_id').value;
+            
+            if (!clientId || !serviceId) {
+                this.setAttribute('data-skip-check', 'true');
+                this.submit();
+                return;
+            }
+
+            try {
+                const response = await fetch(`/services/check_duplicate?client_id=${clientId}&equipment_id=${equipId}&service_id=${serviceId}`);
+                const data = await response.json();
+                
+                if (data.exists && window.Swal) {
+                    const result = await window.Swal.fire({
+                        title: 'OS em Aberto Detectada',
+                        text: `Já existe uma OS pendente para este cliente/equipamento com este tipo de serviço. Deseja criar outra mesmo assim?`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#3085d6',
+                        cancelButtonColor: '#d33',
+                        confirmButtonText: 'Sim, criar outra',
+                        cancelButtonText: 'Não, cancelar',
+                        reverseButtons: true
+                    });
+                    if (result.isConfirmed) {
+                        this.setAttribute('data-skip-check', 'true');
+                        this.submit();
+                    }
+                } else {
+                    this.setAttribute('data-skip-check', 'true');
+                    this.submit();
+                }
+            } catch (error) {
+                console.error('Erro ao verificar duplicidade:', error);
+                this.setAttribute('data-skip-check', 'true');
+                this.submit();
+            }
+        });
+    }
+});
 </script>
 {% endblock %}

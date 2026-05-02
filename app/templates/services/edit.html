@@ -515,5 +515,20 @@ function escapeHtml(str) {
 document.getElementById('expenseModal').addEventListener('click', function(e) {
     if (e.target === this) closeExpenseModal();
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+    const techSelectEl = document.getElementById('technician_id');
+    if (techSelectEl && !techSelectEl.disabled) {
+        new SlimSelect({
+            select: '#technician_id',
+            settings: {
+                placeholderText: 'Selecione um técnico',
+                allowDeselect: true,
+                searchText: 'Nenhum técnico encontrado',
+                searchPlaceholder: 'Buscar técnico...'
+            }
+        });
+    }
+});
 </script>
 {% endblock %}
