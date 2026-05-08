@@ -237,7 +237,8 @@ def add_technician():
         specialty = request.form.get('specialty')
         is_active = request.form.get('is_active') == 'on'
         permission_level = request.form.get('permission_level', 'user')
-        client_ids = request.form.getlist('client_ids')
+        raw_client_ids = request.form.getlist('client_ids')
+        client_ids = [int(cid) for cid in raw_client_ids if str(cid).strip().isdigit()]
         must_change_password = request.form.get('must_change_password') == 'on'
         cpf = (request.form.get('cpf') or '').strip()
         phone = (request.form.get('phone') or '').strip()
@@ -327,7 +328,8 @@ def edit_technician(user_id):
         specialty = request.form.get('specialty')
         is_active = request.form.get('is_active') == 'on'
         permission_level = request.form.get('permission_level', 'user')
-        client_ids = request.form.getlist('client_ids')
+        raw_client_ids = request.form.getlist('client_ids')
+        client_ids = [int(cid) for cid in raw_client_ids if str(cid).strip().isdigit()]
         must_change_password = request.form.get('must_change_password') == 'on'
         cpf = (request.form.get('cpf') or '').strip()
         phone = (request.form.get('phone') or '').strip()
