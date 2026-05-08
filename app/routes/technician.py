@@ -405,3 +405,27 @@ def edit_technician(user_id):
         return redirect(url_for('tech.list_technicians'))
 
     return render_template('technician/edit.html', user=user, clients=clients)
+
+@tech_bp.route('/delete/<int:user_id>', methods=['POST'])
+@roles_required('admin')
+def delete_technician(user_id):
+    user = User.query.get_or_404(user_id)
+    if user.permission_level == 'admin':
+        flash('Não é possível excluir um administrador.', 'danger')
+        return redirect(url_for('tech.list_technicians'))
+        
+    try:
+        # Prevent foreign key constraint errors for audit logs
+        from app.models.audit_log import AuditLog
+        AuditLog.query.filter_by(user_id=user.id).delete()
+        
+        db.session.delete(user)
+        db.session.commit()
+        flash('Usuário excluído com sucesso!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.error(f"Erro ao excluir usuário {user_id}: {str(e)}")
+        flash('Não foi possível excluir o usuário pois ele possui registros vinculados (ex: Ordens de Serviço). Considere inativá-lo.', 'danger')
+        
+    return redirect(url_for('tech.list_technicians'))

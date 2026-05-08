@@ -91,8 +91,14 @@
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div class="flex flex-col items-end gap-2">
-                        <a href="{{ url_for('tech.edit_technician', user_id=tech.id) }}" class="text-primary hover:text-blue-900 bg-blue-50 px-2 py-1 rounded transition-all"><i class="fas fa-edit mr-1"></i>Editar</a>
-                        <a href="{{ url_for('tech.message_user', user_id=tech.id) }}" class="text-gray-700 hover:text-gray-900 bg-gray-100 px-2 py-1 rounded transition-all"><i class="fas fa-envelope mr-1"></i>Mensagem</a>
+                        <a href="{{ url_for('tech.edit_technician', user_id=tech.id) }}" class="inline-flex items-center justify-center w-28 text-primary hover:text-blue-900 bg-blue-50 px-2 py-1 rounded transition-all"><i class="fas fa-edit mr-1.5"></i>Editar</a>
+                        <a href="{{ url_for('tech.message_user', user_id=tech.id) }}" class="inline-flex items-center justify-center w-28 text-gray-700 hover:text-gray-900 bg-gray-100 px-2 py-1 rounded transition-all"><i class="fas fa-envelope mr-1.5"></i>Mensagem</a>
+                        {% if tech.permission_level != 'admin' %}
+                        <form method="POST" action="{{ url_for('tech.delete_technician', user_id=tech.id) }}" onsubmit="return confirm('Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.');" class="m-0 p-0 block">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="inline-flex items-center justify-center w-28 text-red-600 hover:text-red-900 bg-red-50 px-2 py-1 rounded transition-all"><i class="fas fa-trash mr-1.5"></i>Excluir</button>
+                        </form>
+                        {% endif %}
                     </div>
                 </td>
             </tr>
@@ -169,6 +175,14 @@
                     <a href="{{ url_for('tech.message_user', user_id=tech.id) }}" class="inline-block w-full text-center bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 rounded transition-colors text-xs">
                         <i class="fas fa-envelope mr-1"></i>Mensagem
                     </a>
+                    {% if tech.permission_level != 'admin' %}
+                    <form method="POST" action="{{ url_for('tech.delete_technician', user_id=tech.id) }}" onsubmit="return confirm('Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="inline-block w-full text-center bg-red-50 hover:bg-red-100 text-red-600 font-medium py-2 rounded transition-colors text-xs">
+                            <i class="fas fa-trash mr-1"></i>Excluir
+                        </button>
+                    </form>
+                    {% endif %}
                 </div>
             </div>
         </div>
