@@ -7,6 +7,16 @@ $USER = "root"
 $REMOTE_PATH = "/var/www/pro-ar_refrigeracao" # Ajuste se o caminho for outro (ex: /root/pro-ar_refrigeracao)
 $SERVICE_NAME = "pro-ar"
 
+# Carregar Token do GitHub do .env
+$GITHUB_TOKEN = ""
+if (Test-Path ".env") {
+    Get-Content .env | ForEach-Object {
+        if ($_ -match "^GITHUB_TOKEN=(.*)$") {
+            $GITHUB_TOKEN = $Matches[1].Trim()
+        }
+    }
+}
+
 Clear-Host
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host "   DEPLOY AUTOMATIZADO - PRONTO AR" -ForegroundColor Cyan
@@ -33,7 +43,11 @@ Write-Host "[2/3] Passo 2: Conectando à VPS ($IP)..." -ForegroundColor Yellow
 Write-Host "DICA: A senha da sua VPS será solicitada pelo terminal." -ForegroundColor Gray
 
 # Bloco de comandos remotos
-$REMOTE_COMMANDS = "cd $REMOTE_PATH && echo '--- Atualizando código ---' && git pull origin main && echo '--- Aplicando Migrations ---' && .venv/bin/flask db upgrade && echo '--- Sincronizando dados ---' && .venv/bin/flask finance sync && echo '--- Reiniciando o Servidor ---' && systemctl restart $SERVICE_NAME && systemctl status $SERVICE_NAME --no-pager"
+$SET_REMOTE_URL = ""
+if (-not [string]::IsNullOrEmpty($GITHUB_TOKEN)) {
+    $SET_REMOTE_URL = "git remote set-url origin https://$GITHUB_TOKEN@github.com/Boanerges20297/pro-ar_refrigeracao.git && "
+}
+$REMOTE_COMMANDS = "cd $REMOTE_PATH && echo '--- Atualizando código ---' && ${SET_REMOTE_URL}git pull origin main && echo '--- Aplicando Migrations ---' && .venv/bin/flask db upgrade && echo '--- Sincronizando dados ---' && .venv/bin/flask finance sync && echo '--- Reiniciando o Servidor ---' && systemctl restart $SERVICE_NAME && systemctl status $SERVICE_NAME --no-pager"
 
 ssh -o PreferredAuthentications=password "${USER}@${IP}" "$REMOTE_COMMANDS"
 
