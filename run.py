@@ -9,4 +9,4 @@ app = create_app()
 
 if __name__ == '__main__':
     debug_enabled = os.environ.get('FLASK_DEBUG', '').strip().lower() in {'1', 'true', 'yes', 'on'}
-    app.run(debug=debug_enabled, port=5000, host='0.0.0.0')
+    app.run(debug=debug_enabled, port=5057, host='0.0.0.0')
