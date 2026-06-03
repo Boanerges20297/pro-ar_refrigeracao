@@ -715,6 +715,27 @@ def history():
         total_matching = query.count()
         if limit > total_matching:
             flash(f"Aviso: Serão gerados apenas {total_matching} serviços no PDF, pois a busca possui apenas {total_matching} registros.", "warning")
+            
+    # Mostrar mensagem de filtro aplicado se houver parâmetros na URL
+    if any(param in request.args for param in ['client_id', 'equipment_id', 'status', 'limit']):
+        applied_filters = []
+        if client_id:
+            client = Client.query.get(client_id)
+            if client:
+                applied_filters.append(f"Empresa: {client.name}")
+        if equipment_id:
+            equipment = Equipment.query.get(equipment_id)
+            if equipment:
+                applied_filters.append(f"Aparelho: {equipment.name}")
+        if status:
+            status_name = get_status_label(status)
+            applied_filters.append(f"Status: {status_name}")
+        if limit:
+            applied_filters.append(f"Limite PDF: {limit} OS")
+            
+        if applied_filters:
+            filters_str = ", ".join(applied_filters)
+            flash(f"Filtro aplicado: {filters_str}", "success")
     
     pagination = query.order_by(WorkOrder.created_at.desc()).paginate(
         page=page, per_page=per_page, error_out=False
