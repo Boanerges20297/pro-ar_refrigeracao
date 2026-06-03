@@ -52,6 +52,11 @@
   .ts-dropdown .option {
     padding: 0.5rem 0.75rem !important;
   }
+  .ts-wrapper.disabled .ts-control {
+    background-color: #f3f4f6 !important;
+    opacity: 0.6 !important;
+    cursor: not-allowed !important;
+  }
 </style>
 <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
     <h2 class="text-2xl font-bold text-gray-800">Histórico Completo de Ordens</h2>
@@ -78,9 +83,9 @@
 <!-- Filtros -->
 <div class="bg-white shadow rounded-lg p-4 sm:p-6 mb-6 border border-gray-100">
     <form method="GET" class="space-y-4">
-        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-12 xl:grid-cols-12 gap-4">
             <!-- Filtro por Cliente -->
-            <div>
+            <div class="sm:col-span-6 xl:col-span-3">
                 <label for="client_id" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Empresa</label>
                 <select name="client_id" id="client_id" class="w-full text-gray-700 text-sm" onchange="handleClientChange(this.value)">
                     <option value="">Todas as Empresas</option>
@@ -92,11 +97,11 @@
                 </select>
             </div>
 
-            <div>
+            <div class="sm:col-span-6 xl:col-span-3">
                 <div class="flex items-end gap-2">
                     <div class="flex-1">
                         <label for="equipment_id" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Aparelho</label>
-                        <select name="equipment_id" id="equipment_id" class="w-full filter-input bg-white border border-gray-300 text-gray-700 text-sm rounded-md focus:ring-primary focus:border-primary p-2" {% if not selected_client_id %}disabled{% endif %}>
+                        <select name="equipment_id" id="equipment_id" class="w-full text-gray-700 text-sm" {% if not selected_client_id %}disabled{% endif %}>
                             {% if not selected_client_id %}
                             <option value="">Escolha uma empresa primeiro</option>
                             {% else %}
@@ -116,7 +121,7 @@
             </div>
 
             <!-- Filtro por Status -->
-            <div>
+            <div class="sm:col-span-4 xl:col-span-2">
                 <label for="status" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Status</label>
                 <select name="status" id="status" class="w-full filter-input bg-white border border-gray-300 text-gray-700 text-sm rounded-md focus:ring-primary focus:border-primary p-2">
                     <option value="">Todos os Status</option>
@@ -127,7 +132,7 @@
             </div>
 
             <!-- Itens por Página -->
-            <div>
+            <div class="sm:col-span-4 xl:col-span-2">
                 <label for="per_page" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Itens por Página</label>
                 <select name="per_page" id="per_page" class="w-full filter-input bg-white border border-gray-300 text-gray-700 text-sm rounded-md focus:ring-primary focus:border-primary p-2">
                     <option value="5" {% if per_page == 5 %}selected{% endif %}>5 por página</option>
@@ -138,7 +143,7 @@
             </div>
 
             <!-- Limite no PDF -->
-            <div>
+            <div class="sm:col-span-4 xl:col-span-2">
                 <label for="limit" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Qtd. Serviços no PDF</label>
                 <input type="number" name="limit" id="limit" min="1" value="{{ selected_limit or '' }}" placeholder="Todos" class="w-full filter-input bg-white border border-gray-300 text-gray-700 text-sm rounded-md focus:ring-primary focus:border-primary p-2">
             </div>
@@ -315,7 +320,9 @@
 {{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
 <script>
-// Inicializar Tom Select para o filtro de empresa
+let equipmentTs;
+
+// Inicializar Tom Select para o filtro de empresa e aparelho
 document.addEventListener("DOMContentLoaded", function() {
     const clientSelectElement = document.getElementById('client_id');
     if (clientSelectElement) {
@@ -332,6 +339,20 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         });
     }
+
+    const equipmentSelectElement = document.getElementById('equipment_id');
+    if (equipmentSelectElement) {
+        equipmentTs = new TomSelect(equipmentSelectElement, {
+            create: false,
+            searchField: ['text'],
+            respect_word_boundaries: false,
+        });
+        
+        // Initial state disable if no client selected
+        if (!clientSelectElement.value) {
+            equipmentTs.disable();
+        }
+    }
 });
 
 const equipmentModal = document.getElementById('equipmentModal');
@@ -343,33 +364,54 @@ const modalTitle = document.getElementById('modalTitle');
 
 function updateEquipmentTriggerState() {
     const hasClient = Boolean(clientSelect.value);
-    equipmentSelect.disabled = !hasClient;
     equipmentModalTrigger.disabled = !hasClient;
     equipmentModalTrigger.classList.toggle('opacity-60', !hasClient);
     equipmentModalTrigger.classList.toggle('cursor-not-allowed', !hasClient);
 
-    if (!hasClient) {
-        equipmentSelect.innerHTML = '<option value="">Escolha uma empresa primeiro</option>';
+    if (equipmentTs) {
+        if (hasClient) {
+            equipmentTs.enable();
+        } else {
+            equipmentTs.disable();
+            equipmentTs.clear();
+            equipmentTs.clearOptions();
+            equipmentTs.addOption({value: "", text: "Escolha uma empresa primeiro"});
+            equipmentTs.setValue("");
+        }
     }
 }
 
 function populateEquipmentSelect(equipments, selectedId = '') {
+    if (!equipmentTs) return;
+
+    equipmentTs.clear();
+    equipmentTs.clearOptions();
+
     if (!clientSelect.value) {
-        equipmentSelect.innerHTML = '<option value="">Escolha uma empresa primeiro</option>';
+        equipmentTs.addOption({value: "", text: "Escolha uma empresa primeiro"});
+        equipmentTs.setValue("");
         return;
     }
 
-    let html = '<option value="">Todos os aparelhos da empresa</option>';
+    equipmentTs.addOption({value: "", text: "Todos os aparelhos da empresa"});
+
     equipments.forEach(eq => {
         const label = `${eq.name}${eq.serial_number ? ` (SN: ${eq.serial_number})` : ''}`;
-        const isSelected = String(selectedId) === String(eq.id) ? 'selected' : '';
-        html += `<option value="${eq.id}" ${isSelected}>${label}</option>`;
+        equipmentTs.addOption({
+            value: eq.id,
+            text: label
+        });
     });
-    equipmentSelect.innerHTML = html;
+
+    equipmentTs.setValue(selectedId || "");
 }
 
 function setEquipmentSelection(equipmentId) {
-    equipmentSelect.value = equipmentId || '';
+    if (equipmentTs) {
+        equipmentTs.setValue(equipmentId || '');
+    } else {
+        equipmentSelect.value = equipmentId || '';
+    }
     closeEquipmentModal();
 }
 
