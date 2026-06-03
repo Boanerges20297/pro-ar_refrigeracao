@@ -85,7 +85,7 @@
     <form method="GET" class="space-y-4">
         <div class="grid grid-cols-1 sm:grid-cols-12 xl:grid-cols-12 gap-4">
             <!-- Filtro por Cliente -->
-            <div class="sm:col-span-6 xl:col-span-3">
+            <div class="sm:col-span-6 xl:col-span-4">
                 <label for="client_id" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Empresa</label>
                 <select name="client_id" id="client_id" class="w-full text-gray-700 text-sm" onchange="handleClientChange(this.value)">
                     <option value="">Todas as Empresas</option>
@@ -97,7 +97,7 @@
                 </select>
             </div>
 
-            <div class="sm:col-span-6 xl:col-span-3">
+            <div class="sm:col-span-6 xl:col-span-4">
                 <div class="flex items-end gap-2">
                     <div class="flex-1">
                         <label for="equipment_id" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Aparelho</label>
@@ -121,7 +121,7 @@
             </div>
 
             <!-- Filtro por Status -->
-            <div class="sm:col-span-4 xl:col-span-2">
+            <div class="sm:col-span-4 xl:col-span-1">
                 <label for="status" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Status</label>
                 <select name="status" id="status" class="w-full filter-input bg-white border border-gray-300 text-gray-700 text-sm rounded-md focus:ring-primary focus:border-primary p-2">
                     <option value="">Todos os Status</option>
@@ -132,7 +132,7 @@
             </div>
 
             <!-- Itens por Página -->
-            <div class="sm:col-span-4 xl:col-span-2">
+            <div class="sm:col-span-4 xl:col-span-1">
                 <label for="per_page" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Itens por Página</label>
                 <select name="per_page" id="per_page" class="w-full filter-input bg-white border border-gray-300 text-gray-700 text-sm rounded-md focus:ring-primary focus:border-primary p-2">
                     <option value="5" {% if per_page == 5 %}selected{% endif %}>5 por página</option>
