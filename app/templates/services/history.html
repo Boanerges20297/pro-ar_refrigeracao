@@ -7,9 +7,9 @@
         <a href="{{ url_for('services.index') }}" class="w-full sm:w-auto bg-secondary hover:opacity-90 text-white font-bold py-2 px-4 rounded transition-all shadow-sm text-center text-sm">
             <i class="fas fa-arrow-left mr-2"></i>Voltar
         </a>
-        <a href="{{ url_for('services.export_pdf', client_id=selected_client_id, equipment_id=selected_equipment_id, status=selected_status, limit=selected_limit) }}" class="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-all shadow-sm text-center text-sm">
+        <button type="button" onclick="exportPDFWithFilters()" class="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-all shadow-sm text-center text-sm">
             <i class="fas fa-file-pdf mr-2"></i>Gerar PDF
-        </a>
+        </button>
     </div>
 </div>
 
@@ -388,6 +388,47 @@ window.addEventListener('keydown', function(event) {
         closeEquipmentModal();
     }
 });
+
+function exportPDFWithFilters() {
+    const clientId = document.getElementById('client_id').value;
+    const equipmentId = document.getElementById('equipment_id').value;
+    const status = document.getElementById('status').value;
+    const limit = document.getElementById('limit').value;
+    
+    if (!clientId && !equipmentId && !status && !limit) {
+        Swal.fire({
+            title: 'Gerar PDF Completo?',
+            text: "Você não selecionou nenhum filtro. Isso gerará um relatório com todas as ordens de serviço do sistema. Deseja prosseguir?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3b82f6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Sim, gerar tudo',
+            cancelButtonText: 'Cancelar',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                triggerPDFDownload(clientId, equipmentId, status, limit);
+            }
+        });
+    } else {
+        triggerPDFDownload(clientId, equipmentId, status, limit);
+    }
+}
+
+function triggerPDFDownload(clientId, equipmentId, status, limit) {
+    let url = "{{ url_for('services.export_pdf') }}";
+    const params = [];
+    if (clientId) params.push(`client_id=${clientId}`);
+    if (equipmentId) params.push(`equipment_id=${equipmentId}`);
+    if (status) params.push(`status=${status}`);
+    if (limit) params.push(`limit=${limit}`);
+    
+    if (params.length > 0) {
+        url += '?' + params.join('&');
+    }
+    window.location.href = url;
+}
 
 updateEquipmentTriggerState();
 </script>
