@@ -673,6 +673,7 @@ def history():
     client_id = request.args.get('client_id', type=int)
     equipment_id = request.args.get('equipment_id', type=int)
     status = request.args.get('status', type=str)
+    limit = request.args.get('limit', type=int)
     
     # Check if user is technician
     is_technician = current_user and current_user.permission_level == 'user'
@@ -710,6 +711,11 @@ def history():
     if status:
         query = query.filter_by(status=status)
     
+    if limit and limit > 0:
+        total_matching = query.count()
+        if limit > total_matching:
+            flash(f"Aviso: Serão gerados apenas {total_matching} serviços no PDF, pois a busca possui apenas {total_matching} registros.", "warning")
+    
     pagination = query.order_by(WorkOrder.created_at.desc()).paginate(
         page=page, per_page=per_page, error_out=False
     )
@@ -731,7 +737,8 @@ def history():
                          selected_client_id=client_id,
                          selected_equipment_id=equipment_id,
                          selected_equipment=selected_equipment,
-                         selected_status=status)
+                         selected_status=status,
+                         selected_limit=limit)
 
 @services_bp.route('/export-pdf')
 @roles_required('admin', 'secretary', 'technician')
@@ -742,6 +749,7 @@ def export_pdf():
     client_id = request.args.get('client_id', type=int)
     equipment_id = request.args.get('equipment_id', type=int)
     status = request.args.get('status', type=str)
+    limit = request.args.get('limit', type=int)
     
     # Check if user is technician
     is_technician = current_user and current_user.permission_level == 'user'
@@ -766,7 +774,10 @@ def export_pdf():
     if status:
         query = query.filter_by(status=status)
     
-    work_orders = query.order_by(WorkOrder.created_at.desc()).all()
+    if limit and limit > 0:
+        work_orders = query.order_by(WorkOrder.created_at.desc()).limit(limit).all()
+    else:
+        work_orders = query.order_by(WorkOrder.created_at.desc()).all()
     
     # Criar PDF
     buffer = io.BytesIO()
@@ -880,7 +891,7 @@ def export_pdf():
             data = [[
                 Paragraph('ID', table_header_style),
                 Paragraph('Equipamento', table_header_style),
-                Paragraph('Série', table_header_style),
+                Paragraph('Local', table_header_style),
                 Paragraph('Tipo/Serviço', table_header_style),
                 Paragraph('Status', table_header_style),
                 Paragraph('Data', table_header_style),
@@ -896,13 +907,13 @@ def export_pdf():
                 total_expenses_overall += wo_expenses_sum
 
                 equipment_name = wo.equipment.name if wo.equipment else 'Genérico'
-                serial_number = wo.equipment.serial_number if wo.equipment and wo.equipment.serial_number else '-'
+                location = wo.equipment.location if wo.equipment and wo.equipment.location else '-'
                 service_name = wo.service_type.name if wo.service_type else '-'
                 status_label = get_status_label(wo.status)
                 data.append([
                     Paragraph(str(wo.id), table_cell_center_style),
                     Paragraph(escape(equipment_name), table_cell_style),
-                    Paragraph(escape(serial_number), table_cell_style),
+                    Paragraph(escape(location), table_cell_style),
                     Paragraph(escape(service_name), table_cell_style),
                     Paragraph(escape(status_label), table_cell_center_style),
                     Paragraph(wo.created_at.strftime('%d/%m/%Y'), table_cell_center_style),
@@ -912,7 +923,7 @@ def export_pdf():
 
             table = Table(
                 data,
-                colWidths=[0.4*inch, 1.25*inch, 0.8*inch, 1.1*inch, 0.8*inch, 0.7*inch, 0.7*inch, 0.7*inch],
+                colWidths=[0.35*inch, 1.15*inch, 0.75*inch, 1.5*inch, 0.75*inch, 0.65*inch, 0.65*inch, 0.65*inch],
                 repeatRows=1
             )
             table.setStyle(TableStyle([

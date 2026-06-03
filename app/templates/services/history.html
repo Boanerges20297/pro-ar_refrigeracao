@@ -7,7 +7,7 @@
         <a href="{{ url_for('services.index') }}" class="w-full sm:w-auto bg-secondary hover:opacity-90 text-white font-bold py-2 px-4 rounded transition-all shadow-sm text-center text-sm">
             <i class="fas fa-arrow-left mr-2"></i>Voltar
         </a>
-        <a href="{{ url_for('services.export_pdf', client_id=selected_client_id, equipment_id=selected_equipment_id, status=selected_status) }}" class="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-all shadow-sm text-center text-sm">
+        <a href="{{ url_for('services.export_pdf', client_id=selected_client_id, equipment_id=selected_equipment_id, status=selected_status, limit=selected_limit) }}" class="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-all shadow-sm text-center text-sm">
             <i class="fas fa-file-pdf mr-2"></i>Gerar PDF
         </a>
     </div>
@@ -16,7 +16,7 @@
 {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
         {% for category, message in messages %}
-            <div class="flash-message mb-4 rounded p-3 text-sm transition-all duration-500 {% if category == 'danger' %}text-red-600 bg-red-100{% else %}text-green-600 bg-green-100{% endif %}" data-auto-dismiss="5000">
+            <div class="flash-message mb-4 rounded p-3 text-sm transition-all duration-500 {% if category == 'danger' %}text-red-600 bg-red-100{% elif category == 'warning' %}text-yellow-800 bg-yellow-100{% else %}text-green-600 bg-green-100{% endif %}" data-auto-dismiss="5000">
                 {{ message }}
             </div>
         {% endfor %}
@@ -26,7 +26,7 @@
 <!-- Filtros -->
 <div class="bg-white shadow rounded-lg p-4 sm:p-6 mb-6 border border-gray-100">
     <form method="GET" class="space-y-4">
-        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
             <!-- Filtro por Cliente -->
             <div>
                 <label for="client_id" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Empresa</label>
@@ -83,6 +83,12 @@
                     <option value="20" {% if per_page == 20 %}selected{% endif %}>20 por página</option>
                     <option value="50" {% if per_page == 50 %}selected{% endif %}>50 por página</option>
                 </select>
+            </div>
+
+            <!-- Limite no PDF -->
+            <div>
+                <label for="limit" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Qtd. Serviços no PDF</label>
+                <input type="number" name="limit" id="limit" min="1" value="{{ selected_limit or '' }}" placeholder="Todos" class="w-full bg-white border border-gray-300 text-gray-700 text-sm rounded-md focus:ring-primary focus:border-primary p-2">
             </div>
         </div>
 
@@ -193,7 +199,7 @@
             <nav class="flex items-center justify-center gap-1" aria-label="Pagination">
                 <!-- Botão Anterior -->
                 {% if pagination.has_prev %}
-                <a href="?page={{ pagination.prev_num }}&per_page={{ per_page }}{% if selected_client_id %}&client_id={{ selected_client_id }}{% endif %}{% if selected_equipment_id %}&equipment_id={{ selected_equipment_id }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}" 
+                <a href="?page={{ pagination.prev_num }}&per_page={{ per_page }}{% if selected_client_id %}&client_id={{ selected_client_id }}{% endif %}{% if selected_equipment_id %}&equipment_id={{ selected_equipment_id }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_limit %}&limit={{ selected_limit }}{% endif %}" 
                    class="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 transition-all">
                     <i class="fas fa-chevron-left"></i> Anterior
                 </a>
@@ -206,7 +212,7 @@
                 <!-- Números de Página -->
                 {% for p in pagination.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=0) %}
                     {% if p %}
-                        <a href="?page={{ p }}&per_page={{ per_page }}{% if selected_client_id %}&client_id={{ selected_client_id }}{% endif %}{% if selected_equipment_id %}&equipment_id={{ selected_equipment_id }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}"
+                        <a href="?page={{ p }}&per_page={{ per_page }}{% if selected_client_id %}&client_id={{ selected_client_id }}{% endif %}{% if selected_equipment_id %}&equipment_id={{ selected_equipment_id }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_limit %}&limit={{ selected_limit }}{% endif %}"
                            class="px-2 py-1 border rounded text-xs font-medium transition-all {% if p == pagination.page %}bg-primary text-white border-primary{% else %}border-gray-300 text-gray-700 bg-white hover:bg-gray-50{% endif %}">
                             {{ p }}
                         </a>
@@ -217,7 +223,7 @@
 
                 <!-- Botão Próximo -->
                 {% if pagination.has_next %}
-                <a href="?page={{ pagination.next_num }}&per_page={{ per_page }}{% if selected_client_id %}&client_id={{ selected_client_id }}{% endif %}{% if selected_equipment_id %}&equipment_id={{ selected_equipment_id }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}"
+                <a href="?page={{ pagination.next_num }}&per_page={{ per_page }}{% if selected_client_id %}&client_id={{ selected_client_id }}{% endif %}{% if selected_equipment_id %}&equipment_id={{ selected_equipment_id }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_limit %}&limit={{ selected_limit }}{% endif %}"
                    class="px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 transition-all">
                     Próximo <i class="fas fa-chevron-right"></i>
                 </a>
