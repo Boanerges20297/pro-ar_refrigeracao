@@ -212,7 +212,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% set max_count = service_stats[0].os_count if service_stats else 1 %}
+                        {% set max_count = service_stats[0].os_count if service_stats and service_stats[0].os_count > 0 else 1 %}
                         {% for row in service_stats %}
                         <tr>
                             <td class="tc">
