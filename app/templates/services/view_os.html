@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recibo REC-{{ "%05d"|format(wo.id) }} — {{ company_name }}</title>
+    <title>OS #{{ "%05d"|format(wo.id) }} — {{ company_name }}</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -85,7 +85,15 @@
             text-align: right;
         }
 
-        .rec-label {
+        .os-number {
+            font-size: 26px;
+            font-weight: 800;
+            color: #1e3a5f;
+            letter-spacing: -0.02em;
+            line-height: 1;
+        }
+
+        .os-label {
             font-size: 10px;
             font-weight: 700;
             letter-spacing: 0.12em;
@@ -94,15 +102,7 @@
             margin-bottom: 4px;
         }
 
-        .rec-number {
-            font-size: 26px;
-            font-weight: 800;
-            color: #1e3a5f;
-            letter-spacing: -0.02em;
-            line-height: 1;
-        }
-
-        .rec-dates {
+        .os-dates {
             margin-top: 6px;
             font-size: 11px;
             color: #6b7280;
@@ -131,6 +131,8 @@
             text-transform: uppercase;
         }
 
+        .badge-pending   { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+        .badge-progress  { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
         .badge-completed { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
         .badge-paid      { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
         .badge-unpaid    { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
@@ -149,9 +151,10 @@
             color: #fff;
             background: #1e3a5f;
             padding: 5px 10px;
+            margin-bottom: 0;
         }
 
-        /* ── Info table ── */
+        /* ── Info table (key-value rows) ── */
         .info-table {
             width: 100%;
             border-collapse: collapse;
@@ -174,7 +177,9 @@
             width: 1%;
         }
 
-        .info-table .val { color: #111827; }
+        .info-table .val {
+            color: #111827;
+        }
 
         /* ── Two columns ── */
         .cols {
@@ -184,77 +189,57 @@
             margin-bottom: 18px;
         }
 
-        .col-block { border: 1px solid #d1d5db; }
-        .col-block + .col-block { border-left: none; }
-
-        .col-block .info-table {
-            margin-bottom: 0;
-            border: none;
+        .cols .col-block {
+            border: 1px solid #d1d5db;
         }
 
-        .col-block .info-table td {
+        .cols .col-block + .col-block {
+            border-left: none;
+        }
+
+        .cols .col-block .sec-head {
+            margin-bottom: 0;
+        }
+
+        .cols .col-block .info-table {
+            margin-bottom: 0;
+            border: none;
+            border-top: none;
+        }
+
+        .cols .col-block .info-table td {
             border-left: none;
             border-right: none;
         }
 
-        .col-block .info-table tr:last-child td { border-bottom: none; }
+        .cols .col-block .info-table tr:last-child td {
+            border-bottom: none;
+        }
 
-        /* ── Service summary row ── */
-        .svc-summary {
+        /* ── Full-width block ── */
+        .full-block {
             border: 1px solid #d1d5db;
             margin-bottom: 18px;
         }
 
-        .svc-row {
-            display: flex;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .svc-row:last-child { border-bottom: none; }
-
-        .svc-lbl {
-            width: 160px;
-            flex-shrink: 0;
-            padding: 8px 12px;
-            background: #f9fafb;
-            font-size: 11px;
-            color: #6b7280;
-            font-weight: 600;
-            border-right: 1px solid #e5e7eb;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-
-        .svc-val {
-            flex: 1;
-            padding: 8px 12px;
-            font-size: 12.5px;
-            color: #111827;
-            font-weight: 600;
-        }
-
-        /* ── Equipment block ── */
-        .equip-block {
-            border: 1px solid #d1d5db;
-            margin-bottom: 18px;
-        }
-
-        .equip-detail {
+        .full-block .text-area {
             padding: 10px 12px;
             font-size: 12.5px;
             color: #374151;
             line-height: 1.7;
+            white-space: pre-wrap;
+            min-height: 48px;
         }
 
-        /* ── Expenses table ── */
-        .exp-table {
+        /* ── Materials table ── */
+        .mat-table {
             width: 100%;
             border-collapse: collapse;
-            border: 1px solid #d1d5db;
             margin-bottom: 18px;
+            border: 1px solid #d1d5db;
         }
 
-        .exp-table thead th {
+        .mat-table thead th {
             background: #1e3a5f;
             color: #fff;
             padding: 7px 12px;
@@ -266,18 +251,18 @@
             border: 1px solid #1e3a5f;
         }
 
-        .exp-table tbody td {
+        .mat-table tbody td {
             padding: 7px 12px;
             font-size: 12.5px;
             border: 1px solid #e5e7eb;
             color: #374151;
         }
 
-        .exp-table tbody tr:nth-child(even) td { background: #f9fafb; }
-        .exp-table .tr { text-align: right; }
-        .exp-table .tc { text-align: center; }
+        .mat-table tbody tr:nth-child(even) td { background: #f9fafb; }
+        .mat-table .tr { text-align: right; }
+        .mat-table .tc { text-align: center; }
 
-        .exp-table tfoot td {
+        .mat-table tfoot td {
             padding: 8px 12px;
             font-size: 12.5px;
             font-weight: 700;
@@ -290,7 +275,7 @@
         /* ── Financial summary ── */
         .fin-summary {
             border: 1px solid #d1d5db;
-            margin-bottom: 18px;
+            margin-bottom: 20px;
         }
 
         .fin-row {
@@ -300,7 +285,7 @@
 
         .fin-row:last-child { border-bottom: none; }
 
-        .fin-lbl {
+        .fin-row .fin-lbl {
             flex: 1;
             padding: 8px 12px;
             background: #f9fafb;
@@ -310,39 +295,13 @@
             border-right: 1px solid #e5e7eb;
         }
 
-        .fin-val {
+        .fin-row .fin-val {
             width: 160px;
             padding: 8px 12px;
             font-size: 13px;
             font-weight: 700;
             text-align: right;
             color: #111827;
-        }
-
-        .fin-total .fin-lbl {
-            background: #1e3a5f;
-            color: #fff;
-            font-size: 13px;
-        }
-
-        .fin-total .fin-val {
-            background: #1e3a5f;
-            color: #fff;
-            font-size: 15px;
-        }
-
-        /* ── Declaration ── */
-        .declaration {
-            border: 1px solid #d1d5db;
-            margin-bottom: 20px;
-        }
-
-        .declaration .decl-text {
-            padding: 14px 16px;
-            font-size: 12.5px;
-            color: #374151;
-            line-height: 1.8;
-            text-align: justify;
         }
 
         /* ── Signatures ── */
@@ -353,9 +312,13 @@
             margin-top: 36px;
         }
 
-        .sig { text-align: center; }
+        .sig {
+            text-align: center;
+        }
 
-        .sig-space { height: 44px; }
+        .sig-space {
+            height: 44px;
+        }
 
         .sig-line {
             border-top: 1px solid #374151;
@@ -395,25 +358,26 @@
             .letterhead { padding: 16px 24px 14px; }
             .lh-logo { width: 52px; height: 52px; }
             .lh-company-name { font-size: 15px; }
-            .rec-number { font-size: 20px; }
+            .os-number { font-size: 20px; }
 
             .status-strip { padding: 5px 24px; }
             .body { padding: 14px 24px 24px; }
 
             .sec-head { padding: 4px 8px; font-size: 9px; }
 
-            .info-table td { padding: 5px 9px; font-size: 10.5px; }
-            .svc-lbl, .svc-val { padding: 5px 9px; font-size: 10.5px; }
-            .fin-lbl, .fin-val { padding: 5px 9px; font-size: 10.5px; }
-            .fin-total .fin-val { font-size: 13px; }
-            .exp-table thead th, .exp-table tbody td, .exp-table tfoot td { padding: 5px 9px; font-size: 10px; }
-            .equip-detail, .declaration .decl-text { padding: 7px 9px; font-size: 10.5px; }
+            .info-table td, .mat-table tbody td, .mat-table tfoot td { padding: 5px 9px; font-size: 10.5px; }
+            .mat-table thead th { padding: 5px 9px; font-size: 9.5px; }
+
+            .fin-row .fin-lbl, .fin-row .fin-val { padding: 5px 9px; font-size: 10.5px; }
+
+            .full-block .text-area { padding: 7px 9px; font-size: 10.5px; }
 
             .signatures { margin-top: 24px; gap: 28px; }
             .sig-space { height: 30px; }
+
             .doc-footer { margin-top: 16px; font-size: 9.5px; }
 
-            .info-table, .exp-table, .fin-summary, .svc-summary, .equip-block, .declaration,
+            .info-table, .mat-table, .fin-summary, .full-block,
             .cols, tr, td, th { break-inside: avoid; page-break-inside: avoid; }
             thead { display: table-header-group; }
         }
@@ -422,16 +386,16 @@
             body { padding: 10px; }
             .letterhead, .status-strip, .body { padding-left: 16px; padding-right: 16px; }
             .cols { grid-template-columns: 1fr; }
-            .col-block + .col-block { border-left: 1px solid #d1d5db; border-top: none; }
+            .cols .col-block + .col-block { border-left: 1px solid #d1d5db; border-top: none; }
             .signatures { grid-template-columns: 1fr; }
-            .fin-val { width: 120px; }
+            .fin-row .fin-val { width: 120px; }
         }
     </style>
 </head>
 <body>
 
 <div class="toolbar">
-    <a href="{{ url_for('services.history') }}" class="btn-back">&#8592; Voltar ao Histórico</a>
+    <a href="{{ url_for('services.index') }}" class="btn-back">&#8592; Voltar</a>
     <button type="button" class="btn-print" onclick="window.print()">&#128438; Imprimir / Salvar PDF</button>
 </div>
 
@@ -452,21 +416,27 @@
             </div>
         </div>
         <div class="lh-right">
-            <div class="rec-label">Recibo de Prestação de Serviços</div>
-            <div class="rec-number">REC-{{ "%05d"|format(wo.id) }}</div>
-            <div class="rec-dates">
-                OS de referência: #{{ "%05d"|format(wo.id) }}<br>
-                Data do Serviço: {{ wo.created_at.strftime('%d/%m/%Y') }}<br>
+            <div class="os-label">Ordem de Serviço</div>
+            <div class="os-number">N.º {{ "%05d"|format(wo.id) }}</div>
+            <div class="os-dates">
+                Emissão: {{ wo.created_at.strftime('%d/%m/%Y') }}<br>
+                {% if wo.scheduled_date %}Agendado: {{ wo.scheduled_date.strftime('%d/%m/%Y %H:%M') }}<br>{% endif %}
                 {% if wo.completed_date %}Conclusão: {{ wo.completed_date.strftime('%d/%m/%Y') }}<br>{% endif %}
-                Emissão: {{ issued_at.strftime('%d/%m/%Y %H:%M') }}
+                Impresso em: {{ issued_at.strftime('%d/%m/%Y %H:%M') }}
             </div>
         </div>
     </div>
 
     <!-- STATUS -->
     <div class="status-strip">
-        <span>Status da OS:</span>
-        <span class="badge badge-completed">{{ status_label }}</span>
+        <span>Situação:</span>
+        {% if wo.status == 'Completed' %}
+            <span class="badge badge-completed">Concluída</span>
+        {% elif wo.status == 'In Progress' %}
+            <span class="badge badge-progress">Em Andamento</span>
+        {% else %}
+            <span class="badge badge-pending">Pendente</span>
+        {% endif %}
         <span style="margin-left:12px;">Pagamento:</span>
         {% if wo.is_paid %}
             <span class="badge badge-paid">Pago</span>
@@ -483,8 +453,8 @@
                 <div class="sec-head">Prestadora de Serviços</div>
                 <table class="info-table">
                     <tr><td class="lbl">Empresa</td><td class="val">{{ company_name }}</td></tr>
-                    <tr><td class="lbl">Responsável</td><td class="val">{{ company_responsible_name }}</td></tr>
-                    <tr><td class="lbl">Cargo</td><td class="val">{{ company_responsible_role }}</td></tr>
+                    <tr><td class="lbl">Técnico</td><td class="val">{{ technician_name }}</td></tr>
+                    <tr><td class="lbl">Função</td><td class="val">{{ technician_role }}</td></tr>
                     {% if company_cnpj and company_cnpj != '-' %}
                     <tr><td class="lbl">CNPJ</td><td class="val">{{ company_cnpj }}</td></tr>
                     {% endif %}
@@ -501,48 +471,66 @@
             </div>
         </div>
 
-        <!-- RESUMO DO ATENDIMENTO -->
-        <div class="sec-head">Resumo do Atendimento</div>
-        <div class="svc-summary">
-            <div class="svc-row">
-                <span class="svc-lbl">Tipo de Serviço</span>
-                <span class="svc-val">{{ wo.service_type.name if wo.service_type else '—' }}</span>
+        <!-- EQUIPAMENTO + SERVIÇO -->
+        <div class="cols">
+            <div class="col-block">
+                <div class="sec-head">Equipamento</div>
+                <table class="info-table">
+                    {% if wo.equipment %}
+                    <tr><td class="lbl">Aparelho</td><td class="val">{{ wo.equipment.name }}</td></tr>
+                    <tr><td class="lbl">Marca / Modelo</td><td class="val">{{ (wo.equipment.brand or '—') ~ ' / ' ~ (wo.equipment.model or '—') }}</td></tr>
+                    <tr><td class="lbl">Nº de Série</td><td class="val">{{ wo.equipment.serial_number or '—' }}</td></tr>
+                    <tr><td class="lbl">Local / Setor</td><td class="val">{{ wo.equipment.location or '—' }}</td></tr>
+                    {% else %}
+                    <tr><td colspan="2" class="val" style="color:#6b7280;">Atendimento geral — sem equipamento específico</td></tr>
+                    {% endif %}
+                </table>
             </div>
-            <div class="svc-row">
-                <span class="svc-lbl">Técnico Responsável</span>
-                <span class="svc-val">{{ wo.technician.name if wo.technician else '—' }}</span>
+            <div class="col-block">
+                <div class="sec-head">Tipo de Serviço</div>
+                <table class="info-table">
+                    {% if wo.service_type %}
+                    <tr><td class="lbl">Serviço</td><td class="val">{{ wo.service_type.name }}</td></tr>
+                    <tr><td class="lbl">Código</td><td class="val">{{ wo.service_type.service_code or '—' }}</td></tr>
+                    <tr><td class="lbl">Duração est.</td><td class="val">{{ (wo.service_type.estimated_duration|string ~ ' min') if wo.service_type.estimated_duration else '—' }}</td></tr>
+                    {% if wo.service_type.description %}
+                    <tr><td class="lbl">Descrição</td><td class="val">{{ wo.service_type.description }}</td></tr>
+                    {% endif %}
+                    {% else %}
+                    <tr><td colspan="2" class="val" style="color:#6b7280;">Tipo de serviço não especificado</td></tr>
+                    {% endif %}
+                </table>
             </div>
-            <div class="svc-row">
-                <span class="svc-lbl">Data de Criação</span>
-                <span class="svc-val">{{ wo.created_at.strftime('%d/%m/%Y') }}</span>
+        </div>
+
+        <!-- INSTRUÇÕES E PEÇAS -->
+        {% if wo.service_type and (wo.service_type.instructions or wo.service_type.parts) %}
+        <div class="cols">
+            {% if wo.service_type.instructions %}
+            <div class="col-block">
+                <div class="sec-head">Instruções de Execução</div>
+                <div class="text-area">{{ wo.service_type.instructions }}</div>
             </div>
-            {% if wo.completed_date %}
-            <div class="svc-row">
-                <span class="svc-lbl">Data de Conclusão</span>
-                <span class="svc-val">{{ wo.completed_date.strftime('%d/%m/%Y') }}</span>
+            {% endif %}
+            {% if wo.service_type.parts %}
+            <div class="col-block">
+                <div class="sec-head">Peças / Materiais Previstos</div>
+                <div class="text-area">{{ wo.service_type.parts }}</div>
             </div>
             {% endif %}
         </div>
+        {% endif %}
 
-        <!-- EQUIPAMENTO -->
-        <div class="equip-block" style="margin-bottom:18px;">
-            <div class="sec-head">Equipamento Atendido</div>
-            <div class="equip-detail">
-                {% if wo.equipment %}
-                <strong>{{ wo.equipment.name }}</strong> &nbsp;·&nbsp;
-                {{ wo.equipment.brand or '' }}{% if wo.equipment.model %} {{ wo.equipment.model }}{% endif %}
-                &nbsp;·&nbsp; Série: {{ wo.equipment.serial_number or '—' }}
-                &nbsp;·&nbsp; Local: {{ wo.equipment.location or '—' }}
-                {% else %}
-                Atendimento geral — sem equipamento específico
-                {% endif %}
-            </div>
+        <!-- DESCRIÇÃO / OBSERVAÇÕES -->
+        <div class="full-block" style="margin-bottom:18px;">
+            <div class="sec-head">Descrição / Observações do Atendimento</div>
+            <div class="text-area">{{ wo.description if wo.description else '—' }}</div>
         </div>
 
         <!-- MATERIAIS E DESPESAS -->
         {% if wo.expenses %}
-        <div class="sec-head" style="margin-bottom:0;">Materiais e Despesas Aplicados</div>
-        <table class="exp-table">
+        <div class="sec-head" style="margin-bottom:0;">Materiais e Despesas</div>
+        <table class="mat-table">
             <thead>
                 <tr>
                     <th>Descrição</th>
@@ -573,31 +561,21 @@
         {% endif %}
 
         <!-- FINANCEIRO -->
-        <div class="sec-head" style="margin-bottom:0;">Valores</div>
-        <div class="fin-summary" style="margin-bottom:18px;">
-            <div class="fin-row">
-                <span class="fin-lbl">Total em Materiais / Despesas</span>
-                <span class="fin-val">R$ {{ "%.2f"|format(wo.expenses|sum(attribute='total') if wo.expenses else 0) }}</span>
-            </div>
-            <div class="fin-row fin-total">
-                <span class="fin-lbl">Valor Total do Serviço</span>
-                <span class="fin-val">R$ {{ "%.2f"|format(wo.total_value) }}</span>
-            </div>
-        </div>
-
-        <!-- DECLARAÇÃO -->
-        <div class="declaration">
-            <div class="sec-head">Declaração de Recebimento</div>
-            <div class="decl-text">
-                Declaro, para os devidos fins, que os serviços de
-                <strong>{{ wo.service_type.name if wo.service_type else 'manutenção/refrigeração' }}</strong>
-                descritos neste documento foram devidamente executados pela empresa
-                <strong>{{ company_name }}</strong>,
-                responsável técnico <strong>{{ company_responsible_name }}</strong>,
-                ao cliente <strong>{{ wo.client.name if wo.client else '—' }}</strong>,
-                pelo valor total de <strong>R$ {{ "%.2f"|format(wo.total_value) }}</strong>.{% if wo.description %}
-                Observações: {{ wo.description }}.{% endif %}
-                A assinatura deste recibo confirma o recebimento e a aceitação do serviço prestado.
+        <div class="full-block" style="margin-bottom:0;">
+            <div class="sec-head">Resumo Financeiro</div>
+            <div class="fin-summary">
+                <div class="fin-row">
+                    <span class="fin-lbl">Total em Materiais / Despesas</span>
+                    <span class="fin-val">R$ {{ "%.2f"|format(wo.expenses|sum(attribute='total') if wo.expenses else 0) }}</span>
+                </div>
+                <div class="fin-row">
+                    <span class="fin-lbl">Valor Total da Ordem de Serviço</span>
+                    <span class="fin-val" style="color:#1e3a5f;">R$ {{ "%.2f"|format(wo.total_value) }}</span>
+                </div>
+                <div class="fin-row">
+                    <span class="fin-lbl">Situação do Pagamento</span>
+                    <span class="fin-val" style="color:{{ '#065f46' if wo.is_paid else '#991b1b' }};">{{ 'Pago' if wo.is_paid else 'Em Aberto' }}</span>
+                </div>
             </div>
         </div>
 
@@ -606,24 +584,22 @@
             <div class="sig">
                 <div class="sig-space"></div>
                 <div class="sig-line">
-                    <div class="sig-name">{{ company_responsible_name }}</div>
-                    <div class="sig-role">{{ company_responsible_role }}</div>
-                    <div class="sig-role">{{ company_name }}</div>
+                    <div class="sig-name">{{ technician_name }}</div>
+                    <div class="sig-role">{{ technician_role }} — {{ company_name }}</div>
                 </div>
             </div>
             <div class="sig">
                 <div class="sig-space"></div>
                 <div class="sig-line">
                     <div class="sig-name">{{ wo.client.name if wo.client else 'Cliente' }}</div>
-                    <div class="sig-role">Assinatura do Cliente</div>
-                    <div class="sig-role">Confirmação de recebimento do serviço</div>
+                    <div class="sig-role">Responsável do Cliente</div>
                 </div>
             </div>
         </div>
 
         <!-- RODAPÉ -->
         <div class="doc-footer">
-            Documento gerado em {{ issued_at.strftime('%d/%m/%Y às %H:%M') }} &nbsp;·&nbsp; {{ company_name }} &nbsp;·&nbsp; REC-{{ "%05d"|format(wo.id) }} / OS #{{ "%05d"|format(wo.id) }}
+            Documento gerado em {{ issued_at.strftime('%d/%m/%Y às %H:%M') }} &nbsp;·&nbsp; {{ company_name }} &nbsp;·&nbsp; OS N.º {{ "%05d"|format(wo.id) }}
         </div>
 
     </div>

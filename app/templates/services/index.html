@@ -126,9 +126,14 @@
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap text-right">
                             <div class="flex items-center justify-end gap-2">
+                                <a href="{{ url_for('services.view_workorder', id=wo.id) }}" target="_blank" rel="noopener noreferrer"
+                                   class="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 transition-all hover:bg-indigo-100 hover:text-indigo-900"
+                                   title="Ver / Imprimir OS">
+                                    <i class="fas fa-eye text-[10px]"></i>
+                                </a>
                                 {% if wo.status == 'Completed' %}
-                                <a href="{{ url_for('services.receipt', id=wo.id) }}" target="_blank" rel="noopener noreferrer" 
-                                   class="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-50 text-gray-500 transition-all hover:bg-gray-200 hover:text-gray-900" 
+                                <a href="{{ url_for('services.receipt', id=wo.id) }}" target="_blank" rel="noopener noreferrer"
+                                   class="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-50 text-gray-500 transition-all hover:bg-gray-200 hover:text-gray-900"
                                    title="Ver Recibo">
                                     <i class="fas fa-file-signature text-[10px]"></i>
                                 </a>

@@ -263,6 +263,39 @@ def workorder_photo(filename):
     return send_from_directory(current_app.config['UPLOAD_ROOT'], normalized_filename)
 
 
+@services_bp.route('/view/<int:id>')
+@roles_required('admin', 'secretary', 'technician')
+def view_workorder(id):
+    """Visualizar OS completa em formato imprimível — disponível para qualquer status."""
+    current_user = get_current_user()
+    wo = WorkOrder.query.get_or_404(id)
+
+    if not can_access_workorder(current_user, wo):
+        abort(403)
+
+    config = AppConfig.query.first()
+    company_name = config.company_name if config and config.company_name else 'Pronto Ar Refrigeração'
+    company_cnpj = config.cnpj if config and getattr(config, 'cnpj', None) else '-'
+
+    technician_name = '-'
+    technician_role = 'Técnico Responsável'
+    if wo.technician:
+        technician_name = wo.technician.name
+        technician_role = wo.technician.job_title or 'Técnico Responsável'
+
+    return render_template(
+        'services/view_os.html',
+        wo=wo,
+        config=config,
+        company_name=company_name,
+        company_cnpj=company_cnpj,
+        technician_name=technician_name,
+        technician_role=technician_role,
+        issued_at=datetime.now(),
+        status_label=get_status_label(wo.status),
+    )
+
+
 @services_bp.route('/receipt/<int:id>')
 @roles_required('admin', 'secretary', 'technician')
 def receipt(id):
