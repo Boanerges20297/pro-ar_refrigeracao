@@ -4,48 +4,19 @@ __pycache__/
 *$py.class
 *.so
 
-# Flask
-
-.webassets-cache
-
-
-
 # Virtual Environment
 venv/
-.venv
+.venv/
 env/
 ENV/
-.env
-
-# Pytest / Coverage
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Logs
-*.log
-
-# IDEs
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
 
 # Flask
 .webassets-cache
-
-
-# Virtual Environment
-venv/
-env/
-ENV/
-.env
-
-# Pytest / Coverage
-.pytest_cache/
-.coverage
-htmlcov/
+instance/*.db
+instance/*.db-wal
+instance/*.db-shm
+instance/*.json
+instance/*.txt
 
 # Logs
 *.log
@@ -56,21 +27,28 @@ htmlcov/
 *.swp
 *.swo
 
-# Environment secrets
+# Secrets & credentials
 .env
+github_token
+ssh_config.json
 
-# Automated Tests
-tests/
-docs/
+# Deploy artifacts
+*.tar.gz
+*.patch
+*.ps1
+*.ps1xml
+
+# Debug / temp dirs
+debug_instance/
+debug_uploads/
+tmp/
+uploads/
+
+# Pytest / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
 # Standalone license API
 license_api/data/
 license_api/keys/
-
-# SQLite local: não deve ser versionado para evitar sobrescrever a produção
-instance/*.db
-instance/*.db-wal
-instance/*.db-shm
-
-# Arquivoa de deploy
-*.ps1
-*.ps1xml
