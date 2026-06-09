@@ -47,7 +47,7 @@ $SET_REMOTE_URL = ""
 if (-not [string]::IsNullOrEmpty($GITHUB_TOKEN)) {
     $SET_REMOTE_URL = "git remote set-url origin https://$GITHUB_TOKEN@github.com/Boanerges20297/pro-ar_refrigeracao.git && "
 }
-$REMOTE_COMMANDS = "cd $REMOTE_PATH && echo '--- Atualizando código ---' && ${SET_REMOTE_URL}git pull origin main && echo '--- Aplicando Migrations ---' && .venv/bin/flask db upgrade && echo '--- Sincronizando dados ---' && .venv/bin/flask finance sync && echo '--- Reiniciando o Servidor ---' && systemctl restart $SERVICE_NAME && systemctl status $SERVICE_NAME --no-pager"
+$REMOTE_COMMANDS = "cd $REMOTE_PATH && echo '--- Atualizando código ---' && ${SET_REMOTE_URL}git checkout -- . && git pull origin main && echo '--- Aplicando Migrations ---' && .venv/bin/flask db upgrade && echo '--- Sincronizando dados ---' && .venv/bin/flask finance sync && echo '--- Reiniciando o Servidor ---' && systemctl restart $SERVICE_NAME && systemctl status $SERVICE_NAME --no-pager"
 
 ssh -o PreferredAuthentications=password "${USER}@${IP}" "$REMOTE_COMMANDS"
 
