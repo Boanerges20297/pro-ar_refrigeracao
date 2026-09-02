@@ -1,6 +1,6 @@
 name: Deploy produção
 
-on:
+"on":
   workflow_dispatch:
     inputs:
       confirm_production:
@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: production-deploy
@@ -29,11 +30,15 @@ jobs:
           ref: main
           fetch-depth: 0
 
+      - name: Fixar commit atual da main
+        id: target
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Confirmar testes verdes da main
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          TARGET_SHA: ${{ github.sha }}
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
         run: |
           set -euo pipefail
           CONCLUSION=$(gh run list \
@@ -64,7 +69,7 @@ jobs:
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
-          DEPLOY_SHA: ${{ github.sha }}
+          DEPLOY_SHA: ${{ steps.target.outputs.sha }}
         run: |
           set -euo pipefail
           ssh "$VPS_USER@$VPS_HOST" "DEPLOY_SHA='$DEPLOY_SHA' bash -s" <<'REMOTE'
@@ -80,10 +85,20 @@ jobs:
 
           CURRENT_SHA=$(git rev-parse HEAD)
           TARGET_SHA="$DEPLOY_SHA"
+
+          # O commit aprovado precisa estar na main remota e produção precisa
+          # estar em um ancestral dele para permitir somente avanço fast-forward.
           git merge-base --is-ancestor "$TARGET_SHA" origin/main
+          git merge-base --is-ancestor "$CURRENT_SHA" "$TARGET_SHA"
+
+          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+            echo "Deploy bloqueado: existem alterações locais rastreadas na VPS." >&2
+            git status --short --untracked-files=no
+            exit 1
+          fi
 
           STRUCTURAL=false
-          if git diff --name-only "$CURRENT_SHA" "$TARGET_SHA" | grep -Eq '^(migrations/|app/models/|app/config\.py|requirements\.txt$)'; then
+          if git diff --name-only "$CURRENT_SHA" "$TARGET_SHA" | grep -Eq '^(migrations/|app/models/)'; then
             STRUCTURAL=true
           fi
 
@@ -102,14 +117,17 @@ jobs:
           }
 
           if [ "$STRUCTURAL" = true ]; then
-            echo "Mudança estrutural detectada. Backup pré-migration."
+            echo "Mudança estrutural detectada. Criando backup pré-migration."
             backup_database pre
+            systemctl stop "$SERVICE"
           fi
 
-          git reset --hard "$TARGET_SHA"
+          # Sem reset destrutivo: produção só avança até o commit aprovado.
+          git merge --ff-only "$TARGET_SHA"
           "$APP_DIR/.venv/bin/pip" install -r requirements.txt
 
           if [ "$STRUCTURAL" = true ]; then
+            echo "Aplicando migrations."
             "$APP_DIR/.venv/bin/flask" --app wsgi db upgrade
           fi
 
@@ -124,10 +142,9 @@ jobs:
           esac
 
           if [ "$STRUCTURAL" = true ]; then
-            echo "Backup pós-migration."
+            echo "Estrutura validada. Criando backup pós-migration."
             backup_database post
           fi
 
-          find "$BACKUP_DIR" -type f -name '*.dump' -mtime +30 -delete
           echo "Deploy concluído no commit $TARGET_SHA"
           REMOTE
