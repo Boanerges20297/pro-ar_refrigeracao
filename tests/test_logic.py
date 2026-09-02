@@ -1,23 +1,22 @@
-import os
-from datetime import datetime, timedelta
-
-import pytest
+from datetime import datetime
 
 from app import create_app, db
 from app.config import Config
 from app.models.config import AppConfig
 from app.models.license import License
 from app.models.user import User
-from app.utils.license import get_instance_fingerprint, issue_license_key
+from app.utils.license import evaluate_license, get_instance_fingerprint, issue_license_key
 from app.utils.security import is_password_strong
 
 
 def test_password_strength_rules():
+    # Regra atual: mínimo de 8 caracteres, ao menos uma letra e um número.
     assert is_password_strong('Admin1234') is True
+    assert is_password_strong('alllowercase123') is True
+    assert is_password_strong('ALLUPPERCASE123') is True
     assert is_password_strong('short1A') is False
-    assert is_password_strong('alllowercase123') is False
-    assert is_password_strong('ALLUPPERCASE123') is False
     assert is_password_strong('NoNumbersHere') is False
+    assert is_password_strong('12345678') is False
 
 
 def test_admin_forced_to_change_password_on_first_login(tmp_path):
@@ -40,8 +39,7 @@ def test_admin_forced_to_change_password_on_first_login(tmp_path):
 
     with app.app_context():
         db.create_all()
-        app_config = AppConfig(company_name='Pronto Ar Refrigeração')
-        db.session.add(app_config)
+        db.session.add(AppConfig(company_name='Pronto Ar Refrigeração'))
 
         installation_id = get_instance_fingerprint()
         license_payload = {
@@ -55,7 +53,7 @@ def test_admin_forced_to_change_password_on_first_login(tmp_path):
             'max_secretary_users': 2,
             'instance_fingerprint': installation_id,
         }
-        license_record = License(
+        db.session.add(License(
             license_key=issue_license_key(license_payload),
             status='active',
             company_name='Pronto Ar Refrigeração',
@@ -63,8 +61,7 @@ def test_admin_forced_to_change_password_on_first_login(tmp_path):
             max_users=10,
             max_admin_users=2,
             max_secretary_users=2,
-        )
-        db.session.add(license_record)
+        ))
 
         admin = User(
             name='Administrador',
@@ -88,7 +85,12 @@ def test_admin_forced_to_change_password_on_first_login(tmp_path):
     )
 
     assert login_response.status_code == 302
-    assert '/auth/change-password' in login_response.headers['Location']
+    location = login_response.headers['Location']
+    assert '/auth/reset-password/' in location
+
+    # O token gerado para a troca obrigatória deve realmente abrir a tela.
+    reset_response = client.get(location)
+    assert reset_response.status_code == 200
 
 
 def test_admin_can_edit_own_email_and_login_with_new_email(tmp_path):
@@ -111,8 +113,7 @@ def test_admin_can_edit_own_email_and_login_with_new_email(tmp_path):
 
     with app.app_context():
         db.create_all()
-        app_config = AppConfig(company_name='Pronto Ar Refrigeração')
-        db.session.add(app_config)
+        db.session.add(AppConfig(company_name='Pronto Ar Refrigeração'))
 
         installation_id = get_instance_fingerprint()
         license_payload = {
@@ -126,7 +127,7 @@ def test_admin_can_edit_own_email_and_login_with_new_email(tmp_path):
             'max_secretary_users': 2,
             'instance_fingerprint': installation_id,
         }
-        license_record = License(
+        db.session.add(License(
             license_key=issue_license_key(license_payload),
             status='active',
             company_name='Pronto Ar Refrigeração',
@@ -134,8 +135,7 @@ def test_admin_can_edit_own_email_and_login_with_new_email(tmp_path):
             max_users=10,
             max_admin_users=2,
             max_secretary_users=2,
-        )
-        db.session.add(license_record)
+        ))
 
         admin = User(
             name='Administrador',
@@ -158,7 +158,6 @@ def test_admin_can_edit_own_email_and_login_with_new_email(tmp_path):
         headers={'Referer': 'http://localhost/auth/login'},
         follow_redirects=False,
     )
-
     assert login_response.status_code == 302
 
     edit_response = client.post(
@@ -175,18 +174,13 @@ def test_admin_can_edit_own_email_and_login_with_new_email(tmp_path):
         headers={'Referer': f'http://localhost/tech/edit/{admin_id}'},
         follow_redirects=True,
     )
-
     assert 'Usuário atualizado com sucesso!' in edit_response.get_data(as_text=True)
 
     with app.app_context():
         updated_admin = db.session.get(User, admin_id)
         assert updated_admin.email == 'novo.admin@prontoar.com'
 
-    client.post(
-        '/auth/logout',
-        headers={'Referer': 'http://localhost/'},
-        follow_redirects=False,
-    )
+    client.post('/auth/logout', headers={'Referer': 'http://localhost/'}, follow_redirects=False)
 
     old_login_response = client.post(
         '/auth/login',
@@ -194,7 +188,6 @@ def test_admin_can_edit_own_email_and_login_with_new_email(tmp_path):
         headers={'Referer': 'http://localhost/auth/login'},
         follow_redirects=True,
     )
-
     assert 'Email ou senha inválidos.' in old_login_response.get_data(as_text=True)
 
     new_login_response = client.post(
@@ -203,7 +196,6 @@ def test_admin_can_edit_own_email_and_login_with_new_email(tmp_path):
         headers={'Referer': 'http://localhost/auth/login'},
         follow_redirects=False,
     )
-
     assert new_login_response.status_code == 302
 
     staff_list_response = client.get('/tech/list')
@@ -211,7 +203,7 @@ def test_admin_can_edit_own_email_and_login_with_new_email(tmp_path):
     assert 'novo.admin@prontoar.com' in staff_list_response.get_data(as_text=True)
 
 
-def test_license_key_persists_when_public_key_is_missing(monkeypatch, tmp_path):
+def test_license_key_persists_when_public_key_is_missing(tmp_path):
     database_path = tmp_path / 'app.db'
 
     class TestConfig(Config):
@@ -228,8 +220,6 @@ def test_license_key_persists_when_public_key_is_missing(monkeypatch, tmp_path):
         db.session.add(AppConfig(company_name='Pronto Ar Refrigeração'))
         db.session.commit()
 
-        monkeypatch.setattr('app.utils.license.verify_license_key', lambda *_args, **_kwargs: (False, None, 'Chave pública indisponível'))
-
         license_record = License(
             license_key='legacy-license-key',
             status='active',
@@ -239,4 +229,11 @@ def test_license_key_persists_when_public_key_is_missing(monkeypatch, tmp_path):
         db.session.add(license_record)
         db.session.commit()
 
-        assert license_record.license_key == 'legacy-license-key'
+        # A ausência da chave pública invalida a licença, mas não deve apagar
+        # nem modificar a chave persistida no banco.
+        state = evaluate_license(license_record)
+        assert state['valid'] is False
+        assert state['status'] == 'invalid'
+
+        persisted = db.session.get(License, license_record.id)
+        assert persisted.license_key == 'legacy-license-key'
