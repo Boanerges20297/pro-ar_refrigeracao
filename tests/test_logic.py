@@ -5,7 +5,7 @@ import pytest
 
 from app import create_app, db
 from app.config import Config
-from app.models.app_config import AppConfig
+from app.models.config import AppConfig
 from app.models.license import License
 from app.models.user import User
 from app.utils.license import get_instance_fingerprint, issue_license_key
