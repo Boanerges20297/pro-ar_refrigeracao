@@ -1,9 +1,12 @@
 name: Deploy produção
 
 on:
-  workflow_run:
-    workflows: ["Testes automatizados"]
-    types: [completed]
+  workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: "Digite DEPLOY para confirmar a publicação em produção"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -15,14 +18,37 @@ concurrency:
 jobs:
   deploy:
     name: Deploy VPS Hostinger
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.head_branch == 'main'
+    if: github.event.inputs.confirm_production == 'DEPLOY'
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
+      - name: Checkout da main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Confirmar testes verdes da main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TARGET_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          CONCLUSION=$(gh run list \
+            --repo "$REPO" \
+            --workflow tests.yml \
+            --branch main \
+            --commit "$TARGET_SHA" \
+            --event push \
+            --json conclusion \
+            --jq '.[0].conclusion // ""')
+          if [ "$CONCLUSION" != "success" ]; then
+            echo "Deploy bloqueado: o commit $TARGET_SHA não possui testes verdes na main."
+            exit 1
+          fi
+
       - name: Preparar SSH
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
@@ -38,7 +64,7 @@ jobs:
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
-          DEPLOY_SHA: ${{ github.event.workflow_run.head_sha }}
+          DEPLOY_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           ssh "$VPS_USER@$VPS_HOST" "DEPLOY_SHA='$DEPLOY_SHA' bash -s" <<'REMOTE'
@@ -50,13 +76,10 @@ jobs:
 
           cd "$APP_DIR"
           mkdir -p "$BACKUP_DIR"
-
           git fetch origin main
 
           CURRENT_SHA=$(git rev-parse HEAD)
           TARGET_SHA="$DEPLOY_SHA"
-
-          # Garante que o SHA aprovado pelo CI pertence à main remota.
           git merge-base --is-ancestor "$TARGET_SHA" origin/main
 
           STRUCTURAL=false
@@ -79,17 +102,14 @@ jobs:
           }
 
           if [ "$STRUCTURAL" = true ]; then
-            echo "Mudança estrutural detectada. Criando backup pré-migration."
+            echo "Mudança estrutural detectada. Backup pré-migration."
             backup_database pre
           fi
 
-          # Atualiza exatamente para o commit que passou no CI.
           git reset --hard "$TARGET_SHA"
-
           "$APP_DIR/.venv/bin/pip" install -r requirements.txt
 
           if [ "$STRUCTURAL" = true ]; then
-            echo "Aplicando migrations."
             "$APP_DIR/.venv/bin/flask" --app wsgi db upgrade
           fi
 
@@ -97,7 +117,6 @@ jobs:
           sleep 3
           systemctl is-active --quiet "$SERVICE"
 
-          # Smoke test local: aceita redirecionamento da raiz, mas nunca erro 5xx/000.
           HTTP_CODE=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 http://127.0.0.1:8000/)
           case "$HTTP_CODE" in
             2*|3*) echo "Smoke test OK: HTTP $HTTP_CODE" ;;
@@ -105,12 +124,10 @@ jobs:
           esac
 
           if [ "$STRUCTURAL" = true ]; then
-            echo "Estrutura validada. Criando backup pós-migration."
+            echo "Backup pós-migration."
             backup_database post
           fi
 
-          # Mantém 30 dias de dumps automáticos.
           find "$BACKUP_DIR" -type f -name '*.dump' -mtime +30 -delete
-
           echo "Deploy concluído no commit $TARGET_SHA"
           REMOTE
