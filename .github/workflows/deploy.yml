@@ -1,0 +1,116 @@
+name: Deploy produção
+
+on:
+  workflow_run:
+    workflows: ["Testes automatizados"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy VPS Hostinger
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Preparar SSH
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Publicar versão aprovada
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          DEPLOY_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          ssh "$VPS_USER@$VPS_HOST" "DEPLOY_SHA='$DEPLOY_SHA' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          APP_DIR=/var/www/pro-ar_refrigeracao
+          BACKUP_DIR=/var/backups/pro-ar
+          SERVICE=pro-ar.service
+
+          cd "$APP_DIR"
+          mkdir -p "$BACKUP_DIR"
+
+          git fetch origin main
+
+          CURRENT_SHA=$(git rev-parse HEAD)
+          TARGET_SHA="$DEPLOY_SHA"
+
+          # Garante que o SHA aprovado pelo CI pertence à main remota.
+          git merge-base --is-ancestor "$TARGET_SHA" origin/main
+
+          STRUCTURAL=false
+          if git diff --name-only "$CURRENT_SHA" "$TARGET_SHA" | grep -Eq '^(migrations/|app/models/|app/config\.py|requirements\.txt$)'; then
+            STRUCTURAL=true
+          fi
+
+          TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
+
+          backup_database() {
+            local stage="$1"
+            local database_url pg_url output
+            database_url=$(grep '^DATABASE_URL=' .env | cut -d= -f2-)
+            test -n "$database_url"
+            pg_url="${database_url/postgresql+psycopg:/postgresql:}"
+            output="$BACKUP_DIR/${TIMESTAMP}_${TARGET_SHA:0:12}_${stage}.dump"
+            pg_dump "$pg_url" --format=custom --file="$output"
+            test -s "$output"
+            echo "Backup confirmado: $output"
+          }
+
+          if [ "$STRUCTURAL" = true ]; then
+            echo "Mudança estrutural detectada. Criando backup pré-migration."
+            backup_database pre
+          fi
+
+          # Atualiza exatamente para o commit que passou no CI.
+          git reset --hard "$TARGET_SHA"
+
+          "$APP_DIR/.venv/bin/pip" install -r requirements.txt
+
+          if [ "$STRUCTURAL" = true ]; then
+            echo "Aplicando migrations."
+            "$APP_DIR/.venv/bin/flask" --app wsgi db upgrade
+          fi
+
+          systemctl restart "$SERVICE"
+          sleep 3
+          systemctl is-active --quiet "$SERVICE"
+
+          # Smoke test local: aceita redirecionamento da raiz, mas nunca erro 5xx/000.
+          HTTP_CODE=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 http://127.0.0.1:8000/)
+          case "$HTTP_CODE" in
+            2*|3*) echo "Smoke test OK: HTTP $HTTP_CODE" ;;
+            *) echo "Smoke test falhou: HTTP $HTTP_CODE" >&2; exit 1 ;;
+          esac
+
+          if [ "$STRUCTURAL" = true ]; then
+            echo "Estrutura validada. Criando backup pós-migration."
+            backup_database post
+          fi
+
+          # Mantém 30 dias de dumps automáticos.
+          find "$BACKUP_DIR" -type f -name '*.dump' -mtime +30 -delete
+
+          echo "Deploy concluído no commit $TARGET_SHA"
+          REMOTE
