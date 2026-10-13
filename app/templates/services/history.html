@@ -231,7 +231,7 @@
                         R$ {{ "%.2f"|format(wo.total_value) }}
                     </td>
                     {% endif %}
-                    <td class="px-4 py-3 whitespace-nowrap text-right">
+                    <td class="sticky right-0 z-10 whitespace-nowrap bg-white px-4 py-3 text-right shadow-[-6px_0_8px_-8px_rgba(0,0,0,0.35)]">
                         <div class="flex items-center justify-end gap-3">
                             <a href="{{ url_for('services.route_history', client_id=wo.client_id) }}" class="text-emerald-600 hover:text-emerald-800 text-xs font-medium" title="Ver rotas desta empresa">
                                 <i class="fas fa-route mr-1"></i>Rotas
