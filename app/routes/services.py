@@ -503,6 +503,31 @@ def index():
         per_page=per_page,
     )
 
+
+@services_bp.route('/execute/<int:client_id>')
+@roles_required('admin', 'secretary', 'technician')
+def execute_route(client_id):
+    """Monta uma rota operacional com as OS abertas da empresa, agrupadas por local."""
+    current_user = get_current_user()
+    client = Client.query.get_or_404(client_id)
+    query = WorkOrder.query.filter(
+        WorkOrder.client_id == client.id,
+        WorkOrder.status.in_(['Pending', 'In Progress'])
+    ).outerjoin(WorkOrder.equipment)
+    if current_user and current_user.permission_level == 'user':
+        query = query.filter(WorkOrder.technician_id == current_user.id)
+    requested_ids = [int(value) for value in request.args.getlist('ids') if value.isdigit()]
+    if requested_ids:
+        query = query.filter(WorkOrder.id.in_(requested_ids))
+    work_orders = query.order_by(
+        func.coalesce(Equipment.location, '').asc(), WorkOrder.id.asc()
+    ).all()
+    if requested_ids:
+        order_map = {work_order_id: position for position, work_order_id in enumerate(requested_ids)}
+        work_orders.sort(key=lambda work_order: order_map.get(work_order.id, len(order_map)))
+    return render_template('services/execute_route.html', client=client, work_orders=work_orders,
+                           route_started=bool(requested_ids), route_ids=requested_ids)
+
 @services_bp.route('/add', methods=['GET', 'POST'])
 @roles_required('admin', 'secretary')
 def add():
@@ -675,7 +700,7 @@ def edit(id):
         if previous_status != 'Completed' and wo.status == 'Completed':
             return redirect(url_for('services.edit', id=id, prompt_receipt=1, return_to=return_to))
 
-        return redirect(url_for('services.index'))
+        return redirect(return_to)
 
     return render_template(
         'services/edit.html',

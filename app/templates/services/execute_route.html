@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Executar serviço{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+        <p class="text-sm font-semibold text-emerald-600"><i class="fas fa-route mr-2"></i>{{ 'Rota em execução' if route_started else 'Rota de execução' }}</p>
+        <h1 class="text-2xl font-bold text-gray-900">{{ client.name }}</h1>
+        <p class="text-sm text-gray-500">{{ 'Siga a sequência abaixo para atender os locais selecionados.' if route_started else 'Selecione os locais/aparelhos e organize a sequência de atendimento.' }}</p>
+    </div>
+    <a href="{{ url_for('services.index') }}" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Voltar</a>
+</div>
+
+{% if work_orders %}
+<form id="routeForm" class="grid gap-6 lg:grid-cols-[1fr_360px]" method="get" action="{{ url_for('services.execute_route', client_id=client.id) }}">
+    <section class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div class="mb-4 flex items-center justify-between">
+            <h2 class="font-bold text-gray-900">Locais e aparelhos disponíveis</h2>
+            {% if not route_started %}<button type="button" id="selectAll" class="text-xs font-bold text-primary">Selecionar todos</button>{% endif %}
+        </div>
+        <div id="routeItems" class="space-y-3">
+        {% for wo in work_orders %}
+            <label class="route-item flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 p-4 transition hover:border-emerald-400 hover:bg-emerald-50" draggable="true">
+                <input type="checkbox" name="ids" value="{{ wo.id }}" class="route-check h-5 w-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" {% if route_started %}checked disabled{% endif %}>
+                <span class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">{{ loop.index }}</span>
+                <span class="min-w-0 flex-1">
+                    <span class="block text-sm font-bold text-gray-900">{{ wo.equipment.location if wo.equipment and wo.equipment.location else 'Local não informado' }}</span>
+                    <span class="block text-xs text-gray-600">{{ wo.equipment.name if wo.equipment else 'Serviço geral' }} · OS #{{ wo.id }}</span>
+                    <span class="block text-xs text-gray-500">{{ wo.service_type.name if wo.service_type else 'Serviço' }}{% if wo.equipment and wo.equipment.serial_number %} · Série {{ wo.equipment.serial_number }}{% endif %}</span>
+                </span>
+                {% if route_started %}<a href="{{ url_for('services.edit', id=wo.id, return_to=url_for('services.execute_route', client_id=client.id, ids=route_ids)) }}" class="rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-primary hover:bg-blue-100">{{ 'Reabrir OS' if wo.status == 'Completed' else 'Abrir OS' }}</a>{% else %}<i class="fas fa-grip-vertical text-gray-300"></i>{% endif %}
+            </label>
+        {% endfor %}
+        </div>
+    </section>
+    <aside class="h-fit rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+        <h2 class="text-lg font-bold text-gray-900">Sua rota</h2>
+        <p class="mt-1 text-sm text-gray-600">A ordem dos cartões define a sequência de execução.</p>
+        <div class="my-5 rounded-xl bg-white p-4">
+            <p class="text-xs font-semibold uppercase text-gray-500">Selecionados</p>
+            <p id="selectedCount" class="text-3xl font-bold text-emerald-700">{{ work_orders|length if route_started else 0 }}</p>
+        </div>
+        <button type="submit" class="w-full rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" {% if route_started %}disabled{% else %}disabled{% endif %} id="startRoute">
+            <i class="fas fa-{{ 'check' if route_started else 'play' }} mr-2"></i>{{ 'Rota iniciada' if route_started else 'Iniciar rota' }}
+        </button>
+        <p class="mt-3 text-center text-xs text-gray-500">Você poderá abrir e concluir cada OS na sequência.</p>
+    </aside>
+</form>
+{% else %}
+<div class="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center shadow-sm">
+    <i class="fas fa-check-circle mb-4 text-5xl text-emerald-400"></i>
+    <h2 class="text-xl font-bold text-gray-900">Nenhum serviço pendente</h2>
+    <p class="mt-2 text-sm text-gray-500">Esta empresa não possui OS abertas disponíveis para execução.</p>
+</div>
+{% endif %}
+
+<script>
+const checks = [...document.querySelectorAll('.route-check')];
+const count = document.getElementById('selectedCount');
+const start = document.getElementById('startRoute');
+function refreshRoute() {
+    const total = checks.filter(c => c.checked).length;
+    if (count) count.textContent = total;
+    if (start) start.disabled = total === 0;
+}
+checks.forEach(c => c.addEventListener('change', refreshRoute));
+document.getElementById('selectAll')?.addEventListener('click', () => {
+    const allChecked = checks.every(c => c.checked);
+    checks.forEach(c => c.checked = !allChecked);
+    refreshRoute();
+});
+const list = document.getElementById('routeItems');
+let dragged = null;
+list?.querySelectorAll('.route-item').forEach(item => {
+    item.addEventListener('dragstart', () => { dragged = item; item.classList.add('opacity-50'); });
+    item.addEventListener('dragend', () => { dragged = null; item.classList.remove('opacity-50'); });
+    item.addEventListener('dragover', event => {
+        event.preventDefault();
+        if (dragged && dragged !== item) {
+            const box = item.getBoundingClientRect();
+            list.insertBefore(dragged, event.clientY < box.top + box.height / 2 ? item : item.nextSibling);
+        }
+    });
+});
+</script>
+{% endblock %}

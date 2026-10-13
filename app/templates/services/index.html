@@ -71,6 +71,11 @@
                 <div class="text-right">
                     <p class="text-sm font-bold text-gray-900">{{ item.total_os }} OS</p>
                     <p class="text-xs text-gray-500">{{ item.recent_os|length }} mostradas</p>
+                    {% if item.recent_os|selectattr('status', 'in', ['Pending', 'In Progress'])|list %}
+                    <a href="{{ url_for('services.execute_route', client_id=item.client.id) }}" class="mt-2 inline-flex items-center rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700">
+                        <i class="fas fa-route mr-2"></i>Executar serviço
+                    </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
