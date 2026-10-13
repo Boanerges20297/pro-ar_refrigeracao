@@ -1,0 +1,150 @@
+name: Deploy produção
+
+"on":
+  workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: "Digite DEPLOY para confirmar a publicação em produção"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy VPS Hostinger
+    if: github.event.inputs.confirm_production == 'DEPLOY'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout da main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Fixar commit atual da main
+        id: target
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Confirmar testes verdes da main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          set -euo pipefail
+          CONCLUSION=$(gh run list \
+            --repo "$REPO" \
+            --workflow tests.yml \
+            --branch main \
+            --commit "$TARGET_SHA" \
+            --event push \
+            --json conclusion \
+            --jq '.[0].conclusion // ""')
+          if [ "$CONCLUSION" != "success" ]; then
+            echo "Deploy bloqueado: o commit $TARGET_SHA não possui testes verdes na main."
+            exit 1
+          fi
+
+      - name: Preparar SSH
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Publicar versão aprovada
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          DEPLOY_SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          set -euo pipefail
+          ssh "$VPS_USER@$VPS_HOST" "DEPLOY_SHA='$DEPLOY_SHA' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          APP_DIR=/var/www/pro-ar_refrigeracao
+          BACKUP_DIR=/var/backups/pro-ar
+          SERVICE=pro-ar.service
+
+          cd "$APP_DIR"
+          mkdir -p "$BACKUP_DIR"
+          git fetch origin main
+
+          CURRENT_SHA=$(git rev-parse HEAD)
+          TARGET_SHA="$DEPLOY_SHA"
+
+          # O commit aprovado precisa estar na main remota e produção precisa
+          # estar em um ancestral dele para permitir somente avanço fast-forward.
+          git merge-base --is-ancestor "$TARGET_SHA" origin/main
+          git merge-base --is-ancestor "$CURRENT_SHA" "$TARGET_SHA"
+
+          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+            echo "Deploy bloqueado: existem alterações locais rastreadas na VPS." >&2
+            git status --short --untracked-files=no
+            exit 1
+          fi
+
+          STRUCTURAL=false
+          if git diff --name-only "$CURRENT_SHA" "$TARGET_SHA" | grep -Eq '^(migrations/|app/models/)'; then
+            STRUCTURAL=true
+          fi
+
+          TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
+
+          backup_database() {
+            local stage="$1"
+            local database_url pg_url output
+            database_url=$(grep '^DATABASE_URL=' .env | cut -d= -f2-)
+            test -n "$database_url"
+            pg_url="${database_url/postgresql+psycopg:/postgresql:}"
+            output="$BACKUP_DIR/${TIMESTAMP}_${TARGET_SHA:0:12}_${stage}.dump"
+            pg_dump "$pg_url" --format=custom --file="$output"
+            test -s "$output"
+            echo "Backup confirmado: $output"
+          }
+
+          if [ "$STRUCTURAL" = true ]; then
+            echo "Mudança estrutural detectada. Criando backup pré-migration."
+            backup_database pre
+            systemctl stop "$SERVICE"
+          fi
+
+          # Sem reset destrutivo: produção só avança até o commit aprovado.
+          git merge --ff-only "$TARGET_SHA"
+          "$APP_DIR/.venv/bin/pip" install -r requirements.txt
+
+          if [ "$STRUCTURAL" = true ]; then
+            echo "Aplicando migrations."
+            "$APP_DIR/.venv/bin/flask" --app wsgi db upgrade
+          fi
+
+          systemctl restart "$SERVICE"
+          sleep 3
+          systemctl is-active --quiet "$SERVICE"
+
+          HTTP_CODE=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 http://127.0.0.1:8000/)
+          case "$HTTP_CODE" in
+            2*|3*) echo "Smoke test OK: HTTP $HTTP_CODE" ;;
+            *) echo "Smoke test falhou: HTTP $HTTP_CODE" >&2; exit 1 ;;
+          esac
+
+          if [ "$STRUCTURAL" = true ]; then
+            echo "Estrutura validada. Criando backup pós-migration."
+            backup_database post
+          fi
+
+          echo "Deploy concluído no commit $TARGET_SHA"
+          REMOTE
