@@ -30,20 +30,33 @@ def client_preview():
         return redirect(url_for('admin.dashboard'))
     if request.method == 'POST':
         user_id = request.form.get('client_user_id', type=int)
-        client_user = User.query.filter_by(id=user_id, is_active=True).first()
+        client_user = User.query.filter_by(id=user_id).first()
         client_id = client_user.client_id if client_user else None
-        if not client_id or not Client.query.get(client_id):
+        if not client_user:
+            flash('Usuário não encontrado.', 'danger')
+        elif not client_id and client_user.permission_level == 'admin':
+            session['preview_user_id'] = client_user.id
+            return redirect(url_for('admin.dashboard'))
+        elif not client_id and client_user.permission_level == 'secretary':
+            session['preview_user_id'] = client_user.id
+            return redirect(url_for('secretary.dashboard'))
+        elif not client_id and client_user.permission_level == 'user':
+            session['preview_user_id'] = client_user.id
+            return redirect(url_for('tech.dashboard'))
+        elif not client_id:
             flash('Este usuário não possui um cliente vinculado para visualização.', 'danger')
         else:
             session['preview_client_id'] = client_id
-            return redirect(url_for('client_portal.dashboard'))
-    client_users = User.query.filter_by(is_active=True).order_by(User.name.asc()).all()
+            session['preview_user_id'] = client_user.id
+            return redirect(url_for('client_portal.dashboard', client_id=client_id))
+    client_users = User.query.order_by(User.name.asc()).all()
     return render_template('admin/client_preview.html', client_users=client_users)
 
 @admin_bp.route('/client-preview/exit')
 @roles_required('admin')
 def exit_client_preview():
     session.pop('preview_client_id', None)
+    session.pop('preview_user_id', None)
     return redirect(url_for('admin.dashboard'))
 
 AUDIT_ACTION_LABELS = {

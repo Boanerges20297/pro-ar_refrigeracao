@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import g, redirect, url_for, flash
+from flask import g, redirect, url_for, flash, session, request
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
 from app.models.user import User
 
@@ -15,13 +15,21 @@ def permission_level_required(*levels):
                 return redirect(url_for("auth.login"))
 
             current_user_id = get_jwt_identity()
-            user = User.query.get(current_user_id)
+            jwt_user = User.query.get(current_user_id)
+            user = jwt_user
+            preview_user_id = session.get('preview_user_id')
+            is_preview_exit = request.endpoint == 'admin.exit_client_preview'
+            if (jwt_user and jwt_user.permission_level == 'admin' and jwt_user.job_title == 'Superadmin'
+                    and preview_user_id and not is_preview_exit):
+                preview_user = User.query.get(preview_user_id)
+                if preview_user and preview_user.is_active:
+                    user = preview_user
 
             # Map old role kwargs to permission_level if needed, but best is to update the calls.
             # 'technician' maps to 'user'
             allowed_levels = ['user' if l == 'technician' else l for l in levels]
 
-            is_superadmin = bool(user and user.permission_level == 'admin' and user.job_title == 'Superadmin')
+            is_superadmin = bool(jwt_user and jwt_user.permission_level == 'admin' and jwt_user.job_title == 'Superadmin' and not preview_user_id)
             if not user or (not is_superadmin and user.permission_level not in allowed_levels):
                 flash("Você não tem permissão para acessar esta página.", "danger")
                 # Redirect based on user's permission_level or to login if user not found

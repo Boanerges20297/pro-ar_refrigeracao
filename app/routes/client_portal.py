@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.user import User
 from app.models.client import Client
@@ -29,7 +29,7 @@ def dashboard():
         return redirect(url_for('auth.login'))
     
     # Select which client to view
-    client_id = request.args.get('client_id', type=int)
+    client_id = request.args.get('client_id', type=int) or session.get('preview_client_id')
     client = None
     if client_id:
         client = next((c for c in user_clients if c.id == client_id), None)
@@ -63,7 +63,7 @@ def equipments():
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
     
-    client_id = request.args.get('client_id', type=int)
+    client_id = request.args.get('client_id', type=int) or session.get('preview_client_id')
     user_clients = Client.query.all() if user.permission_level == 'admin' and user.job_title == 'Superadmin' else user.clients
     client = next((c for c in user_clients if c.id == client_id), None) if client_id else (user_clients[0] if user_clients else None)
     
@@ -82,7 +82,7 @@ def services():
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
     
-    client_id = request.args.get('client_id', type=int)
+    client_id = request.args.get('client_id', type=int) or session.get('preview_client_id')
     user_clients = Client.query.all() if user.permission_level == 'admin' and user.job_title == 'Superadmin' else user.clients
     client = next((c for c in user_clients if c.id == client_id), None) if client_id else (user_clients[0] if user_clients else None)
     
@@ -103,7 +103,7 @@ def payments():
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
     
-    client_id = request.args.get('client_id', type=int)
+    client_id = request.args.get('client_id', type=int) or session.get('preview_client_id')
     user_clients = Client.query.all() if user.permission_level == 'admin' and user.job_title == 'Superadmin' else user.clients
     client = next((c for c in user_clients if c.id == client_id), None) if client_id else (user_clients[0] if user_clients else None)
     

@@ -284,6 +284,8 @@ def create_app(config_class=Config):
         from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
         from app.models.user import User
         from flask import g
+        from flask import session
+        from app.models.client import Client
         from app.utils.notifications import get_alerts
         from app.utils.images import get_workorder_photo_url
         from app.utils.license import evaluate_license, get_license_features, get_license_record, has_license_feature
@@ -324,6 +326,14 @@ def create_app(config_class=Config):
             except Exception:
                 g.license_state = None
 
+        preview_client = None
+        preview_user = None
+        if g.current_user and g.current_user.permission_level == 'admin' and g.current_user.job_title == 'Superadmin':
+            preview_user_id = session.get('preview_user_id')
+            preview_client_id = session.get('preview_client_id')
+            preview_user = User.query.get(preview_user_id) if preview_user_id else None
+            preview_client = Client.query.get(preview_client_id) if preview_client_id else None
+
         return {
             'app_config': g.app_config,
             'current_user': g.current_user,
@@ -332,6 +342,9 @@ def create_app(config_class=Config):
             'license_features': get_license_features(g.license_state) if g.license_state else set(),
             'has_license_feature': lambda feature_name: has_license_feature(feature_name, g.license_state) if g.license_state else False,
             'workorder_photo_url': get_workorder_photo_url,
+            'preview_mode': bool(preview_user or preview_client),
+            'preview_user': preview_user,
+            'preview_client': preview_client,
         }
 
     # Import models here so Alembic can discover them
