@@ -68,6 +68,29 @@
     opacity: 0.6 !important;
     cursor: not-allowed !important;
   }
+  .history-tooltip { position: relative; cursor: help; }
+  .history-tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 8px);
+    z-index: 50;
+    width: max-content;
+    max-width: 280px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #0f172a;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.3;
+    white-space: normal;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(4px);
+    transition: opacity .15s ease, transform .15s ease;
+  }
+  .history-tooltip:hover::after, .history-tooltip:focus-visible::after { opacity: 1; transform: translateY(0); }
 </style>
 <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
     <h2 class="text-2xl font-bold text-gray-800">Histórico Completo de Ordens</h2>
@@ -178,6 +201,9 @@
 
 <!-- Tabela de Ordens -->
 <div class="bg-white shadow rounded-lg overflow-hidden border border-gray-100">
+    <div class="flex items-center justify-end gap-2 border-b border-gray-100 bg-gray-50 px-4 py-2 text-[11px] font-semibold text-gray-400">
+        <i class="fas fa-arrows-left-right"></i><span>Deslize para ver mais informações</span>
+    </div>
     <div class="overflow-x-auto overscroll-x-contain">
         <p class="px-4 pt-3 text-[11px] text-gray-400 md:hidden">Deslize para a esquerda ou direita para ver todas as colunas.</p>
         <table class="w-full min-w-[980px]">
@@ -201,13 +227,13 @@
                 <tr class="hover:bg-gray-50 transition-colors">
                     <td class="px-4 py-3 whitespace-nowrap text-xs font-bold text-gray-900">#{{ wo.id }}</td>
                     <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-700 font-semibold">
-                        {{ wo.client.name }}
+                        <span class="history-tooltip" tabindex="0" data-tooltip="{{ wo.client.name }}">{{ wo.client.name|truncate(15, True, '...') }}</span>
                     </td>
                     <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-600">
                         {{ wo.created_at.strftime('%d/%m/%Y') }}
                     </td>
                     <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-600">
-                        {{ wo.equipment.name if wo.equipment else 'Geral' }}
+                        <span class="history-tooltip" tabindex="0" data-tooltip="{{ wo.equipment.name if wo.equipment else 'Geral' }}">{{ (wo.equipment.name if wo.equipment else 'Geral')|truncate(26, True, '...') }}</span>
                     </td>
                     <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-600">
                         {{ wo.technician.name if wo.technician else '-' }}

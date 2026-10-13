@@ -340,6 +340,8 @@ def create_app(config_class=Config):
     # Register audit log CLI commands
     from app.utils.audit_cli import register_commands
     register_commands(app)
+    from scripts.create_superadmin import register as register_superadmin_command
+    register_superadmin_command(app)
 
     # Initialize automatic audit log cleanup on app start
     with app.app_context():

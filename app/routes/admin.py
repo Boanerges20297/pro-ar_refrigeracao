@@ -1,6 +1,6 @@
 import json
 import os
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from app.utils.decorators import license_feature_required, roles_required, permission_level_required
 from app.utils.license import activate_license_key, evaluate_license, get_instance_fingerprint, get_license_record, revalidate_license
@@ -8,6 +8,7 @@ from app.models.workorder import WorkOrder
 from app.models.workorder_expense import WorkOrderExpense
 from app.models.maintenance import MaintenanceSchedule
 from app.models.user import User
+from app.models.client import Client
 from app.models.config import AppConfig
 from app.models.audit_log import AuditLog
 from app import db
@@ -19,6 +20,31 @@ ALLOWED_LOGO_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp', 'svg'}
 MAX_LOGO_SIZE_BYTES = 2 * 1024 * 1024  # 2 MB
 
 admin_bp = Blueprint('admin', __name__)
+
+@admin_bp.route('/client-preview', methods=['GET', 'POST'])
+@roles_required('admin')
+def client_preview():
+    user = User.query.get(get_jwt_identity())
+    if not user or user.job_title != 'Superadmin':
+        flash('Apenas o superadmin pode visualizar o portal de uma empresa.', 'danger')
+        return redirect(url_for('admin.dashboard'))
+    if request.method == 'POST':
+        user_id = request.form.get('client_user_id', type=int)
+        client_user = User.query.filter_by(id=user_id, permission_level='client', is_active=True).first()
+        client_id = client_user.client_id if client_user else None
+        if not client_id or not Client.query.get(client_id):
+            flash('Usuário cliente sem cliente vinculado.', 'danger')
+        else:
+            session['preview_client_id'] = client_id
+            return redirect(url_for('client_portal.dashboard'))
+    client_users = User.query.filter_by(permission_level='client', is_active=True).order_by(User.name.asc()).all()
+    return render_template('admin/client_preview.html', client_users=client_users)
+
+@admin_bp.route('/client-preview/exit')
+@roles_required('admin')
+def exit_client_preview():
+    session.pop('preview_client_id', None)
+    return redirect(url_for('admin.dashboard'))
 
 AUDIT_ACTION_LABELS = {
     'LOGIN': 'Login',

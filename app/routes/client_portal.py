@@ -17,7 +17,7 @@ def dashboard():
     user = User.query.get(user_id)
     
     # Check both legacy and many-to-many
-    user_clients = user.clients
+    user_clients = Client.query.all() if user.permission_level == 'admin' and user.job_title == 'Superadmin' else user.clients
     if not user_clients and user.client_id:
         # Auto-migration fallback for this session if not yet migrated
         legacy_client = Client.query.get(user.client_id)
@@ -64,7 +64,7 @@ def equipments():
     user = User.query.get(user_id)
     
     client_id = request.args.get('client_id', type=int)
-    user_clients = user.clients
+    user_clients = Client.query.all() if user.permission_level == 'admin' and user.job_title == 'Superadmin' else user.clients
     client = next((c for c in user_clients if c.id == client_id), None) if client_id else (user_clients[0] if user_clients else None)
     
     if not client and user.client_id:
@@ -83,7 +83,7 @@ def services():
     user = User.query.get(user_id)
     
     client_id = request.args.get('client_id', type=int)
-    user_clients = user.clients
+    user_clients = Client.query.all() if user.permission_level == 'admin' and user.job_title == 'Superadmin' else user.clients
     client = next((c for c in user_clients if c.id == client_id), None) if client_id else (user_clients[0] if user_clients else None)
     
     if not client and user.client_id:
@@ -104,7 +104,7 @@ def payments():
     user = User.query.get(user_id)
     
     client_id = request.args.get('client_id', type=int)
-    user_clients = user.clients
+    user_clients = Client.query.all() if user.permission_level == 'admin' and user.job_title == 'Superadmin' else user.clients
     client = next((c for c in user_clients if c.id == client_id), None) if client_id else (user_clients[0] if user_clients else None)
     
     if not client and user.client_id:

@@ -21,7 +21,8 @@ def permission_level_required(*levels):
             # 'technician' maps to 'user'
             allowed_levels = ['user' if l == 'technician' else l for l in levels]
 
-            if not user or user.permission_level not in allowed_levels:
+            is_superadmin = bool(user and user.permission_level == 'admin' and user.job_title == 'Superadmin')
+            if not user or (not is_superadmin and user.permission_level not in allowed_levels):
                 flash("Você não tem permissão para acessar esta página.", "danger")
                 # Redirect based on user's permission_level or to login if user not found
                 if user and user.permission_level == 'admin':
