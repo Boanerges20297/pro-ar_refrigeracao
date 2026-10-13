@@ -1,0 +1,13 @@
+﻿{% extends "base.html" %}
+{% block title %}Rotas executadas{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  <div class="min-w-0"><h1 class="break-words text-2xl font-bold">Rotas executadas</h1><p class="text-sm text-gray-500">Histórico das rotas iniciadas.</p></div>
+  <div class="flex w-full gap-2 sm:w-auto"><a href="{{ url_for('services.index') }}" class="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 sm:flex-none">Serviços</a><a href="{{ url_for('services.history') }}" class="flex-1 rounded-lg bg-gray-700 px-4 py-2 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 sm:flex-none">Histórico</a></div>
+</div>
+<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+{% for route in routes %}
+<article class="min-w-0 rounded-2xl border bg-white p-5 shadow-sm"><div class="flex flex-wrap items-start justify-between gap-2"><h2 class="min-w-0 break-words font-bold">{{ route.client.name }}</h2><span class="shrink-0 rounded-full bg-blue-100 px-2 py-1 text-xs font-bold text-blue-700">{{ route.status }}</span></div><p class="mt-2 text-sm text-gray-500">{{ route.started_at.strftime('%d/%m/%Y às %H:%M') }}</p><p class="mt-4 text-sm"><b>{{ route.order_ids|length }}</b> aparelho(s) na rota</p><p class="break-words text-sm text-gray-500">Técnico: {{ route.technician.name if route.technician else 'Não definido' }}</p></article>
+{% else %}<div class="rounded-2xl border border-dashed p-10 text-center text-gray-500 sm:col-span-2 xl:col-span-3">Nenhuma rota registrada.</div>{% endfor %}
+</div>
+{% endblock %}

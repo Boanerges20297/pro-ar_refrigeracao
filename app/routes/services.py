@@ -5,6 +5,7 @@ from app.models.client import Client
 from app.models.equipment import Equipment
 from app.models.service import ServiceCatalog
 from app.models.user import User
+from app.models.service_route import ServiceRoute
 from app.models.config import AppConfig
 from app import db
 from datetime import datetime
@@ -527,6 +528,33 @@ def execute_route(client_id):
         work_orders.sort(key=lambda work_order: order_map.get(work_order.id, len(order_map)))
     return render_template('services/execute_route.html', client=client, work_orders=work_orders,
                            route_started=bool(requested_ids), route_ids=requested_ids)
+
+@services_bp.route('/routes/start/<int:client_id>', methods=['POST'])
+@roles_required('admin', 'secretary', 'technician')
+def start_route(client_id):
+    user = get_current_user()
+    ids = [int(value) for value in request.form.getlist('ids') if value.isdigit()]
+    orders = WorkOrder.query.filter(WorkOrder.client_id == client_id, WorkOrder.id.in_(ids)).all() if ids else []
+    if not orders:
+        flash('Selecione ao menos um aparelho para iniciar a rota.', 'warning')
+        return redirect(url_for('services.execute_route', client_id=client_id))
+    route = ServiceRoute(client_id=client_id, technician_id=user.id if user and user.permission_level == 'user' else None)
+    route.order_ids = ids
+    db.session.add(route)
+    db.session.commit()
+    return redirect(url_for('services.execute_route', client_id=client_id, ids=ids))
+
+@services_bp.route('/routes')
+@roles_required('admin', 'secretary', 'technician')
+def route_history():
+    user = get_current_user()
+    client_id = request.args.get('client_id', type=int)
+    query = ServiceRoute.query.order_by(ServiceRoute.started_at.desc())
+    if client_id:
+        query = query.filter_by(client_id=client_id)
+    if user and user.permission_level == 'user':
+        query = query.filter_by(technician_id=user.id)
+    return render_template('services/route_history.html', routes=query.limit(100).all(), selected_client_id=client_id)
 
 @services_bp.route('/add', methods=['GET', 'POST'])
 @roles_required('admin', 'secretary')

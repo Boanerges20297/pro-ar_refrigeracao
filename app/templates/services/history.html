@@ -178,8 +178,9 @@
 
 <!-- Tabela de Ordens -->
 <div class="bg-white shadow rounded-lg overflow-hidden border border-gray-100">
-    <div class="overflow-x-auto">
-        <table class="w-full">
+    <div class="overflow-x-auto overscroll-x-contain">
+        <p class="px-4 pt-3 text-[11px] text-gray-400 md:hidden">Deslize para a esquerda ou direita para ver todas as colunas.</p>
+        <table class="w-full min-w-[980px]">
             <thead class="bg-gray-50 border-b border-gray-100">
                 <tr>
                     <th scope="col" class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">OS #</th>
@@ -232,6 +233,9 @@
                     {% endif %}
                     <td class="px-4 py-3 whitespace-nowrap text-right">
                         <div class="flex items-center justify-end gap-3">
+                            <a href="{{ url_for('services.route_history', client_id=wo.client_id) }}" class="text-emerald-600 hover:text-emerald-800 text-xs font-medium" title="Ver rotas desta empresa">
+                                <i class="fas fa-route mr-1"></i>Rotas
+                            </a>
                             {% if wo.status == 'Completed' %}
                             <a href="{{ url_for('services.receipt', id=wo.id) }}" target="_blank" rel="noopener noreferrer" class="text-gray-600 hover:text-gray-900 text-xs font-medium">
                                 <i class="fas fa-file-signature mr-1"></i>Recibo

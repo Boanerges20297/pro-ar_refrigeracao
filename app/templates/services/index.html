@@ -3,19 +3,19 @@
 {% block content %}
 <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
     <h2 class="text-2xl font-bold text-gray-800">Ordens de Serviço por Empresa</h2>
-    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+    <div class="flex w-full flex-wrap items-center justify-start gap-2 sm:w-auto sm:justify-end">
         {% if current_user.permission_level == 'admin' %}
-        <a href="{{ url_for('services.service_catalog') }}" class="w-full sm:w-auto bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-bold py-2 px-4 rounded transition-all shadow-sm text-center">
+        <a href="{{ url_for('services.service_catalog') }}" class="inline-flex items-center whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-700 shadow-sm transition-all hover:bg-gray-50">
             <i class="fas fa-tags mr-2"></i>Listar Serviços Cadastrados
         </a>
-        <a href="{{ url_for('services.add') }}" class="w-full sm:w-auto bg-primary hover:opacity-90 text-white font-bold py-2 px-4 rounded transition-all shadow-sm text-center">
+        <a href="{{ url_for('services.add') }}" class="inline-flex items-center whitespace-nowrap rounded-lg bg-primary px-3 py-2 text-sm font-bold text-white transition-all hover:opacity-90">
             <i class="fas fa-plus mr-2"></i>Nova OS
         </a>
-        <a href="{{ url_for('services.export_pdf') }}" class="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-all shadow-sm text-center">
+        <a href="{{ url_for('services.export_pdf') }}" class="inline-flex items-center whitespace-nowrap rounded-lg bg-red-600 px-3 py-2 text-sm font-bold text-white transition-all hover:bg-red-700">
             <i class="fas fa-file-pdf mr-2"></i>Gerar PDF
         </a>
         {% endif %}
-        <a href="{{ url_for('services.history') }}" class="w-full sm:w-auto bg-secondary hover:opacity-90 text-white font-bold py-2 px-4 rounded transition-all shadow-sm text-center">
+        <a href="{{ url_for('services.history') }}" class="inline-flex items-center whitespace-nowrap rounded-lg bg-secondary px-3 py-2 text-sm font-bold text-white transition-all hover:opacity-90">
             <i class="fas fa-history mr-2"></i>Histórico
         </a>
     </div>
