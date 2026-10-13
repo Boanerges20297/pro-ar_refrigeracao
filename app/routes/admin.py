@@ -30,14 +30,14 @@ def client_preview():
         return redirect(url_for('admin.dashboard'))
     if request.method == 'POST':
         user_id = request.form.get('client_user_id', type=int)
-        client_user = User.query.filter_by(id=user_id, permission_level='client', is_active=True).first()
+        client_user = User.query.filter_by(id=user_id, is_active=True).first()
         client_id = client_user.client_id if client_user else None
         if not client_id or not Client.query.get(client_id):
-            flash('Usuário cliente sem cliente vinculado.', 'danger')
+            flash('Este usuário não possui um cliente vinculado para visualização.', 'danger')
         else:
             session['preview_client_id'] = client_id
             return redirect(url_for('client_portal.dashboard'))
-    client_users = User.query.filter_by(permission_level='client', is_active=True).order_by(User.name.asc()).all()
+    client_users = User.query.filter_by(is_active=True).order_by(User.name.asc()).all()
     return render_template('admin/client_preview.html', client_users=client_users)
 
 @admin_bp.route('/client-preview/exit')
