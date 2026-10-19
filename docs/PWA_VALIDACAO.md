@@ -4,7 +4,8 @@ Branch: `feature/pwa-instalavel-seguro` (derivada da `main`).
 
 ## Regra de segurança
 
-O PWA é opt-in. `PWA_ENABLED` não configurado equivale a `false`.
+O PWA está habilitado por padrão na branch. `PWA_ENABLED` não configurado equivale a `true`.
+A chave opcional `PWA_ENABLED=0` desativa a instalação, se necessário.
 Não existe deploy automático dessa branch. O workflow de produção só publica `main`,
 mediante confirmação `DEPLOY` e CI verde da `main`.
 
@@ -17,7 +18,7 @@ exclusivamente `/static/pwa/offline.html`. Sem fila de sincronização ou push.
 
 1. Implantar a branch em instância **separada** (domínio HTTPS próprio, processo, banco e
    credenciais de testes próprios). Não apontar uma segunda instância ao banco de produção.
-2. Habilitar **apenas nessa instância** `PWA_ENABLED=1` no ambiente do serviço.
+2. O PWA já está habilitado por padrão nessa branch; basta iniciar a instância de testes.
 3. No Chrome Android, abrir login e usar "Instalar aplicativo" pelo menu do navegador.
    No Safari iOS, usar Compartilhar > Adicionar à Tela de Início.
 4. Verificar no DevTools > Application > Manifest o nome ProntoAr e ícones 192/512.
