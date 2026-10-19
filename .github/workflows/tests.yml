@@ -52,5 +52,11 @@ jobs:
       - name: Verificar compilação Python
         run: python -m compileall -q app
 
+      - name: Validar JavaScript PWA
+        run: |
+          node --check static/pwa/sw.js
+          node --check static/pwa/sw-disable.js
+          node --check static/pwa/register.js
+
       - name: Executar testes
         run: python -m pytest -q

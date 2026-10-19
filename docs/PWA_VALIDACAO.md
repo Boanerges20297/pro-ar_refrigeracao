@@ -19,7 +19,8 @@ exclusivamente `/static/pwa/offline.html`. Sem fila de sincronização ou push.
 1. Implantar a branch em instância **separada** (domínio HTTPS próprio, processo, banco e
    credenciais de testes próprios). Não apontar uma segunda instância ao banco de produção.
 2. O PWA já está habilitado por padrão nessa branch; basta iniciar a instância de testes.
-3. No Chrome Android, abrir login e usar "Instalar aplicativo" pelo menu do navegador.
+3. No Chrome Android, abrir login e tocar em "Instalar ProntoAr" quando o botao aparecer,
+   ou usar "Instalar aplicativo" pelo menu do navegador.
    No Safari iOS, usar Compartilhar > Adicionar à Tela de Início.
 4. Verificar no DevTools > Application > Manifest o nome ProntoAr e ícones 192/512.
 5. Verificar em Application > Service Workers `/sw.js` com escopo `/`.

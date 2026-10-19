@@ -72,6 +72,7 @@ class PwaTests(unittest.TestCase):
         enabled = self.client.get("/auth/login").get_data(as_text=True)
         self.assertIn('rel="manifest"', enabled)
         self.assertIn('pwa/register.js', enabled)
+        self.assertIn('prontoar-pwa-install', enabled)
         self.app.config["PWA_ENABLED"] = False
         disabled = self.client.get("/auth/login").get_data(as_text=True)
         self.assertNotIn('rel="manifest"', disabled)
