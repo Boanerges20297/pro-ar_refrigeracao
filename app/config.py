@@ -23,6 +23,8 @@ def normalize_database_url(url):
 
 
 class Config:
+    # PWA opt-in: manter desligado ate a homologacao em ambiente isolado.
+    PWA_ENABLED = env_bool('PWA_ENABLED', False)
     # Use environment variables for secrets, fallback to secure random string for dev
     SECRET_KEY = os.environ.get('SECRET_KEY') or os.urandom(32).hex()
     SQLALCHEMY_DATABASE_URI = normalize_database_url(os.environ.get('DATABASE_URL') or 'sqlite:///pronto_ar.db')

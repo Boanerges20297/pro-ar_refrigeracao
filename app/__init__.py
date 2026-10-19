@@ -167,7 +167,7 @@ def create_app(config_class=Config):
     @app.before_request
     def enforce_authenticated_request_context():
         endpoint = request.endpoint or ''
-        if endpoint == 'static' or request.path.startswith('/static/'):
+        if endpoint in {'static', 'main.pwa_manifest', 'main.pwa_service_worker'} or request.path.startswith('/static/'):
             return None
 
         g.current_user = None
@@ -217,7 +217,7 @@ def create_app(config_class=Config):
     @app.before_request
     def enforce_license_status():
         endpoint = request.endpoint or ''
-        if endpoint == 'static' or request.path.startswith('/static/'):
+        if endpoint in {'static', 'main.pwa_manifest', 'main.pwa_service_worker'} or request.path.startswith('/static/'):
             return None
 
         from app.utils.license import evaluate_license, get_license_features, get_license_record, has_license_feature

@@ -3,6 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% if config.get('PWA_ENABLED', False) %}
+    <link rel="manifest" href="{{ url_for('main.pwa_manifest') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='pwa/icon-192.png') }}">
+    <meta name="theme-color" content="#0b4f8a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    {% endif %}
     <title>ProntoAr | Login</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -177,6 +184,9 @@
 
     </div>
 </div>
+    {% if config.get('PWA_ENABLED', False) %}
+    {% include 'pwa/_register.html' %}
+    {% endif %}
 </body>
 </html>
 
