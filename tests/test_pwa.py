@@ -65,7 +65,7 @@ class PwaTests(unittest.TestCase):
             self.assertEqual(response.status_code, 200, path)
         for pixels in (192, 512):
             response = self.client.get(f"/static/pwa/icon-{pixels}.png")
-            self.assertEqual(response.data[:8], b"\\x89PNG\\r\\n\\x1a\\n")
+            self.assertEqual(response.data[:8], b"\x89PNG\r\n\x1a\n")
             self.assertEqual(int.from_bytes(response.data[16:20], "big"), pixels)
 
     def test_login_registers_pwa_only_when_enabled(self):
