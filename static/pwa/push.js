@@ -1,6 +1,6 @@
 (() => {
   const button = document.getElementById('prontoar-push-toggle');
-  if (!button || !('serviceWorker' in navigator) || !('PushManager' in window) || !window.isSecureContext) return;
+  const userId = button?.dataset.userId || 'anonymous';
   const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
   const request = (url, body) => fetch(url, {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
@@ -20,7 +20,7 @@
     const response = await fetch('/notifications/today', { credentials: 'same-origin' });
     if (!response.ok) return;
     const data = await response.json();
-    const key = `prontoar-agenda-${button.dataset.userId}-${data.date}`;
+    const key = `prontoar-agenda-${userId}-${data.date}`;
     if (localStorage.getItem(key)) return;
     localStorage.setItem(key, 'shown');
     if (!data.services.length) return;
@@ -50,6 +50,8 @@
   };
 
   showTodaySchedule().catch(() => {});
+  if (!button || !('serviceWorker' in navigator) || !('PushManager' in window) || !window.isSecureContext) return;
+
   navigator.serviceWorker.ready.then(async (registration) => {
     setLabel(Boolean(await registration.pushManager.getSubscription()));
   }).catch(() => setLabel(false));
