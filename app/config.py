@@ -39,6 +39,14 @@ class Config:
     SERVER_NAME = os.environ.get('SERVER_NAME') or None
     TRUSTED_HOSTS = [host.strip() for host in os.environ.get('TRUSTED_HOSTS', '').split(',') if host.strip()] or None
 
+    # Web Push (VAPID). Generate a key pair once and keep the private key secret.
+    VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY') or ''
+    VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY') or ''
+    VAPID_CLAIMS_EMAIL = os.environ.get('VAPID_CLAIMS_EMAIL') or ''
+    NOTIFICATION_TIMEZONE = os.environ.get('NOTIFICATION_TIMEZONE', 'America/Fortaleza')
+    NOTIFICATION_DAY_BEFORE_HOUR = int(os.environ.get('NOTIFICATION_DAY_BEFORE_HOUR', '8'))
+    NOTIFICATION_TODAY_HOUR = int(os.environ.get('NOTIFICATION_TODAY_HOUR', '8'))
+
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or os.urandom(32).hex()
     LICENSE_SIGNING_SECRET = os.environ.get('LICENSE_SIGNING_SECRET') or SECRET_KEY
     LICENSE_PRIVATE_KEY_PATH = os.environ.get('LICENSE_PRIVATE_KEY_PATH', os.path.join('keys', 'ed25519_private.pem'))

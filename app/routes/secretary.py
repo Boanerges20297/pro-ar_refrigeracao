@@ -12,6 +12,7 @@ from app import db
 from sqlalchemy import func
 from datetime import datetime, timedelta
 from app.utils.maintenance import sync_schedule_with_workorder
+from app.utils.push_notifications import sync_workorder_reminders
 
 secretary_bp = Blueprint('secretary', __name__)
 
@@ -110,6 +111,8 @@ def schedule_workorder():
             )
             
             db.session.add(workorder)
+            db.session.flush()
+            sync_workorder_reminders(workorder)
             db.session.commit()
             
             # Log action
@@ -177,6 +180,9 @@ def edit_workorder_schedule(wo_id):
             
             if description:
                 workorder.description = description
+
+            if old_date != workorder.scheduled_date or old_technician != workorder.technician_id:
+                sync_workorder_reminders(workorder)
             
             db.session.commit()
             
@@ -229,6 +235,7 @@ def conclude_workorder(wo_id):
         workorder.status = 'Completed'
         workorder.completed_date = datetime.utcnow()
         sync_schedule_with_workorder(workorder, previous_status=old_status)
+        sync_workorder_reminders(workorder)
         
         db.session.commit()
         

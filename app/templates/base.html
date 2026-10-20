@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     {% if config.get('PWA_ENABLED', False) %}
     <link rel="manifest" href="{{ url_for('main.pwa_manifest') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='pwa/icon-192.png') }}">
@@ -1198,6 +1199,13 @@
     {% block scripts %}{% endblock %}
     {% if config.get('PWA_ENABLED', False) %}
     {% include 'pwa/_register.html' %}
+    {% if current_user %}
+    <button id="prontoar-push-toggle" type="button" hidden data-user-id="{{ current_user.id }}"
+        style="position:fixed;right:1rem;bottom:1rem;z-index:9999;background:#fff;color:#0b4f8a;border:1px solid #0b4f8a;border-radius:999px;padding:.75rem 1rem;font:600 13px system-ui,sans-serif;box-shadow:0 5px 18px rgba(0,0,0,.16);cursor:pointer;">
+        Ativar avisos de serviço
+    </button>
+    <script src="{{ url_for('static', filename='pwa/push.js') }}" defer></script>
+    {% endif %}
     {% endif %}
 </body>
 </html>

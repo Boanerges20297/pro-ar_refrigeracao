@@ -378,6 +378,7 @@ def create_app(config_class=Config):
     from app.routes.reports import reports_bp
     from app.routes.finance import finance_bp
     from app.routes.client_portal import client_portal_bp
+    from app.routes.push import push_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -391,5 +392,9 @@ def create_app(config_class=Config):
     app.register_blueprint(reports_bp, url_prefix='/reports')
     app.register_blueprint(finance_bp, url_prefix='/admin/finance')
     app.register_blueprint(client_portal_bp)
+    app.register_blueprint(push_bp)
+
+    from app.utils.push_notifications import register_notification_commands
+    register_notification_commands(app)
 
     return app

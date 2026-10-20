@@ -13,6 +13,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.utils.decorators import roles_required, get_technician_client_ids
 from app.utils.images import save_and_resize_image
 from app.utils.maintenance import sync_schedule_with_workorder
+from app.utils.push_notifications import sync_workorder_reminders
 from app.utils.audit import log_action
 from app.utils.finance import sync_wo_to_finance, sync_expense_to_finance, delete_finance_sync
 import io
@@ -680,6 +681,8 @@ def add():
             photo_after=photo_after_path
         )
         db.session.add(wo)
+        db.session.flush()
+        sync_workorder_reminders(wo)
         db.session.commit()
         
         # Sincronizar com o financeiro
@@ -769,6 +772,7 @@ def edit(id):
             wo.photo_after = save_and_resize_image(photo_after_file, 'work_orders')
 
         sync_schedule_with_workorder(wo, previous_status=previous_status)
+        sync_workorder_reminders(wo)
 
         db.session.commit()
         
