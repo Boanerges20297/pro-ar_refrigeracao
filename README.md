@@ -862,13 +862,13 @@ O Pronto Ar já cobre operação real de atendimento com separação de perfis, 
 
 ## Notificações push de serviços
 
-O sistema mantém uma fila persistente no banco para lembrar a equipe sobre cada ordem pendente ou em andamento: aviso da véspera às 08:00 e aviso no dia às 08:00 (fuso `America/Fortaleza`). Na primeira abertura do app em cada dia, administradores, secretários e o técnico atribuído também veem o resumo dos clientes agendados para hoje. Os horários e o fuso podem ser ajustados com `NOTIFICATION_DAY_BEFORE_HOUR`, `NOTIFICATION_TODAY_HOUR` e `NOTIFICATION_TIMEZONE`.
+O sistema mantém uma fila persistente no banco para lembrar a equipe sobre cada ordem pendente ou em andamento: aviso da véspera às 08:00 e aviso no dia às 08:00 (fuso `America/Fortaleza`). Na primeira abertura do app em cada dia, administradores, secretários e o técnico atribuído também veem o resumo dos clientes agendados para hoje. Se a ordem continuar aberta após o horário agendado, o sistema envia no máximo um novo push a cada quatro horas. O timer `systemd` executa uma tarefa curta seis vezes ao dia e encerra o processo entre as execuções.
 
 Para ativar Web Push em produção:
 
 1. Instale as dependências e aplique a migração: `pip install -r requirements.txt` e `flask db upgrade`.
 2. Gere um par de chaves VAPID e configure `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_CLAIMS_EMAIL` no ambiente do servidor. Mantenha a chave privada em segredo.
 3. Sirva o sistema por HTTPS. Cada usuário deve entrar no navegador/PWA e clicar em **Ativar avisos de serviço** uma vez.
-4. Configure o cron do servidor para executar `flask --app wsgi:app dispatch-notifications` a cada quinze minutos. O comando reconcilia a fila e despacha os avisos vencidos; a fila persiste no banco entre execuções.
+4. Instale e habilite os arquivos `deploy/systemd/prontoar-notifications.service` e `deploy/systemd/prontoar-notifications.timer`. O timer agenda os envios às 08:00 e confere os serviços em aberto a cada quatro horas; a fila persiste no banco entre execuções.
 
 As notificações dependem de permissão do navegador e de uma inscrição ativa por dispositivo. Sem chaves VAPID ou sem o cron, a fila fica registrada, mas os avisos não são enviados.

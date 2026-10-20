@@ -35,15 +35,13 @@ def sync_workorder_reminders(workorder):
 
     local_service_date = workorder.scheduled_date.date()
     local_today = datetime.now(_local_zone()).date()
-    if local_service_date < local_today:
-        NotificationJob.query.filter_by(workorder_id=workorder.id, status='pending').update({'status': 'cancelled'})
-        return
-
-    schedules = [
+    schedules = [] if local_service_date < local_today else [
         ('day_before', local_service_date - timedelta(days=1), int(current_app.config.get('NOTIFICATION_DAY_BEFORE_HOUR', 8))),
-        ('today', local_service_date, int(current_app.config.get('NOTIFICATION_TODAY_HOUR', 7))),
+        ('today', local_service_date, int(current_app.config.get('NOTIFICATION_TODAY_HOUR', 8))),
     ]
     valid_keys = set()
+    for recipient in recipients:
+        valid_keys.add((recipient.id, 'open_4h', workorder.scheduled_date))
     for kind, reminder_date, hour in schedules:
         local_due = datetime.combine(reminder_date, time(hour=max(0, min(23, hour))))
         due_at = _utc_naive(local_due)
@@ -67,16 +65,62 @@ def sync_workorder_reminders(workorder):
             job.status = 'cancelled'
 
 
+def queue_open_workorder_followups(now=None):
+    """Queue at most one follow-up every four hours for an overdue open order."""
+    now = now or datetime.utcnow()
+    local_now = now.replace(tzinfo=timezone.utc).astimezone(_local_zone()).replace(tzinfo=None)
+    threshold = now - timedelta(hours=4)
+    workorders = WorkOrder.query.filter(
+        WorkOrder.scheduled_date <= local_now,
+        WorkOrder.status.in_(['Pending', 'In Progress']),
+    ).all()
+    for workorder in workorders:
+        recipients = User.query.filter(
+            User.is_active.is_(True),
+            User.permission_level.in_(['admin', 'secretary']),
+        ).all()
+        if workorder.technician_id:
+            technician = User.query.filter_by(id=workorder.technician_id, is_active=True).first()
+            if technician and technician not in recipients:
+                recipients.append(technician)
+        for recipient in recipients:
+            latest_sent = NotificationJob.query.filter_by(
+                user_id=recipient.id, workorder_id=workorder.id,
+                scheduled_at=workorder.scheduled_date, status='sent',
+            ).order_by(NotificationJob.sent_at.desc()).first()
+            if not latest_sent or not latest_sent.sent_at or latest_sent.sent_at > threshold:
+                continue
+            pending_followup = NotificationJob.query.filter_by(
+                user_id=recipient.id, workorder_id=workorder.id,
+                reminder_kind='open_4h', scheduled_at=workorder.scheduled_date,
+                status='pending',
+            ).first()
+            if not pending_followup:
+                db.session.add(NotificationJob(
+                    user_id=recipient.id,
+                    workorder_id=workorder.id,
+                    reminder_kind='open_4h',
+                    scheduled_at=workorder.scheduled_date,
+                    due_at=now,
+                ))
+
+
 def _payload(job):
     wo = job.workorder
     when = wo.scheduled_date.strftime('%d/%m às %H:%M') if wo.scheduled_date else 'horário não informado'
     if job.reminder_kind == 'today':
         title = 'Serviço de hoje'
         body = f"Hoje às {when.split(' às ')[-1]}: {wo.client.name if wo.client else 'Cliente'}"
+    elif job.reminder_kind == 'open_4h':
+        title = 'Serviço ainda em aberto'
+        body = f"OS #{wo.id} · {wo.client.name if wo.client else 'Cliente'} · agendado para {when}"
     else:
         title = 'Serviço agendado para amanhã'
         body = f"Amanhã às {when.split(' às ')[-1]}: {wo.client.name if wo.client else 'Cliente'}"
-    return {'title': title, 'body': body, 'url': f'/services/view/{wo.id}', 'tag': f'workorder-{wo.id}-{job.reminder_kind}'}
+    tag = f'workorder-{wo.id}-{job.reminder_kind}'
+    if job.reminder_kind == 'open_4h':
+        tag += '-' + (job.due_at.strftime('%Y%m%d%H%M') if job.due_at else str(job.id))
+    return {'title': title, 'body': body, 'url': f'/services/view/{wo.id}', 'tag': tag}
 
 
 def dispatch_due_notifications(limit=100):
@@ -85,6 +129,7 @@ def dispatch_due_notifications(limit=100):
     jobs = NotificationJob.query.filter(
         NotificationJob.status == 'pending', NotificationJob.due_at <= now,
     ).order_by(NotificationJob.due_at.asc()).limit(limit).all()
+    last_delivery = {}
     sent = failed = skipped = 0
     vapid_private = current_app.config.get('VAPID_PRIVATE_KEY')
     vapid_email = current_app.config.get('VAPID_CLAIMS_EMAIL')
@@ -101,6 +146,21 @@ def dispatch_due_notifications(limit=100):
         wo = job.workorder
         if not wo or wo.status not in {'Pending', 'In Progress'} or wo.scheduled_date != job.scheduled_at:
             job.status = 'cancelled'
+            skipped += 1
+            continue
+        delivery_key = (job.user_id, job.workorder_id)
+        if delivery_key not in last_delivery:
+            recent = NotificationJob.query.filter(
+                NotificationJob.user_id == job.user_id,
+                NotificationJob.workorder_id == job.workorder_id,
+                NotificationJob.scheduled_at == job.scheduled_at,
+                NotificationJob.status == 'sent',
+                NotificationJob.sent_at.isnot(None),
+            ).order_by(NotificationJob.sent_at.desc()).first()
+            last_delivery[delivery_key] = recent.sent_at if recent else None
+        prior_sent_at = last_delivery[delivery_key]
+        if prior_sent_at and prior_sent_at > now - timedelta(hours=4):
+            job.due_at = prior_sent_at + timedelta(hours=4)
             skipped += 1
             continue
         subscriptions = list(job.user.push_subscriptions) if job.user and job.user.is_active else []
@@ -130,6 +190,7 @@ def dispatch_due_notifications(limit=100):
                 current_app.logger.exception('Falha ao enviar Web Push para inscrição %s', subscription.id)
         if any_success:
             job.status, job.sent_at, job.last_error = 'sent', now, None
+            last_delivery[delivery_key] = now
             sent += 1
         else:
             job.attempts += 1
@@ -151,6 +212,7 @@ def register_notification_commands(app):
         workorders = WorkOrder.query.filter(WorkOrder.status.in_(['Pending', 'In Progress'])).all()
         for workorder in workorders:
             sync_workorder_reminders(workorder)
+        queue_open_workorder_followups()
         db.session.commit()
         result = dispatch_due_notifications()
         print(json.dumps(result, ensure_ascii=False))

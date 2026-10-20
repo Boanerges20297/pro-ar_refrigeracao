@@ -1,0 +1,10 @@
+[Unit]
+Description=Run ProntoAr notification dispatcher every four hours
+
+[Timer]
+OnCalendar=*-*-* 03,07,11,15,19,23:00:00 UTC
+Persistent=true
+Unit=prontoar-notifications.service
+
+[Install]
+WantedBy=timers.target

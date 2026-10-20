@@ -30,4 +30,4 @@ class NotificationJob(db.Model):
 
     user = db.relationship('User')
     workorder = db.relationship('WorkOrder')
-    __table_args__ = (db.UniqueConstraint('user_id', 'workorder_id', 'reminder_kind', 'scheduled_at', name='uq_notification_workorder_reminder'),)
+    __table_args__ = (db.UniqueConstraint('user_id', 'workorder_id', 'reminder_kind', 'scheduled_at', 'due_at', name='uq_notification_workorder_reminder'),)

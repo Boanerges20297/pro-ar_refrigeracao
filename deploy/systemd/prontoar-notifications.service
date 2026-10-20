@@ -1,0 +1,9 @@
+[Unit]
+Description=Dispatch ProntoAr scheduled service notifications
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/var/www/pro-ar_refrigeracao
+ExecStart=/var/www/pro-ar_refrigeracao/.venv/bin/flask --app wsgi:app dispatch-notifications
