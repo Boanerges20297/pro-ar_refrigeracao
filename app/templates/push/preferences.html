@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Prefer&#234;ncias do aplicativo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-5 px-4 sm:px-0">
+    <header>
+        <h1 class="text-2xl font-bold text-gray-900">Prefer&#234;ncias do aplicativo</h1>
+        <p class="mt-1 text-sm text-gray-600">Gerencie a instala&#231;&#227;o e os avisos neste navegador.</p>
+    </header>
+
+    <section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm" aria-labelledby="push-preferences-title">
+        <h2 id="push-preferences-title" class="text-lg font-semibold text-gray-900">Avisos de servi&#231;o</h2>
+        <p id="prontoar-push-settings-status" class="mt-2 text-sm text-gray-600" role="status" aria-live="polite">Verificando o status...</p>
+        <button id="prontoar-push-settings-toggle" type="button" hidden data-user-id="{{ current_user.id }}"
+            class="mt-4 rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50">
+            Verificando...
+        </button>
+        <p class="mt-3 text-xs leading-5 text-gray-500">Desativar remove a inscri&#231;&#227;o deste navegador. A permiss&#227;o geral do navegador pode ser revogada nas configura&#231;&#245;es do Chrome, Edge ou Safari.</p>
+    </section>
+
+    <section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm" aria-labelledby="pwa-preferences-title">
+        <h2 id="pwa-preferences-title" class="text-lg font-semibold text-gray-900">Instala&#231;&#227;o do ProntoAr</h2>
+        <p id="prontoar-pwa-install-status" class="mt-2 text-sm text-gray-600" role="status" aria-live="polite">Verificando o status...</p>
+        <button id="prontoar-pwa-settings-install" type="button" hidden aria-label="Instalar ProntoAr"
+            class="mt-4 rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-800">
+            Instalar ProntoAr
+        </button>
+        <p class="mt-3 text-xs leading-5 text-gray-500">Depois de instalado, o atalho de instala&#231;&#227;o deixa de aparecer. Para remover o aplicativo, use a &#225;rea de aplicativos instalados do navegador ou do sistema operacional.</p>
+    </section>
+</div>
+{% endblock %}

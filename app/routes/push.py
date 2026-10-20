@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, time, timedelta
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, current_app, jsonify, render_template, request
 from flask_jwt_extended import get_jwt_identity
 
 from app import db
@@ -11,6 +11,12 @@ from app.utils.decorators import roles_required
 
 
 push_bp = Blueprint('push', __name__, url_prefix='/notifications')
+
+
+@push_bp.route('/preferences')
+@roles_required('admin', 'secretary', 'technician', 'client')
+def preferences():
+    return render_template('push/preferences.html')
 
 
 @push_bp.route('/vapid-public-key')
