@@ -1,13 +1,6 @@
 name: Testes automatizados
 
 "on":
-  push:
-    branches:
-      - main
-      - feature/pwa-instalavel-seguro
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:

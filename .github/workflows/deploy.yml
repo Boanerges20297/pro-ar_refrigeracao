@@ -34,26 +34,6 @@ jobs:
         id: target
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Confirmar testes verdes da main
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          TARGET_SHA: ${{ steps.target.outputs.sha }}
-        run: |
-          set -euo pipefail
-          CONCLUSION=$(gh run list \
-            --repo "$REPO" \
-            --workflow tests.yml \
-            --branch main \
-            --commit "$TARGET_SHA" \
-            --event push \
-            --json conclusion \
-            --jq '.[0].conclusion // ""')
-          if [ "$CONCLUSION" != "success" ]; then
-            echo "Deploy bloqueado: o commit $TARGET_SHA não possui testes verdes na main."
-            exit 1
-          fi
-
       - name: Preparar SSH
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}

@@ -297,6 +297,74 @@ def view_workorder(id):
     )
 
 
+MAX_CONSOLIDATED_RECEIPT_ORDERS = 50
+
+
+@services_bp.route('/receipt/select/<int:client_id>')
+@roles_required('admin', 'secretary', 'technician')
+def select_receipt_orders(client_id):
+    """Select completed work orders belonging to one client."""
+    client = Client.query.get_or_404(client_id)
+    current_user = get_current_user()
+    query = WorkOrder.query.filter_by(client_id=client.id, status='Completed')
+    if current_user.permission_level == 'user':
+        query = query.filter_by(technician_id=current_user.id)
+    orders = query.order_by(WorkOrder.completed_date.desc(), WorkOrder.id.desc()).all()
+    return render_template(
+        'services/receipt_select.html', client=client, orders=orders,
+        max_orders=MAX_CONSOLIDATED_RECEIPT_ORDERS,
+    )
+
+
+@services_bp.route('/receipt/consolidated/<int:client_id>')
+@roles_required('admin', 'secretary', 'technician')
+def consolidated_receipt(client_id):
+    """Generate one read-only printable document for explicitly chosen orders."""
+    client = Client.query.get_or_404(client_id)
+    raw_ids = request.args.getlist('os')
+    if not 2 <= len(raw_ids) <= MAX_CONSOLIDATED_RECEIPT_ORDERS:
+        abort(400, description='Selecione de 2 a 50 ordens de serviço.')
+    if any(not value.isascii() or not value.isdecimal() or int(value) <= 0 for value in raw_ids):
+        abort(400, description='Identificador de OS inválido.')
+    ids = [int(value) for value in raw_ids]
+    if len(set(ids)) != len(ids):
+        abort(400, description='Uma mesma OS não pode ser selecionada duas vezes.')
+
+    current_user = get_current_user()
+    query = WorkOrder.query.filter(WorkOrder.id.in_(ids), WorkOrder.client_id == client.id)
+    orders_by_id = {order.id: order for order in query.all()}
+    if len(orders_by_id) != len(ids):
+        abort(400, description='Todas as OS devem pertencer ao cliente selecionado.')
+    orders = [orders_by_id[order_id] for order_id in ids]
+    if any(order.status != 'Completed' for order in orders):
+        abort(400, description='O recibo consolidado aceita apenas OS concluídas.')
+    if any(not can_access_workorder(current_user, order) for order in orders):
+        abort(403)
+
+    total = round(sum(float(order.total_value or 0) for order in orders), 2)
+    # is_paid is authoritative in the current model; paid_value is not always
+    # populated for fully settled work orders.
+    paid_total = round(sum(
+        float(order.total_value or 0) if order.is_paid else
+        min(max(float(order.paid_value or 0), 0), max(float(order.total_value or 0), 0))
+        for order in orders
+    ), 2)
+    due_total = round(max(0, total - paid_total), 2)
+
+    config = AppConfig.query.first()
+    company_name = config.company_name if config and config.company_name else 'Pronto Ar Refrigeração'
+    company_cnpj = config.cnpj if config and getattr(config, 'cnpj', None) else '-'
+    technician_names = {order.technician.name for order in orders if order.technician}
+    responsible = next(iter(technician_names)) if len(technician_names) == 1 else 'Equipe técnica'
+    return render_template(
+        'services/receipt_consolidated.html',
+        client=client, orders=orders, company_name=company_name,
+        company_cnpj=company_cnpj, responsible=responsible,
+        total=total, paid_total=paid_total, due_total=due_total,
+        issued_at=datetime.now(),
+    )
+
+
 @services_bp.route('/receipt/<int:id>')
 @roles_required('admin', 'secretary', 'technician')
 def receipt(id):

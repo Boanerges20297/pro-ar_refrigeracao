@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Recibo consolidado — {{ client.name }}</title>
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; background:#eef2f7; color:#14233b; font-family:Arial,Helvetica,sans-serif; font-size:13px; }
+  .sheet { margin:28px auto; padding:36px; width:min(100%,950px); background:white; box-shadow:0 8px 36px #15253a1a; }
+  header { display:flex; justify-content:space-between; gap:24px; align-items:start; border-bottom:3px solid #0b4f8a; padding-bottom:20px; }
+  h1 { font-size:23px; margin:0; } h2 { font-size:15px; margin:26px 0 8px; }
+  .small { color:#4b5563; font-size:12px; line-height:1.6; }
+  .tag { padding:5px 9px; background:#eaf4ff; color:#0b4f8a; border-radius:5px; display:inline-block; }
+  table { width:100%; border-collapse:collapse; font-size:12px; margin-top:12px; }
+  th, td { border-bottom:1px solid #e5e7eb; text-align:left; padding:10px 8px; vertical-align:top; }
+  th { background:#f1f5f9; } .num { text-align:right; white-space:nowrap; }
+  .totals { margin-top:15px; margin-left:auto; width:min(100%,340px); }
+  .totals div { display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid #e5e7eb; }
+  .totals .grand { font-weight:bold; font-size:17px; border-top:2px solid #0b4f8a; }
+  .notice { margin-top:22px; padding:14px; border:1px solid #cbd5e1; background:#f8fafc; line-height:1.6; }
+  .signatures { display:flex; gap:35px; margin-top:80px; }
+  .signature { flex:1; text-align:center; border-top:1px solid #374151; padding-top:8px; }
+  .actions { display:flex; justify-content:center; gap:12px; padding:15px; }
+  .actions button { border:0; border-radius:8px; padding:12px 20px; background:#0b4f8a; color:#fff; cursor:pointer; }
+  @media print { @page { size:A4; margin:14mm; } body { background:white; } .sheet { width:100%; margin:0; padding:0; box-shadow:none; } .actions { display:none; } thead { display:table-header-group; } tr { break-inside:avoid; } }
+</style>
+</head>
+<body>
+<div class="actions"><button type="button" onclick="window.print()">Imprimir / Salvar PDF</button></div>
+<main class="sheet">
+  <header>
+    <div>
+      <h1>{{ company_name }}</h1>
+      {% if company_cnpj and company_cnpj != '-' %}<div class="small">CNPJ: {{ company_cnpj }}</div>{% endif %}
+      <div class="small">Responsável técnico: {{ responsible }}</div>
+    </div>
+    <div style="text-align:right">
+      <h1 style="font-size:20px">Recibo consolidado de serviços</h1>
+      <div class="small">Emissão: {{ issued_at.strftime('%d/%m/%Y %H:%M') }}</div>
+      <span class="tag">{{ orders|length }} ordens de serviço</span>
+    </div>
+  </header>
+  <h2>Cliente / Contratante</h2>
+  <div class="small">
+    <strong>{{ client.name }}</strong>
+    {% if client.cnpj %} — CNPJ: {{ client.cnpj }}{% endif %}<br>
+    {% if client.address %}{{ client.address }}<br>{% endif %}
+    {% if client.phone %}Telefone: {{ client.phone }}{% endif %}
+    {% if client.email %} · {{ client.email }}{% endif %}
+  </div>
+  <h2>Serviços selecionados</h2>
+  <table>
+    <thead><tr>
+      <th scope="col">OS / Conclusão</th>
+      <th scope="col">Serviço e equipamento</th>
+      <th scope="col">Técnico</th>
+      <th scope="col">Pagamento</th>
+      <th scope="col" class="num">Valor</th>
+    </tr></thead>
+    <tbody>
+    {% for wo in orders %}
+      <tr>
+        <td><strong>#{{ wo.id }}</strong><br><span class="small">{{ wo.completed_date.strftime('%d/%m/%Y') if wo.completed_date else '-' }}</span></td>
+        <td>
+          <strong>{{ wo.service_type.name if wo.service_type else '-' }}</strong>
+          {% if wo.equipment %}<br>{{ wo.equipment.name }}{% if wo.equipment.location %} — {{ wo.equipment.location }}{% endif %}{% endif %}
+          {% if wo.description %}<br><span class="small">{{ wo.description }}</span>{% endif %}
+        </td>
+        <td>{{ wo.technician.name if wo.technician else '-' }}</td>
+        <td>{{ 'Pago' if wo.is_paid else 'Em aberto' }}</td>
+        <td class="num">R$ {{ "%.2f"|format(wo.total_value or 0) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <div class="totals">
+    <div class="grand"><span>Total dos serviços</span><span>R$ {{ "%.2f"|format(total) }}</span></div>
+    <div><span>Valor considerado pago</span><span>R$ {{ "%.2f"|format(paid_total) }}</span></div>
+    <div><span>Saldo em aberto</span><span>R$ {{ "%.2f"|format(due_total) }}</span></div>
+  </div>
+  <div class="notice">
+    Este documento reúne exclusivamente as ordens de serviço selecionadas do cliente identificado,
+    sem alterar os registros originais. Materiais eventualmente incluídos no valor de cada OS não
+    são somados novamente.
+    {% if due_total > 0 %}
+    <strong>Há valores pendentes; este documento não comprova quitação integral.</strong>
+    {% else %}
+    <strong>As ordens selecionadas constam como integralmente pagas nos registros do sistema.</strong>
+    {% endif %}
+  </div>
+  <div class="signatures">
+    <div class="signature">{{ company_name }}<br><span class="small">Prestadora</span></div>
+    <div class="signature">{{ client.name }}<br><span class="small">Cliente / Contratante</span></div>
+  </div>
+</main>
+</body>
+</html>

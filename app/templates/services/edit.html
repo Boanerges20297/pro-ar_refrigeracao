@@ -223,7 +223,8 @@
         </div>
         <div class="flex flex-col gap-3 px-5 py-5 sm:flex-row sm:justify-end sm:px-6">
             <button type="button" onclick="closeReceiptPrompt()" class="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-700 font-semibold hover:bg-gray-50 sm:w-auto">Agora não</button>
-            <button type="button" onclick="printReceiptAndReturn()" class="w-full rounded-lg bg-primary px-4 py-2 text-center font-semibold text-white hover:opacity-90 sm:w-auto">Imprimir Recibo</button>
+            <button type="button" onclick="printReceiptAndReturn()" class="w-full rounded-lg bg-primary px-4 py-2 text-center font-semibold text-white hover:opacity-90 sm:w-auto">Recibo individual</button>
+            <a href="{{ url_for('services.select_receipt_orders', client_id=wo.client_id) }}" class="w-full rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-center font-semibold text-blue-800 hover:bg-blue-100 sm:w-auto">Selecionar OS para recibo único</a>
         </div>
         </div>
     </div>
