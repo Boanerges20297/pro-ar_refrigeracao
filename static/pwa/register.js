@@ -37,12 +37,14 @@
         await promptEvent.prompt();
         await promptEvent.userChoice;
       } else if (isAppleMobile && !installed()) {
-        window.alert('No Safari, toque em Compartilhar e depois em Adicionar a Tela de Inicio.');
+        window.alert('No Safari, toque em Compartilhar e depois em Adicionar a Tela de Início.');
+      } else if (!installed()) {
+        window.alert('Para instalar, use o ícone de instalação na barra de endereço ou o menu do navegador e escolha Instalar ProntoAr.');
       }
     });
   }
 
-  if (isAppleMobile && !installed()) show();
+  if (button && !installed()) show();
 
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js', {
