@@ -225,6 +225,17 @@ def create_app(config_class=Config):
         g.license_state = evaluate_license(get_license_record(create=True))
         current_user = getattr(g, 'current_user', None)
 
+        # Perfil comum é intencionalmente de privilégio mínimo: criar a conta
+        # ilimitada não concede acesso às rotas de técnicos, clientes ou gestão.
+        if current_user and current_user.permission_level == 'common':
+            common_allowed = {
+                'common_portal.dashboard',
+                'auth.login', 'auth.logout', 'auth.forgot_password',
+                'auth.reset_password', 'push.preferences',
+            }
+            if endpoint not in common_allowed:
+                return 'Acesso não autorizado para usuário comum.', 403
+
         if g.license_state['status'] in {'expiring', 'expired', 'invalid'}:
             # Apenas administradores e secretários vêem avisos de licença
             is_staff = current_user and current_user.permission_level in {'admin', 'secretary'}
