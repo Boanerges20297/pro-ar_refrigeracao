@@ -58,6 +58,19 @@ class Config:
     LICENSE_INSTANCE_ID = os.environ.get('LICENSE_INSTANCE_ID') or None
     LICENSE_INSTALLATION_ID_PATH = os.environ.get('LICENSE_INSTALLATION_ID_PATH', os.path.join('instance', 'installation_id.txt'))
     LICENSE_ALLOW_LEGACY_TOKENS = env_bool('LICENSE_ALLOW_LEGACY_TOKENS', False)
+    # O emissor legado continua padrão. Habilitar BTA apenas após piloto S2S.
+    LICENSE_PROVIDER = os.environ.get('LICENSE_PROVIDER', 'legacy').strip().lower()
+    BTA_LICENSE_PRODUCT_CODE = os.environ.get('BTA_LICENSE_PRODUCT_CODE', 'prontoar-refrigeracao')
+    BTA_LICENSE_CUSTOMER_KEY = os.environ.get('BTA_LICENSE_CUSTOMER_KEY', '')
+    BTA_LICENSE_BASE_URL = os.environ.get('BTA_LICENSE_BASE_URL', '')
+    BTA_LICENSE_CLIENT_ID = os.environ.get('BTA_LICENSE_CLIENT_ID', '')
+    BTA_LICENSE_KEY_ID = os.environ.get('BTA_LICENSE_KEY_ID', '')
+    BTA_LICENSE_PRIVATE_KEY_PATH = os.environ.get('BTA_LICENSE_PRIVATE_KEY_PATH', '')
+    BTA_SNAPSHOT_PUBLIC_KEY_PATH = os.environ.get('BTA_SNAPSHOT_PUBLIC_KEY_PATH', '')
+    BTA_SNAPSHOT_CACHE_PATH = os.environ.get(
+        'BTA_SNAPSHOT_CACHE_PATH', os.path.join('instance', 'bta-license-snapshot.json')
+    )
+    BTA_LICENSE_REFRESH_SECONDS = int(os.environ.get('BTA_LICENSE_REFRESH_SECONDS', '300'))
     JWT_ACCESS_TOKEN_EXPIRES = 1800 # 30 minutos
     JWT_TOKEN_LOCATION = ['cookies']
     JWT_COOKIE_SECURE = env_bool('JWT_COOKIE_SECURE', False)
