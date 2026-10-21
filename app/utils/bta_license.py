@@ -180,7 +180,10 @@ def _resolve_remote():
         return {"licensed": False, "reason": document.get("reason")}
     envelope = document.get("snapshot")
     snapshot = _verify_envelope(envelope)
-    _store_cached(envelope)
+    try:
+        _store_cached(envelope)
+    except OSError:
+        current_app.logger.warning("Não foi possível persistir o snapshot assinado BTA")
     return {"licensed": True, "snapshot": snapshot}
 
 
