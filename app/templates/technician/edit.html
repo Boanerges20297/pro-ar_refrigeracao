@@ -46,6 +46,7 @@
                     <option value="secretary" {% if user.permission_level == 'secretary' %}selected{% endif %}>Secretária (Acesso administrativo limitado)</option>
                     <option value="admin" {% if user.permission_level == 'admin' %}selected{% endif %}>Administrador (Acesso completo)</option>
                     <option value="client" {% if user.permission_level == 'client' %}selected{% endif %}>Cliente (Acesso apenas aos próprios dados)</option>
+                    <option value="common" {% if user.permission_level == 'common' %}selected{% endif %}>Usuário comum (Acesso básico, ilimitado)</option>
                 </select>
             </div>
 
