@@ -78,7 +78,11 @@ def login():
                 log_login(user.id, success=False, details={'reason': 'inactive_account'})
                 return redirect(url_for('auth.login'))
 
-            license_state = evaluate_license(get_license_record(create=False))
+            from app.utils.superadmin import is_superadmin
+            if not is_superadmin(user):
+                license_state = evaluate_license(get_license_record(create=False))
+            else:
+                license_state = {'blocking': False}
             if license_state['blocking'] and user.permission_level != 'admin':
                 flash('O acesso operacional está bloqueado por licença ausente, expirada ou inválida. Contate o administrador.', 'danger')
                 log_license_event(

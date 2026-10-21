@@ -217,13 +217,23 @@ def create_app(config_class=Config):
     @app.before_request
     def enforce_license_status():
         endpoint = request.endpoint or ''
+        # Autentica????o p??blica ?? independente do servi??o de licenciamento.
+        # O POST valida a licen??a somente depois de identificar o usu??rio.
+        if endpoint in {'auth.login', 'auth.forgot_password', 'auth.reset_password'}:
+            g.license_state = None
+            return None
         if endpoint in {'static', 'main.pwa_manifest', 'main.pwa_service_worker'} or request.path.startswith('/static/'):
             return None
 
         from app.utils.license import evaluate_license, get_license_features, get_license_record, has_license_feature
 
-        g.license_state = evaluate_license(get_license_record(create=True))
+        from app.utils.superadmin import is_superadmin
+        from app.utils.license import superadmin_access_state
         current_user = getattr(g, 'current_user', None)
+        g.license_state = (
+            superadmin_access_state() if is_superadmin(current_user)
+            else evaluate_license(get_license_record(create=True))
+        )
 
         # Perfil comum é intencionalmente de privilégio mínimo: criar a conta
         # ilimitada não concede acesso às rotas de técnicos, clientes ou gestão.
@@ -337,15 +347,17 @@ def create_app(config_class=Config):
             except Exception:
                 g.license_state = None
 
+        from app.utils.superadmin import is_superadmin
         preview_client = None
         preview_user = None
-        if g.current_user and g.current_user.permission_level == 'admin' and g.current_user.job_title == 'Superadmin':
+        if is_superadmin(g.current_user):
             preview_user_id = session.get('preview_user_id')
             preview_client_id = session.get('preview_client_id')
             preview_user = User.query.get(preview_user_id) if preview_user_id else None
             preview_client = Client.query.get(preview_client_id) if preview_client_id else None
 
         return {
+            'app_runtime_config': app.config,
             'app_config': g.app_config,
             'current_user': g.current_user,
             'alerts': g.alerts,

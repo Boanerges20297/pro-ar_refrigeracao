@@ -6,6 +6,7 @@ from app import db
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.utils.decorators import roles_required
 from app.utils.license import check_user_limit
+from app.utils.superadmin import is_superadmin
 from app.utils.security import is_password_strong, PASSWORD_POLICY_MESSAGE
 from app.utils.email import send_dynamic_email
 from app.utils.audit import log_action
@@ -254,6 +255,9 @@ def add_technician():
             request.form.get('other_job_title')
         )
 
+        if job_title.strip().casefold() == 'superadmin':
+            flash('A identidade Superadmin s?? pode ser provisionada pelo comando administrativo.', 'danger')
+            return redirect(url_for('tech.list_technicians'))
         if permission_level == 'client':
             job_title = 'Cliente'
             if not client_ids:
@@ -324,6 +328,9 @@ def add_technician():
 @roles_required('admin')
 def edit_technician(user_id):
     user = User.query.get_or_404(user_id)
+    if is_superadmin(user):
+        flash('A identidade Superadmin n??o pode ser alterada por esta interface.', 'danger')
+        return redirect(url_for('tech.list_technicians'))
     from app.models.client import Client
     clients = Client.query.order_by(Client.name.asc()).all()
 
@@ -347,6 +354,9 @@ def edit_technician(user_id):
             request.form.get('other_job_title')
         )
 
+        if job_title.strip().casefold() == 'superadmin':
+            flash('A identidade Superadmin ?? reservada ao provisionamento administrativo.', 'danger')
+            return redirect(url_for('tech.list_technicians'))
         password = request.form.get('password')
         if password: # only update if a new password was provided
             if not is_password_strong(password):

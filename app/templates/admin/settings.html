@@ -358,7 +358,7 @@
         <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
             <div class="rounded-xl bg-white/70 border border-gray-200 px-4 py-3">
                 <span class="block text-xs font-semibold uppercase tracking-wide text-gray-500">Usuários ativos</span>
-                <span class="text-lg font-bold text-gray-900">{{ license_state.current_counts.total }}</span>
+                <span class="text-lg font-bold text-gray-900">{{ license_state.current_counts.staff_total }}</span>
                 <span class="block text-xs text-gray-500">Limite: {{ license_state.limits.max_users if license_state.limits.max_users is not none else 'Livre' }}</span>
             </div>
             <div class="rounded-xl bg-white/70 border border-gray-200 px-4 py-3">

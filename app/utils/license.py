@@ -197,7 +197,11 @@ def get_user_counts():
         'client': 0,  # Cliente ilimitado
     }
 
+    from app.utils.superadmin import is_superadmin
+
     for user in active_users:
+        if is_superadmin(user):
+            continue
         if user.permission_level in counts:
             counts[user.permission_level] += 1
         
@@ -246,6 +250,24 @@ def _state_template():
     }
 
 
+def superadmin_access_state():
+    """Acesso administrativo sem consulta ao emissor BTA ou licen??a legada."""
+    state = _state_template()
+    state.update({
+        'valid': True,
+        'blocking': False,
+        'status': 'active',
+        'status_label': 'Superadmin',
+        'severity': 'success',
+        'flash_category': 'success',
+        'message': 'Acesso de superadmin independente da licen??a.',
+        'license_type': 'exempt',
+        'license_type_label': 'Acesso administrativo',
+        'notice_key': 'license:superadmin',
+        'payload': {'features': sorted(PREMIUM_FEATURES)},
+        'badge_classes': 'bg-emerald-100 text-emerald-800 border border-emerald-200',
+    })
+    return state
 def _apply_limit_issues(state):
     limit_issues = []
     limits = state['limits']

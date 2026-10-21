@@ -1,3 +1,4 @@
+from app.utils.superadmin import is_superadmin
 import json
 import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session
@@ -25,7 +26,7 @@ admin_bp = Blueprint('admin', __name__)
 @roles_required('admin')
 def client_preview():
     user = User.query.get(get_jwt_identity())
-    if not user or user.job_title != 'Superadmin':
+    if not is_superadmin(user):
         flash('Apenas o superadmin pode visualizar o portal de uma empresa.', 'danger')
         return redirect(url_for('admin.dashboard'))
     if request.method == 'POST':
@@ -336,8 +337,14 @@ def settings():
         flash('Configurações atualizadas com sucesso!', 'success')
         return redirect(url_for('admin.settings'))
 
-    license_record = get_license_record(create=True)
-    license_state = evaluate_license(license_record)
+    current = User.query.get_or_404(get_jwt_identity())
+    if is_superadmin(current):
+        from app.utils.license import superadmin_access_state
+        license_record = get_license_record(create=False)
+        license_state = superadmin_access_state()
+    else:
+        license_record = get_license_record(create=True)
+        license_state = evaluate_license(license_record)
     return render_template(
         'admin/settings.html',
         config=config,
