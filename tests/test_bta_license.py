@@ -20,7 +20,7 @@ def app_and_key(tmp_path):
         LICENSE_INSTALLATION_ID_PATH = str(tmp_path / "installation.txt")
         LICENSE_PROVIDER = "bta"
         BTA_LICENSE_CUSTOMER_KEY = "existing-customer"
-        BTA_LICENSE_PRODUCT_CODE = "prontoar-refrigeracao"
+        BTA_LICENSE_PRODUCT_CODE = "pronto-ar"
         BTA_SNAPSHOT_PUBLIC_KEY_PATH = str(public_file)
         BTA_SNAPSHOT_CACHE_PATH = str(tmp_path / "bta-snapshot.json")
         BTA_LICENSE_REFRESH_SECONDS = 300
@@ -28,7 +28,7 @@ def app_and_key(tmp_path):
 def signed_snapshot(private, *, expires_at=None, offline_days=5, customer="existing-customer"):
     now = datetime.now(timezone.utc)
     payload = {
-        "schema_version": 1, "product": "prontoar-refrigeracao",
+        "schema_version": 1, "product": "pronto-ar",
         "customer_key": customer, "modality": "paid", "state": "active",
         "issued_at": now.isoformat(),
         "offline_valid_until": (now + timedelta(days=offline_days)).isoformat(),
