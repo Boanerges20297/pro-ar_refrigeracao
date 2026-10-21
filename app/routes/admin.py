@@ -345,11 +345,30 @@ def settings():
     else:
         license_record = get_license_record(create=True)
         license_state = evaluate_license(license_record)
+    from app.utils.license import get_user_counts
+    superadmin_view = is_superadmin(current)
+    license_provider = current_app.config.get('LICENSE_PROVIDER', 'legacy')
+    contract_limits = {'max_users': 6, 'max_admin_users': 2, 'max_secretary_users': 2}
+    bta_cached = False
+    if license_provider == 'bta':
+        if superadmin_view:
+            from app.utils.bta_license import _load_cached
+            snapshot = _load_cached()
+            if snapshot:
+                bta_cached = True
+                contract_limits.update(snapshot.get('limits') or {})
+        elif license_state.get('valid'):
+            contract_limits.update(license_state.get('limits') or {})
     return render_template(
         'admin/settings.html',
         config=config,
         license_record=license_record,
         license_state=license_state,
+        license_provider=license_provider,
+        superadmin_view=superadmin_view,
+        contract_limits=contract_limits,
+        license_counts=get_user_counts(),
+        bta_cached=bta_cached,
         license_instance_fingerprint=get_instance_fingerprint(),
     )
 

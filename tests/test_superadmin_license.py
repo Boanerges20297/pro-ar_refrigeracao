@@ -99,3 +99,37 @@ def test_superadmin_identity_cannot_be_forged_in_user_management(tmp_path):
     locked = client.get(f"/tech/edit/{owner_id}", follow_redirects=False)
     assert locked.status_code == 302
     assert "/tech/list" in locked.location
+
+def test_single_company_license_panel_hides_legacy_keys(tmp_path):
+    app = make_app(tmp_path)
+    with app.app_context():
+        db.create_all()
+        superadmin = new_user("Owner", "admin", "admin", "Superadmin")
+        technician = new_user("Technical", "technician", "user", "Técnico")
+        db.session.add_all([superadmin, technician])
+        db.session.commit()
+    client = app.test_client()
+    response = client.post("/auth/login", data={
+        "email": "owner@example.test",
+        "password": "SenhaDeTeste2026!",
+    }, follow_redirects=False)
+    assert response.status_code == 302
+    response = client.get("/admin/settings")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Licenciamento ProntoAr" in html
+    assert "Superadmin isento da licença" in html
+    assert "Premium · Vitalícia" in html
+    assert "Ilimitados" in html
+    assert "Chave salva atualmente" not in html
+    assert "Ativar ou renovar licença" not in html
+    assert 'id="copy-license-key"' not in html
+    assert 'name="license_key"' not in html
+    assert "1 <span" in html
+    app.config["LICENSE_PROVIDER"] = "legacy"
+    response = client.get("/admin/settings")
+    assert response.status_code == 200
+    legacy_html = response.get_data(as_text=True)
+    assert "Integração BTA ainda não ativada." in legacy_html
+    assert "Limite: 10" not in legacy_html
+    assert "Ativar ou renovar licença" not in legacy_html
