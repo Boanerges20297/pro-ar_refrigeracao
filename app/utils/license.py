@@ -192,8 +192,9 @@ def get_user_counts():
         'staff_total': 0,
         'admin': 0,
         'secretary': 0,
-        'user': 0,
-        'client': 0,
+        'user': 0,  # Técnico; faz parte da equipe
+        'common': 0,  # Conta comum ilimitada
+        'client': 0,  # Cliente ilimitado
     }
 
     for user in active_users:
@@ -619,6 +620,9 @@ def check_user_limit(permission_level, existing_user=None, is_active=True):
 
     current_counts = state['current_counts']
     projected_counts = dict(current_counts)
+
+    if permission_level not in {'admin', 'secretary', 'user', 'client', 'common'}:
+        return 'Perfil de acesso inválido.'
 
     if existing_user and existing_user.is_active:
         if existing_user.permission_level in ['admin', 'secretary', 'user']:
