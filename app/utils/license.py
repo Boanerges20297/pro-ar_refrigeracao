@@ -290,6 +290,9 @@ def has_license_feature(feature_name, state=None):
 
 
 def evaluate_license(license_record=None):
+    if current_app.config.get('LICENSE_PROVIDER', 'legacy') == 'bta':
+        from app.utils.bta_license import evaluate_bta_license
+        return evaluate_bta_license()
     license_record = license_record or get_license_record(create=False)
     state = _state_template()
 
