@@ -222,6 +222,19 @@ def evaluate_bta_license():
 
     snapshot = result["snapshot"]
     effective_state = snapshot["state"]
+    # O snapshot pode ter sido emitido antes do vencimento comercial.
+    # A carência paga não estende um trial e nunca revoga um direito vitalício.
+    expires_at = _time(snapshot.get("expires_at"))
+    if effective_state in {"active", "grace"} and expires_at:
+        now = datetime.now(timezone.utc)
+        if now >= expires_at:
+            grace_until = _time(snapshot.get("grace_until"))
+            if snapshot.get("modality") == "paid":
+                grace_until = grace_until or expires_at + timedelta(days=7)
+            if grace_until and now < grace_until:
+                effective_state = "grace"
+            else:
+                effective_state = "expired"
     licensed = effective_state in {"active", "grace"}
     entitlements = snapshot.get("entitlements") or {}
     limits = snapshot.get("limits") or {}
