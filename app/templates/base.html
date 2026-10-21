@@ -207,6 +207,8 @@
                     <div class="flex items-center flex-nowrap justify-center gap-x-1 min-w-0">
                         {% if current_user.permission_level == 'secretary' %}
                         <a href="{{ url_for('secretary.dashboard') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('secretary.dashboard') %}active{% endif %}">Dashboard</a>
+                        {% elif current_user.permission_level == 'common' %}
+                        <a href="{{ url_for('common_portal.dashboard') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap">Minha área</a>
                         {% elif current_user.permission_level == 'client' %}
                         <a href="{{ url_for('client_portal.dashboard') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('client_portal.dashboard') %}active{% endif %}">Início</a>
                         <a href="{{ url_for('client_portal.equipments') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('client_portal.equipments') %}active{% endif %}">Meus Equipamentos</a>
@@ -216,7 +218,7 @@
                         <a href="{{ url_for('tech.dashboard') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('tech.dashboard') %}active{% endif %}">Meu Dashboard</a>
                         {% endif %}
                         
-                        {% if current_user.permission_level != 'client' %}
+                        {% if current_user.permission_level not in ['client', 'common'] %}
                         <a href="{{ url_for('clients.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/clients' in request.path %}active{% endif %}">Clientes</a>
                         <a href="{{ url_for('equipment.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/equipment' in request.path %}active{% endif %}">Equipamentos</a>
                         <a href="{{ url_for('services.index') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/services' in request.path %}active{% endif %}">Serviços</a>
@@ -228,7 +230,7 @@
                     {% endif %}
                     <div class="flex items-center border-l border-gray-200 border-opacity-30 pl-4 gap-2 flex-shrink-0">
                         <!-- Notifications Bell -->
-                        {% if alerts and alerts.total_count > 0 and current_user.permission_level != 'client' %}
+                        {% if alerts and alerts.total_count > 0 and current_user.permission_level not in ['client', 'common'] %}
                         <div class="relative group">
                             <button onclick="toggleNotifications()" class="relative p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-all" title="Notificações">
                                 <i class="fas fa-bell text-lg"></i>
@@ -292,6 +294,8 @@
                 <a href="{{ url_for('finance.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Financeiro</a>
                 {% elif current_user.permission_level == 'secretary' %}
                 <a href="{{ url_for('secretary.dashboard') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Dashboard</a>
+                {% elif current_user.permission_level == 'common' %}
+                <a href="{{ url_for('common_portal.dashboard') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700">Minha área</a>
                 {% elif current_user.permission_level == 'client' %}
                 <a href="{{ url_for('client_portal.dashboard') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Início</a>
                 <a href="{{ url_for('client_portal.equipments') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Meus Equipamentos</a>
@@ -301,7 +305,7 @@
                 <a href="{{ url_for('tech.dashboard') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Meu Dashboard</a>
                 {% endif %}
                 
-                {% if current_user.permission_level != 'client' %}
+                {% if current_user.permission_level not in ['client', 'common'] %}
                 <a href="{{ url_for('clients.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Clientes</a>
                 <a href="{{ url_for('equipment.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Equipamentos</a>
                 <a href="{{ url_for('services.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Serviços</a>
@@ -343,7 +347,7 @@
     </div>
     {% endif %}
 
-    {% if current_user and alerts and alerts.total_count > 0 and current_user.permission_level != 'client' %}
+    {% if current_user and alerts and alerts.total_count > 0 and current_user.permission_level not in ['client', 'common'] %}
     <div id="notificationsModal" class="hidden fixed inset-0 z-[60] overflow-y-auto bg-gray-900/60 p-3 sm:p-4">
         <div class="mx-auto mt-3 flex min-h-[calc(100vh-1.5rem)] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl sm:mt-8 sm:min-h-0 sm:max-h-[86vh]">
             <div class="flex flex-col gap-4 border-b border-gray-100 px-4 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-8">
@@ -580,7 +584,7 @@
         </div>
     </div>
 
-    {% if current_user %}
+    {% if current_user and current_user.permission_level != 'common' %}
     <!-- FAB Scanner -->
     <button id="fab-scanner" onclick="startGlobalScanner()" title="Ler QR / Buscar Equipamento">
         <i class="fas fa-qrcode" style="font-size:1.15rem; flex-shrink:0;"></i>
