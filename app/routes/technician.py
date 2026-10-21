@@ -213,6 +213,8 @@ def message_all_users():
     return render_template('technician/message_form.html', mode='all', recipients=recipients)
 
 def normalize_job_title(permission_level, job_title, other_job_title=None):
+    if permission_level == 'common':
+        return 'Usuário comum'
     if permission_level == 'secretary':
         return 'Atendente'
 
@@ -237,6 +239,9 @@ def add_technician():
         specialty = request.form.get('specialty')
         is_active = request.form.get('is_active') == 'on'
         permission_level = request.form.get('permission_level', 'user')
+        if permission_level not in {'admin', 'secretary', 'user', 'client', 'common'}:
+            flash('Perfil de acesso inválido.', 'danger')
+            return redirect(url_for('tech.list_technicians'))
         raw_client_ids = request.form.getlist('client_ids')
         client_ids = [int(cid) for cid in raw_client_ids if str(cid).strip().isdigit()]
         must_change_password = request.form.get('must_change_password') == 'on'
@@ -328,6 +333,9 @@ def edit_technician(user_id):
         specialty = request.form.get('specialty')
         is_active = request.form.get('is_active') == 'on'
         permission_level = request.form.get('permission_level', 'user')
+        if permission_level not in {'admin', 'secretary', 'user', 'client', 'common'}:
+            flash('Perfil de acesso inválido.', 'danger')
+            return redirect(url_for('tech.list_technicians'))
         raw_client_ids = request.form.getlist('client_ids')
         client_ids = [int(cid) for cid in raw_client_ids if str(cid).strip().isdigit()]
         must_change_password = request.form.get('must_change_password') == 'on'
