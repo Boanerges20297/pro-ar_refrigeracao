@@ -41,6 +41,8 @@ def permission_level_required(*levels):
                     return redirect(url_for("tech.dashboard"))
                 elif user and user.permission_level == 'client':
                     return redirect(url_for("client_portal.dashboard"))
+                elif user and user.permission_level == 'common':
+                    return redirect(url_for("common_portal.dashboard"))
                 else:
                     return redirect(url_for("auth.login"))
 
@@ -81,6 +83,8 @@ def license_feature_required(feature_name):
                 return redirect(url_for('tech.dashboard'))
             if user and user.permission_level == 'client':
                 return redirect(url_for('client_portal.dashboard'))
+            if user and user.permission_level == 'common':
+                return redirect(url_for('common_portal.dashboard'))
             return redirect(url_for('auth.login'))
 
         return decorator
