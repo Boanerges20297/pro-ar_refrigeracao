@@ -20,7 +20,7 @@ class WorkOrderExpense(db.Model):
 
     @property
     def total(self):
-        return round((self.quantity or 1.0) * (self.unit_price or 0.0), 2)
+        return round((self.quantity if self.quantity is not None else 1.0) * (self.unit_price if self.unit_price is not None else 0.0), 2)
 
     def __repr__(self):
         return f'<WorkOrderExpense #{self.id} - {self.description}>'

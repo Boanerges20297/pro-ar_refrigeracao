@@ -7,6 +7,7 @@ from app import db
 from app.utils.decorators import roles_required
 from sqlalchemy import func, extract
 from datetime import datetime, timedelta
+from math import isfinite
 
 finance_bp = Blueprint('finance', __name__)
 
@@ -128,16 +129,27 @@ def add_transaction():
         type = request.form.get('type')
         category_id = request.form.get('category_id')
         description = request.form.get('description')
-        amount = float(request.form.get('amount') or 0)
+        try:
+            amount = float(request.form.get('amount') or 0)
+            if not isfinite(amount):
+                raise ValueError('Valor não finito')
+        except (ValueError, TypeError, OverflowError):
+            flash('Informe um valor financeiro numérico e finito.', 'danger')
+            return redirect(url_for('finance.add_transaction'))
         date_str = request.form.get('date')
+        try:
+            parsed_date = datetime.strptime(date_str, '%Y-%m-%d') if date_str else datetime.utcnow()
+        except (ValueError, TypeError):
+            flash('Informe uma data válida.', 'danger')
+            return redirect(url_for('finance.add_transaction'))
         status = request.form.get('status')
-        
+
         transaction = FinancialTransaction(
             type=type,
             category_id=category_id or None,
             description=description,
             amount=amount,
-            date=datetime.strptime(date_str, '%Y-%m-%d') if date_str else datetime.utcnow(),
+            date=parsed_date,
             status=status,
             is_automated=False
         )
@@ -155,11 +167,19 @@ def edit_transaction(id):
     transaction = FinancialTransaction.query.get_or_404(id)
     
     if request.method == 'POST':
+        try:
+            amount = float(request.form.get('amount') or 0)
+            if not isfinite(amount):
+                raise ValueError('Valor não finito')
+            date_str = request.form.get('date')
+            parsed_date = datetime.strptime(date_str, '%Y-%m-%d') if date_str else None
+        except (ValueError, TypeError, OverflowError):
+            flash('Informe um valor e uma data válidos.', 'danger')
+            return redirect(url_for('finance.edit_transaction', id=id))
         transaction.description = request.form.get('description')
-        transaction.amount = float(request.form.get('amount') or 0)
-        date_str = request.form.get('date')
-        if date_str:
-            transaction.date = datetime.strptime(date_str, '%Y-%m-%d')
+        transaction.amount = amount
+        if parsed_date is not None:
+            transaction.date = parsed_date
         transaction.status = request.form.get('status')
         if not transaction.is_automated:
             transaction.type = request.form.get('type')

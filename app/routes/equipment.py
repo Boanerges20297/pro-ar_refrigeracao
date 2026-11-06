@@ -134,9 +134,18 @@ def add():
         raw_serial = request.form.get('serial_number')
         serial_number = raw_serial.strip() if raw_serial and raw_serial.strip() != "" else None
         location   = request.form.get('location')
-        client_id  = request.form.get('client_id')
+        client_id = request.form.get('client_id', type=int)
         m_interval = request.form.get('maintenance_interval')
-        maintenance_interval = int(m_interval) if m_interval else 6
+        try:
+            maintenance_interval = int(m_interval) if m_interval else 6
+            if maintenance_interval <= 0:
+                raise ValueError('Intervalo inválido')
+        except (ValueError, TypeError, OverflowError):
+            flash('Informe um intervalo de manutenção válido em meses.', 'danger')
+            return redirect(url_for('equipment.add'))
+        if client_id is None or db.session.get(Client, client_id) is None:
+            flash('Selecione um cliente válido.', 'danger')
+            return redirect(url_for('equipment.add'))
 
         equip = Equipment(name=name, brand=brand, model=model,
                           serial_number=serial_number, location=location,
@@ -195,8 +204,15 @@ def edit(id):
         equip.client_id = request.form.get('client_id')
         m_interval = request.form.get('maintenance_interval')
         if m_interval:
-            equip.maintenance_interval = int(m_interval)
-            
+            try:
+                interval = int(m_interval)
+                if interval <= 0:
+                    raise ValueError('Intervalo inválido')
+            except (ValueError, TypeError, OverflowError):
+                flash('Informe um intervalo de manutenção válido em meses.', 'danger')
+                return redirect(url_for('equipment.edit', id=id))
+            equip.maintenance_interval = interval
+
         db.session.commit()
         flash('Equipamento atualizado com sucesso!', 'success')
         return redirect(url_for('equipment.index'))

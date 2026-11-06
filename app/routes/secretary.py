@@ -1,9 +1,10 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from flask_jwt_extended import get_jwt_identity
 from app.utils.decorators import roles_required, permission_level_required
 from app.utils.audit import log_action
 from app.models.user import User
 from app.models.workorder import WorkOrder
+from app.models.service import ServiceCatalog
 from app.models.maintenance import MaintenanceSchedule
 from app.models.client import Client
 from app.models.equipment import Equipment
@@ -86,70 +87,86 @@ def dashboard():
 @secretary_bp.route('/workorder/schedule', methods=['GET', 'POST'])
 @permission_level_required('secretary', 'admin')
 def schedule_workorder():
-    """Agendar nova ordem de serviço"""
+    """Schedule an OS with validated integer FKs, including service_id."""
     if request.method == 'POST':
+        client_id = request.form.get('client_id', type=int)
+        equipment_id = request.form.get('equipment_id', type=int)
+        technician_id = request.form.get('technician_id', type=int)
+        service_id = request.form.get('service_id', type=int)
+        description = request.form.get('description') or ''
+        date_string = request.form.get('scheduled_date')
+
+        # Support the previous one-service form, without guessing when multiple
+        # service types exist. New forms explicitly request the service type.
+        if service_id is None and not request.form.get('service_id'):
+            sole_service = ServiceCatalog.query.order_by(ServiceCatalog.id).limit(2).all()
+            if len(sole_service) == 1:
+                service_id = sole_service[0].id
+
+        supplied_ids = (client_id, equipment_id, technician_id, service_id)
+        if (
+            any(identifier is None or identifier <= 0
+                or identifier > 9223372036854775807 for identifier in supplied_ids)
+            or not date_string
+        ):
+            flash('Informe cliente, equipamento, técnico, serviço e data válidos.', 'danger')
+            return redirect(url_for('secretary.schedule_workorder'))
+
+        client = db.session.get(Client, client_id)
+        equipment = db.session.get(Equipment, equipment_id)
+        technician = db.session.get(User, technician_id)
+        service = db.session.get(ServiceCatalog, service_id)
+        if (
+            client is None or equipment is None or equipment.client_id != client_id
+            or technician is None or not technician.is_active
+            or technician.role != 'technician' or service is None
+        ):
+            flash('Referência de cliente, equipamento, técnico ou serviço inválida.', 'danger')
+            return redirect(url_for('secretary.schedule_workorder'))
         try:
-            client_id = request.form.get('client_id')
-            equipment_id = request.form.get('equipment_id')
-            technician_id = request.form.get('technician_id')
-            description = request.form.get('description')
-            scheduled_date_str = request.form.get('scheduled_date')
-            
-            if not all([client_id, equipment_id, technician_id, scheduled_date_str]):
-                flash("Todos os campos são obrigatórios!", "danger")
-                return redirect(url_for('secretary.schedule_workorder'))
-            
-            scheduled_date = datetime.fromisoformat(scheduled_date_str)
-            
+            scheduled_date = datetime.fromisoformat(date_string)
+        except (ValueError, TypeError, OverflowError):
+            flash('Informe uma data e hora válidas.', 'danger')
+            return redirect(url_for('secretary.schedule_workorder'))
+
+        try:
             workorder = WorkOrder(
-                client_id=int(client_id),
-                equipment_id=int(equipment_id),
-                technician_id=int(technician_id),
+                client_id=client_id,
+                equipment_id=equipment_id,
+                technician_id=technician_id,
+                service_id=service_id,
                 description=description,
                 scheduled_date=scheduled_date,
-                status='Pending'
+                status='Pending',
             )
-            
             db.session.add(workorder)
             db.session.flush()
             sync_workorder_reminders(workorder)
             db.session.commit()
-            
-            # Log action
-            log_action(
-                action='CREATE',
-                resource_type='WorkOrder',
-                resource_id=workorder.id,
-                resource_name=f"WO-{workorder.id}",
-                details={
-                    'client_id': client_id,
-                    'equipment_id': equipment_id,
-                    'technician_id': technician_id,
-                    'description': description[:100]
-                }
-            )
-            
-            flash(f"Ordem de serviço {workorder.id} agendada com sucesso!", "success")
-            return redirect(url_for('secretary.dashboard'))
-        
-        except Exception as e:
-            flash(f"Erro ao agendar: {str(e)}", "danger")
-            log_action(
-                action='CREATE',
-                resource_type='WorkOrder',
-                status='error',
-                details={'error': str(e)}
-            )
-    
-    # GET request - show form
-    clients = Client.query.all()
-    equipment = Equipment.query.all()
-    technicians = User.query.filter_by(permission_level='user').all()
-    
-    return render_template('secretary/schedule_workorder.html',
-                         clients=clients,
-                         equipment=equipment,
-                         technicians=technicians)
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception('Falha ao agendar OS pela secretaria')
+            flash('Não foi possível agendar a OS; confira os dados.', 'danger')
+            return redirect(url_for('secretary.schedule_workorder'))
+
+        log_action(
+            action='CREATE', resource_type='WorkOrder',
+            resource_id=workorder.id, resource_name=f'WO-{workorder.id}',
+            details={
+                'client_id': client_id, 'equipment_id': equipment_id,
+                'technician_id': technician_id, 'service_id': service_id,
+                'description': description[:100],
+            },
+        )
+        flash(f'Ordem de serviço {workorder.id} agendada com sucesso!', 'success')
+        return redirect(url_for('secretary.dashboard'))
+
+    return render_template(
+        'secretary/schedule_workorder.html',
+        clients=Client.query.all(), equipment=Equipment.query.all(),
+        technicians=User.query.filter_by(role='technician', is_active=True).all(),
+        services=ServiceCatalog.query.order_by(ServiceCatalog.name).all(),
+    )
 
 
 @secretary_bp.route('/workorder/<int:wo_id>/edit-schedule', methods=['GET', 'POST'])

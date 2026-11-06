@@ -52,3 +52,11 @@ htmlcov/
 # Standalone license API
 license_api/data/
 license_api/keys/
+
+# Local QA evidence (not production artifacts)
+tests/.results/
+tests/*_test_output.txt
+tests/full_pytest_output.txt
+tests/route_matrix_output.txt
+tests/coverage_report.json
+!scripts/run_quality_suite.ps1

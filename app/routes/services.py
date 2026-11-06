@@ -9,6 +9,8 @@ from app.models.service_route import ServiceRoute
 from app.models.config import AppConfig
 from app import db
 from datetime import datetime
+from math import isfinite
+from sqlalchemy.exc import SQLAlchemyError
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.utils.decorators import roles_required, get_technician_client_ids
 from app.utils.images import save_and_resize_image
@@ -654,17 +656,42 @@ def add():
             flash('Selecione um tipo de serviço válido.', 'danger')
             return redirect(url_for('services.add'))
 
-        # Safely parse total_value
+        # Numeric IDs alone do not guarantee real foreign-key targets.
+        ids = (client_id, equipment_id, service_id, technician_id)
+        if any(value is not None and value > 9223372036854775807 for value in ids):
+            flash('Identificador fora do intervalo permitido.', 'danger')
+            return redirect(url_for('services.add'))
+
+        client = db.session.get(Client, client_id)
+        equipment = db.session.get(Equipment, equipment_id) if equipment_id is not None else None
+        service = db.session.get(ServiceCatalog, service_id)
+        technician = db.session.get(User, technician_id) if technician_id is not None else None
+        if (
+            client is None or service is None
+            or (equipment_id is not None and (equipment is None or equipment.client_id != client_id))
+            or (technician_id is not None and (
+                technician is None or not technician.is_active or technician.role != 'technician'
+            ))
+        ):
+            flash('Cliente, equipamento, serviço ou técnico não encontrado ou incompatível.', 'danger')
+            return redirect(url_for('services.add'))
+
         raw_total_value = request.form.get('total_value')
         try:
             total_value = round(float(raw_total_value), 2) if raw_total_value else 0.0
-        except ValueError:
-            total_value = 0.0
+            if not isfinite(total_value) or total_value < 0:
+                raise ValueError('Valor fora do intervalo permitido')
+        except (ValueError, TypeError, OverflowError):
+            flash('Informe um valor monetário válido e finito.', 'danger')
+            return redirect(url_for('services.add'))
 
         description = request.form.get('description')
         scheduled_date_str = request.form.get('scheduled_date')
-
-        scheduled_date = datetime.strptime(scheduled_date_str, '%Y-%m-%dT%H:%M') if scheduled_date_str else None
+        try:
+            scheduled_date = datetime.strptime(scheduled_date_str, '%Y-%m-%dT%H:%M') if scheduled_date_str else None
+        except (ValueError, TypeError):
+            flash('Informe uma data e hora válidas.', 'danger')
+            return redirect(url_for('services.add'))
 
         # --- Handle Image Uploads ---
         photo_before_file = request.files.get('photo_before')
@@ -690,10 +717,18 @@ def add():
             photo_before=photo_before_path,
             photo_after=photo_after_path
         )
-        db.session.add(wo)
-        db.session.flush()
-        sync_workorder_reminders(wo)
-        db.session.commit()
+        try:
+            db.session.add(wo)
+            db.session.flush()
+            sync_workorder_reminders(wo)
+            db.session.commit()
+        except SQLAlchemyError:
+            db.session.rollback()
+            current_app.logger.exception('Falha de persistência no cadastro de OS')
+            flash('Não foi possível salvar a OS. Confira os dados e tente novamente.', 'danger')
+            return redirect(url_for('services.add'))
+
+        # Sincronizar com o financeiro
         
         # Sincronizar com o financeiro
         sync_wo_to_finance(wo)
@@ -1304,29 +1339,38 @@ def delete_workorder(id):
         return jsonify({'ok': False, 'message': f'Erro ao excluir: {str(e)}'}), 500
 
 
-@services_bp.route('/check_duplicate', methods=['POST'])
+@services_bp.route('/check_duplicate', methods=['GET', 'POST'])
 @roles_required('admin', 'secretary', 'user')
 def check_duplicate():
+    # The add form checks open orders by client/equipment/service using GET.
+    # Legacy POST callers check an exact date, preserved for compatibility.
+    data = request.get_json(silent=True) if request.method == 'POST' else request.args
+    data = data or {}
     try:
-        data = request.get_json()
-        client_id = data.get('client_id')
-        # A data vem do input datetime-local como YYYY-MM-DDTHH:MM
-        # Pegamos apenas a parte YYYY-MM-DD
-        scheduled_date_str = data.get('date')
-        
-        if not client_id or not scheduled_date_str:
-            return jsonify({'duplicate': False})
-            
-        # Extrair apenas a data (YYYY-MM-DD)
-        date_part = scheduled_date_str.split('T')[0]
-        check_date = datetime.strptime(date_part, '%Y-%m-%d').date()
-        
-        # Buscar OS para o mesmo cliente na mesma data
-        duplicate = WorkOrder.query.filter(
-            WorkOrder.client_id == client_id,
-            func.date(WorkOrder.scheduled_date) == check_date
-        ).first()
-        
-        return jsonify({'duplicate': duplicate is not None})
-    except Exception as e:
-        return jsonify({'duplicate': False, 'error': str(e)})
+        client_id = int(data.get('client_id'))
+        if client_id <= 0 or client_id > 9223372036854775807:
+            raise ValueError()
+        equipment_id = int(data['equipment_id']) if data.get('equipment_id') else None
+        service_id = int(data['service_id']) if data.get('service_id') else None
+        for value in (equipment_id, service_id):
+            if value is not None and (value <= 0 or value > 9223372036854775807):
+                raise ValueError()
+        date_input = data.get('date')
+        target_date = (
+            datetime.strptime(date_input.split('T')[0], '%Y-%m-%d').date()
+            if date_input else None
+        )
+    except (ValueError, TypeError, KeyError, OverflowError):
+        return jsonify({'duplicate': False, 'exists': False}), 400
+
+    query = WorkOrder.query.filter(WorkOrder.client_id == client_id)
+    if equipment_id is not None:
+        query = query.filter(WorkOrder.equipment_id == equipment_id)
+    if service_id is not None:
+        query = query.filter(WorkOrder.service_id == service_id)
+    if target_date is not None:
+        query = query.filter(func.date(WorkOrder.scheduled_date) == target_date)
+    else:
+        query = query.filter(WorkOrder.status.in_(['Pending', 'In Progress']))
+    exists = db.session.query(query.exists()).scalar()
+    return jsonify({'duplicate': bool(exists), 'exists': bool(exists)})

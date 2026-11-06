@@ -523,7 +523,7 @@ def audit_logs_stats():
 def audit_logs_export():
     """Exportar logs de auditoria como CSV - APENAS ADMIN"""
     import csv
-    from io import StringIO
+    from io import StringIO, BytesIO
     from flask import send_file
     
     days_back = request.args.get('days', 30, type=int)
@@ -560,7 +560,7 @@ def audit_logs_export():
     si.seek(0)
     
     return send_file(
-        StringIO(si.getvalue()),
+        BytesIO(si.getvalue().encode('utf-8-sig')),
         mimetype='text/csv',
         as_attachment=True,
         download_name=f'audit_logs_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.csv'

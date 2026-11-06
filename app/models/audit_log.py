@@ -7,7 +7,7 @@ class AuditLog(db.Model):
     Keeps records for the last 7 days.
     """
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Unknown user login attempts
     action = db.Column(db.String(100), nullable=False)  # e.g., CREATE, READ, UPDATE, DELETE, LOGIN
     resource_type = db.Column(db.String(50), nullable=False)  # e.g., WorkOrder, Client, Equipment
     resource_id = db.Column(db.Integer, nullable=True)  # ID of the affected resource
