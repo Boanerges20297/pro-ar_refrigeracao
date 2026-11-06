@@ -635,10 +635,20 @@ def add():
     technicians = User.query.filter_by(role='technician', is_active=True).all()
 
     if request.method == 'POST':
-        client_id = request.form.get('client_id')
-        equipment_id = request.form.get('equipment_id') or None
-        service_id = request.form.get('service_id')
-        technician_id = request.form.get('technician_id') or None
+        client_id = request.form.get('client_id', type=int)
+        equipment_id = request.form.get('equipment_id', type=int)
+        service_id = request.form.get('service_id', type=int)
+        technician_id = request.form.get('technician_id', type=int)
+
+        # Reject malformed foreign keys rather than silently dropping a technician.
+        if (
+            not client_id or client_id <= 0
+            or (service_id is not None and service_id <= 0)
+            or (request.form.get('equipment_id') and (equipment_id is None or equipment_id <= 0))
+            or (request.form.get('technician_id') and (technician_id is None or technician_id <= 0))
+        ):
+            flash('Identificadores invalidos no cadastro da OS.', 'danger')
+            return redirect(url_for('services.add'))
 
         if not service_id:
             flash('Selecione um tipo de serviço válido.', 'danger')
