@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Novo Equipamento{% endblock %}
 {% block content %}
+{% set saved_client = selected_client|default(none) %}
 <div class="mb-6">
     <h2 class="text-2xl font-bold text-gray-800">Adicionar Equipamento</h2>
 </div>
@@ -13,16 +14,16 @@
 
             <div class="relative" id="client-autocomplete">
                 <label for="client_search" class="block text-sm font-medium text-gray-700">Cliente Proprietário *</label>
-                <div class="mt-1 relative">
+                <div class="mt-1 relative{% if saved_client %} hidden{% endif %}">
                     <input type="text" id="client_search" placeholder="Digite nome, e-mail, telefone ou endereço..." autocomplete="off" class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
-                    <input type="hidden" name="client_id" id="client_id" required>
+                    <input type="hidden" name="client_id" id="client_id" value="{{ saved_client.id if saved_client else '' }}" required>
                     <div id="client-results" class="hidden absolute z-50 w-full bg-white border border-gray-200 rounded-md shadow-xl mt-1 max-h-64 overflow-y-auto">
                         <!-- Results injected here -->
                     </div>
                 </div>
-                <div id="selected-client-info" class="hidden mt-2 p-3 bg-blue-50 border border-blue-100 rounded-md flex justify-between items-center">
+                <div id="selected-client-info" class="{% if not saved_client %}hidden {% endif %}mt-2 p-3 bg-blue-50 border border-blue-100 rounded-md flex justify-between items-center">
                     <div>
-                        <p id="display-client-name" class="text-sm font-bold text-blue-900"></p>
+                        <p id="display-client-name" class="text-sm font-bold text-blue-900">{{ saved_client.name if saved_client else '' }}</p>
                         <p id="display-client-details" class="text-xs text-blue-700"></p>
                     </div>
                     <button type="button" onclick="clearClientSelection()" class="text-blue-500 hover:text-blue-700 p-1">
@@ -36,17 +37,17 @@
 
             <div>
                 <label for="name" class="block text-sm font-medium text-gray-700">Nome/Tipo do Equipamento *</label>
-                <input type="text" name="name" id="name" placeholder="Ex: Ar Condicionado Split 12000 BTUs" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                <input type="text" name="name" id="name" value="{{ request.form.get('name', '') }}" placeholder="Ex: Ar Condicionado Split 12000 BTUs" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
             </div>
 
             <div class="grid grid-cols-2 gap-6">
                 <div>
                     <label for="brand" class="block text-sm font-medium text-gray-700">Marca</label>
-                    <input type="text" name="brand" id="brand" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                    <input type="text" name="brand" id="brand" value="{{ request.form.get('brand', '') }}" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
                 </div>
                 <div>
                     <label for="model" class="block text-sm font-medium text-gray-700">Modelo</label>
-                    <input type="text" name="model" id="model" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                    <input type="text" name="model" id="model" value="{{ request.form.get('model', '') }}" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
                 </div>
             </div>
 
@@ -54,7 +55,7 @@
                 <div>
                     <label for="serial_number" class="block text-sm font-medium text-gray-700">Número de Série (Código de Barras)</label>
                     <div class="flex">
-                        <input type="text" name="serial_number" id="serial_number" class="mt-1 block w-full border border-gray-300 rounded-l-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                        <input type="text" name="serial_number" id="serial_number" value="{{ request.form.get('serial_number', '') }}" class="mt-1 block w-full border border-gray-300 rounded-l-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
                         <button type="button" onclick="startScanner()" class="mt-1 inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 hover:bg-gray-100" title="Ler Código de Barras">
                             <i class="fas fa-barcode"></i>
                         </button>
@@ -62,7 +63,7 @@
                 </div>
                 <div>
                     <label for="location" class="block text-sm font-medium text-gray-700">Local / Setor / Filial</label>
-                    <input type="text" name="location" id="location" placeholder="Ex: Filial Centro, Contabilidade, Recepção" class="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                    <input type="text" name="location" id="location" value="{{ request.form.get('location', '') }}" placeholder="Ex: Filial Centro, Contabilidade, Recepção" class="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
                     <p class="mt-1 text-xs text-gray-400 italic">Use este campo para informar a filial, setor ou ponto interno onde o equipamento está.</p>
                 </div>
             </div>
@@ -71,7 +72,7 @@
                 <label for="maintenance_interval" class="block text-sm font-medium text-gray-700">Intervalo de Manutenção Recomendado (Meses) *</label>
                 <select id="maintenance_interval" name="maintenance_interval" required class="mt-1 block w-full bg-white border border-gray-300 text-gray-900 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
                     {% for i in range(3, 11) %}
-                        <option value="{{ i }}" {% if i == 6 %}selected{% endif %}>{{ i }} meses</option>
+                        <option value="{{ i }}" {% if request.form.get('maintenance_interval', '6') == i|string %}selected{% endif %}>{{ i }} meses</option>
                     {% endfor %}
                 </select>
                 <p class="mt-1 text-xs text-gray-400 italic">O sistema gerará alertas automaticamente com base neste intervalo.</p>

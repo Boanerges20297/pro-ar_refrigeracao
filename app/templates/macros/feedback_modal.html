@@ -1,0 +1,27 @@
+{# Componente reutilizavel de feedback modal (flash: modal-error, modal-success, modal-warning, modal-info). #}
+{% macro render_feedback_modals() %}
+{% set notices = get_flashed_messages(with_categories=true, category_filter=['modal-error', 'modal-success', 'modal-warning', 'modal-info']) %}
+{% if notices %}
+<div id="feedback-modal-fallback" class="hidden mx-auto max-w-xl rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+{% for category, message in notices %}<p>{{ message }}</p>{% endfor %}
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const messages = {{ notices|tojson }};
+  const fallback = document.getElementById('feedback-modal-fallback');
+  if (!window.Swal) { if (fallback) fallback.classList.remove('hidden'); return; }
+  const icons = {'modal-error':'error','modal-success':'success','modal-warning':'warning','modal-info':'info'};
+  const titles = {'modal-error':'Cadastro não realizado','modal-success':'Sucesso','modal-warning':'Atenção','modal-info':'Informação'};
+  const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim() || '#2563eb';
+  (async function displayFeedback() {
+    for (const [category, message] of messages) {
+      await window.Swal.fire({
+        icon: icons[category] || 'info', title: titles[category] || 'Aviso',
+        text: message, confirmButtonText: 'Entendi', confirmButtonColor: primaryColor
+      });
+    }
+  })();
+});
+</script>
+{% endif %}
+{% endmacro %}

@@ -827,6 +827,8 @@
         </div>
         {% endblock %}
     </main>
+    {% from 'macros/feedback_modal.html' import render_feedback_modals %}
+    {{ render_feedback_modals() }}
     <!-- Scripts -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <script>

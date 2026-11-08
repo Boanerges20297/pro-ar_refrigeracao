@@ -12,6 +12,7 @@ from dateutil.relativedelta import relativedelta
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.utils.decorators import roles_required, get_technician_client_ids
 from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
 
 equip_bp = Blueprint('equipment', __name__)
 
@@ -147,11 +148,31 @@ def add():
             flash('Selecione um cliente válido.', 'danger')
             return redirect(url_for('equipment.add'))
 
+        selected_client = db.session.get(Client, client_id)
+        duplicate_message = (
+            'Este número de série já está cadastrado. '
+            'Consulte o equipamento existente ou informe outro número.'
+        )
+        if serial_number and Equipment.query.filter_by(serial_number=serial_number).first():
+            flash(duplicate_message, 'modal-error')
+            return render_template(
+                'equipment/add.html', has_clients=has_clients, selected_client=selected_client
+            ), 409
         equip = Equipment(name=name, brand=brand, model=model,
                           serial_number=serial_number, location=location,
                           client_id=client_id, maintenance_interval=maintenance_interval)
         db.session.add(equip)
-        db.session.commit()  # commit first to get equip.id
+        try:
+            db.session.commit()  # ID atribuido pelo banco.
+        except IntegrityError:
+            db.session.rollback()
+            # Corrida entre verificacao e INSERT: o banco permanece a fonte definitiva.
+            if serial_number and Equipment.query.filter_by(serial_number=serial_number).first():
+                flash(duplicate_message, 'modal-error')
+                return render_template(
+                    'equipment/add.html', has_clients=has_clients, selected_client=selected_client
+                ), 409
+            raise
 
         # --- Automatic Maintenance Schedule ---
         next_date = datetime.utcnow() + relativedelta(months=maintenance_interval)
