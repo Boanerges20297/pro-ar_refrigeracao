@@ -83,14 +83,15 @@
                 {% if current_user.permission_level == 'client' or is_completed_locked %}<input type="hidden" name="status" value="{{ wo.status }}">{% endif %}
             </div>
 
+            {% if current_user.permission_level == 'admin' %}
             <div>
                 <label for="total_value" class="block text-sm font-medium text-gray-700">Valor Cobrado (R$)</label>
-                <input type="number" step="0.01" min="0" name="total_value" id="total_value" value="{{ "%.2f"|format(wo.total_value) if wo.total_value else '0.00' }}" class="mt-1 block w-full bg-gray-100 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none sm:text-sm" {% if current_user.permission_level == 'user' or current_user.permission_level == 'client' or is_completed_locked %}disabled{% endif %}>
+                <input type="number" step="0.01" min="0" name="total_value" id="total_value" value="{{ "%.2f"|format(wo.total_value) if wo.total_value else '0.00' }}" class="mt-1 block w-full bg-gray-100 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none sm:text-sm" {% if current_user.permission_level != 'admin' or is_completed_locked %}disabled{% endif %}>
             </div>
 
             <div class="flex items-center">
                 <div class="flex h-5 items-center">
-                    <input id="is_paid" name="is_paid" type="checkbox" {% if wo.is_paid %}checked{% endif %} class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" {% if current_user.permission_level == 'client' or is_completed_locked %}disabled{% endif %}>
+                    <input id="is_paid" name="is_paid" type="checkbox" {% if wo.is_paid %}checked{% endif %} class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" {% if current_user.permission_level != 'admin' or is_completed_locked %}disabled{% endif %}>
                 </div>
                 <div class="ml-3 text-sm">
                     <label for="is_paid" class="font-medium text-gray-700">Marcar como Pago</label>
@@ -157,14 +158,15 @@
                 <p id="expensesEmpty" class="text-sm text-gray-400 italic {% if wo.expenses %}hidden{% endif %}">Nenhuma despesa registrada para esta OS.</p>
             </div>
 
+            {% endif %}
             <div class="md:col-span-2">
                 <label for="description" class="block text-sm font-medium text-gray-700">Observações / Descrição do Problema</label>
                 <textarea id="description" name="description" rows="3" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" {% if current_user.permission_level == 'client' or is_completed_locked %}disabled{% endif %}>{{ wo.description or '' }}</textarea>
                 {% if current_user.permission_level == 'client' or is_completed_locked %}<input type="hidden" name="description" value="{{ wo.description or '' }}">{% endif %}
             </div>
 
-            <!-- Photos Section -->
-            {% if current_user.permission_level != 'user' %}
+            <!-- Photos Section: authorized administrators and assigned technicians only -->
+            {% if current_user.permission_level in ('admin', 'user') %}
             <div class="border-t pt-4 md:col-span-2">
                 <h3 class="text-sm font-bold text-gray-900 mb-4">Documentação Fotográfica</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
@@ -190,7 +192,7 @@
                         <input type="file" name="photo_after" id="photo_after" accept="image/*" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-primary hover:file:bg-blue-100" onchange="checkFileSize(this)" {% if is_completed_locked %}disabled{% endif %}>
                     </div>
                 </div>
-                <p class="text-[10px] text-gray-400 mt-2 italic">Limite: 2MB. Imagens maiores serão redimensionadas automaticamente.</p>
+                <p class="text-[10px] text-gray-400 mt-2 italic">Fotos de até 20 megapixels e 10.000 px por lado. Arquivos maiores que 2 MB são otimizados; fotos acima do limite de resolução precisam ser reduzidas antes do envio.</p>
             </div>
             {% endif %}
 

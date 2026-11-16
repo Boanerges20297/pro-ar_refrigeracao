@@ -1,5 +1,6 @@
 import os
 import uuid
+import warnings
 from PIL import Image
 from PIL import UnidentifiedImageError
 from werkzeug.utils import secure_filename
@@ -40,9 +41,19 @@ def save_and_resize_image(file, folder, max_size_mb=2, target_width=1024):
     
     try:
         file.stream.seek(0)
-        img = Image.open(file.stream)
-    except UnidentifiedImageError as exc:
-        raise ValueError('Arquivo enviado não é uma imagem válida.') from exc
+        with warnings.catch_warnings():
+            warnings.simplefilter('error', Image.DecompressionBombWarning)
+            img = Image.open(file.stream)
+        # Check the inexpensive image header before decoding/converting pixels.
+        max_dimension = int(current_app.config.get('IMAGE_MAX_DIMENSION', 10000))
+        max_pixels = int(current_app.config.get('IMAGE_MAX_PIXELS', 20_000_000))
+        if (img.width > max_dimension or img.height > max_dimension
+                or img.width * img.height > max_pixels):
+            img.close()
+            raise ValueError('Imagem com dimensões excessivas. Envie uma foto menor.')
+    except (UnidentifiedImageError, Image.DecompressionBombWarning,
+            Image.DecompressionBombError) as exc:
+        raise ValueError('Arquivo enviado não é uma imagem válida ou é excessivamente grande.') from exc
     
     # Convert RGBA to RGB if necessary (for JPEG)
     if img.mode in ("RGBA", "P"):

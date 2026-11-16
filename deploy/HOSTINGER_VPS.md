@@ -70,9 +70,31 @@ PROXY_FIX_X_PROTO=1
 PROXY_FIX_X_HOST=1
 PROXY_FIX_X_PORT=1
 SERVER_NAME=
-TRUSTED_HOSTS=seudominio.com,www.seudominio.com
+TRUSTED_HOSTS=prontoar-servicos.com.br,www.prontoar-servicos.com.br
+PUBLIC_BASE_URL=https://www.prontoar-servicos.com.br
+GUNICORN_BIND=127.0.0.1:8000
+RATELIMIT_STORAGE_URI=redis://127.0.0.1:6379/0
 SQLITE_BUSY_TIMEOUT_MS=30000
 ```
+
+### Rate limit compartilhado (obrigatorio em producao com varios workers)
+
+O backend `memory://` guarda contadores por processo e nao e apropriado para o Gunicorn com dois workers.
+Instale Redis somente na VPS do Pronto-Ar e mantenha a escuta restrita ao loopback (`127.0.0.1`).
+Nao exponha a porta 6379 na internet. Antes de reiniciar a aplicacao:
+
+```bash
+sudo apt install redis-server
+sudo systemctl enable --now redis-server
+redis-cli ping
+ss -lnt '( sport = :6379 )'
+.venv/bin/pip install -r requirements.txt
+```
+
+Confirme `RATELIMIT_STORAGE_URI=redis://127.0.0.1:6379/0` no ambiente do servico,
+confira a origem publica HTTPS e valide a contagem entre workers apos o deploy.
+Evite habilitar fallback `memory://` silencioso em producao. Configure os
+headers de proxy apenas para a quantidade real de proxies confiaveis.
 
 ## 7. Garantir pastas persistentes
 

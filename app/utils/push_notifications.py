@@ -6,6 +6,7 @@ from flask import current_app
 
 from app import db
 from app.models.push_notification import NotificationJob
+from app.utils.push_security import is_trusted_push_endpoint
 from app.models.user import User
 from app.models.workorder import WorkOrder
 
@@ -172,8 +173,16 @@ def dispatch_due_notifications(limit=100):
         any_success = False
         for subscription in subscriptions:
             try:
+                subscription_info = json.loads(subscription.subscription_json)
+                if (not isinstance(subscription_info, dict)
+                        or subscription_info.get('endpoint') != subscription.endpoint
+                        or not is_trusted_push_endpoint(subscription_info.get('endpoint'))):
+                    current_app.logger.warning(
+                        'Web Push ignorado: destino inseguro na inscrição %s', subscription.id
+                    )
+                    continue
                 webpush(
-                    subscription_info=json.loads(subscription.subscription_json),
+                    subscription_info=subscription_info,
                     data=payload,
                     vapid_private_key=vapid_private,
                     vapid_claims={'sub': f'mailto:{vapid_email}'},

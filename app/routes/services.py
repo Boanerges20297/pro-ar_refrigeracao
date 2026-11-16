@@ -634,6 +634,10 @@ def add():
     equipments = Equipment.query.all()
     services = ServiceCatalog.query.all()
     service_catalog_items = [serialize_service_catalog(service) for service in services]
+    if get_current_user().permission_level != 'admin':
+        for item in service_catalog_items:
+            item.pop('base_price', None)
+            item.pop('base_price_label', None)
     technicians = User.query.filter_by(role='technician', is_active=True).all()
 
     if request.method == 'POST':
@@ -676,7 +680,12 @@ def add():
             flash('Cliente, equipamento, serviço ou técnico não encontrado ou incompatível.', 'danger')
             return redirect(url_for('services.add'))
 
-        raw_total_value = request.form.get('total_value')
+        # Secretaries schedule services but cannot set arbitrary financial amounts.
+        # Use the administrator-maintained catalog price until an admin reviews the OS.
+        current_user = get_current_user()
+        raw_total_value = (request.form.get('total_value') if
+                           current_user and current_user.permission_level == 'admin'
+                           else service.base_price)
         try:
             total_value = round(float(raw_total_value), 2) if raw_total_value else 0.0
             if not isfinite(total_value) or total_value < 0:
@@ -696,15 +705,23 @@ def add():
         # --- Handle Image Uploads ---
         photo_before_file = request.files.get('photo_before')
         photo_after_file = request.files.get('photo_after')
-        
+        if current_user.permission_level != 'admin' and any(
+            file and file.filename for file in (photo_before_file, photo_after_file)
+        ):
+            flash('Somente administradores podem anexar fotos ao cadastrar uma OS.', 'danger')
+            return redirect(url_for('services.add'))
+
         photo_before_path = None
         photo_after_path = None
         
-        if photo_before_file and photo_before_file.filename:
-            photo_before_path = save_and_resize_image(photo_before_file, 'work_orders')
-            
-        if photo_after_file and photo_after_file.filename:
-            photo_after_path = save_and_resize_image(photo_after_file, 'work_orders')
+        try:
+            if photo_before_file and photo_before_file.filename:
+                photo_before_path = save_and_resize_image(photo_before_file, 'work_orders')
+            if photo_after_file and photo_after_file.filename:
+                photo_after_path = save_and_resize_image(photo_after_file, 'work_orders')
+        except ValueError as error:
+            flash(str(error), 'danger')
+            return redirect(url_for('services.add'))
 
         wo = WorkOrder(
             client_id=client_id,
@@ -778,29 +795,32 @@ def edit(id):
             'status': wo.status,
             'description': wo.description,
             'total_value': wo.total_value,
+            'is_paid': wo.is_paid,
             'scheduled_date': wo.scheduled_date.isoformat() if wo.scheduled_date else None,
             'technician_id': wo.technician_id,
         }
         previous_status = wo.status
 
-        # Technician can only edit status, description and photos? 
-        # For now, let's allow all fields for both, but focus on photos and status.
+        # Only administrators may change amounts or payment state.
+        # Disabled browser fields are absent from POST; never turn that into R$ 0.
         wo.status = request.form.get('status')
         wo.description = request.form.get('description')
-        raw_total_value = request.form.get('total_value')
-        
-        try:
-            wo.total_value = round(float(raw_total_value), 2) if raw_total_value else 0.0
-        except ValueError:
-            pass
+        if is_admin:
+            raw_total_value = request.form.get('total_value')
+            try:
+                total_value = round(float(raw_total_value), 2) if raw_total_value else 0.0
+                if not isfinite(total_value) or total_value < 0:
+                    raise ValueError('Valor fora do intervalo permitido')
+            except (ValueError, TypeError, OverflowError):
+                flash('Informe um valor monetário válido e finito.', 'danger')
+                return redirect(url_for('services.edit', id=id))
+            wo.total_value = total_value
+            wo.is_paid = 'is_paid' in request.form
 
         if wo.status == 'Completed' and previous_status != 'Completed':
             wo.completed_date = datetime.utcnow()
         elif wo.status != 'Completed' and previous_status == 'Completed':
             wo.completed_date = None
-
-        # Novo campo is_paid
-        wo.is_paid = 'is_paid' in request.form
 
         scheduled_date_str = request.form.get('scheduled_date')
         if scheduled_date_str:
@@ -809,12 +829,20 @@ def edit(id):
         # --- Handle Image Uploads ---
         photo_before_file = request.files.get('photo_before')
         photo_after_file = request.files.get('photo_after')
-        
-        if photo_before_file and photo_before_file.filename:
-            wo.photo_before = save_and_resize_image(photo_before_file, 'work_orders')
-            
-        if photo_after_file and photo_after_file.filename:
-            wo.photo_after = save_and_resize_image(photo_after_file, 'work_orders')
+        if current_user.permission_level not in ('admin', 'user') and any(
+            file and file.filename for file in (photo_before_file, photo_after_file)
+        ):
+            flash('Seu perfil não pode alterar fotografias da OS.', 'danger')
+            return redirect(url_for('services.edit', id=id))
+
+        try:
+            if photo_before_file and photo_before_file.filename:
+                wo.photo_before = save_and_resize_image(photo_before_file, 'work_orders')
+            if photo_after_file and photo_after_file.filename:
+                wo.photo_after = save_and_resize_image(photo_after_file, 'work_orders')
+        except ValueError as error:
+            flash(str(error), 'danger')
+            return redirect(url_for('services.edit', id=id))
 
         sync_schedule_with_workorder(wo, previous_status=previous_status)
         sync_workorder_reminders(wo)
@@ -835,6 +863,7 @@ def edit(id):
                     'status': wo.status,
                     'description': wo.description,
                     'total_value': wo.total_value,
+                    'is_paid': wo.is_paid,
                     'scheduled_date': wo.scheduled_date.isoformat() if wo.scheduled_date else None,
                     'technician_id': wo.technician_id,
                 }
@@ -1211,7 +1240,7 @@ def export_pdf():
 # ─────────────────────────────────────────────
 
 @services_bp.route('/edit/<int:id>/expenses', methods=['GET'])
-@roles_required('admin', 'secretary', 'technician')
+@roles_required('admin')
 def list_expenses(id):
     """Retorna a lista de despesas de uma OS (JSON)."""
     current_user = get_current_user()
@@ -1235,7 +1264,7 @@ def list_expenses(id):
 
 
 @services_bp.route('/edit/<int:id>/expenses/add', methods=['POST'])
-@roles_required('admin', 'secretary', 'technician')
+@roles_required('admin')
 def add_expense(id):
     """Adiciona uma nova despesa a uma OS."""
     current_user = get_current_user()
@@ -1252,14 +1281,13 @@ def add_expense(id):
 
     try:
         quantity = float(payload.get('quantity') or 1)
-        quantity = max(quantity, 0.001)
-    except (TypeError, ValueError):
-        quantity = 1.0
-
-    try:
         unit_price = round(float(payload.get('unit_price') or 0), 2)
-    except (TypeError, ValueError):
-        unit_price = 0.0
+        if (not isfinite(quantity) or quantity <= 0
+                or not isfinite(unit_price) or unit_price < 0
+                or not isfinite(quantity * unit_price)):
+            raise ValueError('Despesa com quantidade ou valor inválido')
+    except (TypeError, ValueError, OverflowError):
+        return jsonify({'ok': False, 'message': 'Informe quantidade e valor válidos.'}), 400
 
     expense = WorkOrderExpense(
         work_order_id=id,

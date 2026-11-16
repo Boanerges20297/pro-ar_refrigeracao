@@ -2,6 +2,7 @@
 import os
 import tempfile
 import unittest
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 from app import create_app, db
@@ -72,7 +73,7 @@ class ServiceAddFkTests(unittest.TestCase):
             "equipment_id": "",
             "service_id": str(self.service_id),
             "technician_id": tech_id,
-            "scheduled_date": "2026-11-10T09:00",
+            "scheduled_date": (datetime.now() + timedelta(days=3)).strftime('%Y-%m-%dT09:00'),
             "total_value": "50",
             "description": "Teste de regressao",
         }

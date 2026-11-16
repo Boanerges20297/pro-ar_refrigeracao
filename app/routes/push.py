@@ -8,6 +8,7 @@ from app import db
 from app.models.push_notification import PushSubscription
 from app.models.user import User
 from app.utils.decorators import roles_required
+from app.utils.push_security import is_trusted_push_endpoint
 
 
 push_bp = Blueprint('push', __name__, url_prefix='/notifications')
@@ -36,8 +37,9 @@ def subscribe():
     data = request.get_json(silent=True) or {}
     subscription = data.get('subscription')
     endpoint = subscription.get('endpoint') if isinstance(subscription, dict) else None
-    if not endpoint or not isinstance(subscription.get('keys'), dict):
-        return jsonify({'ok': False, 'message': 'Inscrição inválida.'}), 400
+    if (not isinstance(subscription, dict) or not isinstance(subscription.get('keys'), dict)
+            or not is_trusted_push_endpoint(endpoint)):
+        return jsonify({'ok': False, 'message': 'Inscrição push inválida ou destino não autorizado.'}), 400
 
     user = User.query.get_or_404(get_jwt_identity())
     row = PushSubscription.query.filter_by(endpoint=endpoint).first()

@@ -34,7 +34,12 @@ class Config:
     DATABASE_POOL_RECYCLE_SECONDS = int(os.environ.get('DATABASE_POOL_RECYCLE_SECONDS', '1800'))
     UPLOAD_ROOT = os.environ.get('UPLOAD_ROOT', 'uploads')
     MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', str(8 * 1024 * 1024)))
+    IMAGE_MAX_PIXELS = int(os.environ.get('IMAGE_MAX_PIXELS', '20000000'))
+    IMAGE_MAX_DIMENSION = int(os.environ.get('IMAGE_MAX_DIMENSION', '10000'))
     RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', 'memory://')
+    RATELIMIT_KEY_PREFIX = 'prontoar'
+    # A fixed HTTPS origin prevents password reset links from inheriting Host headers.
+    PUBLIC_BASE_URL = (os.environ.get('PUBLIC_BASE_URL') or 'https://www.prontoar-servicos.com.br').rstrip('/')
     PREFERRED_URL_SCHEME = os.environ.get('PREFERRED_URL_SCHEME', 'http')
     SERVER_NAME = os.environ.get('SERVER_NAME') or None
     TRUSTED_HOSTS = [host.strip() for host in os.environ.get('TRUSTED_HOSTS', '').split(',') if host.strip()] or None

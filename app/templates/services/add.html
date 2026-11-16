@@ -104,23 +104,29 @@
                 <input type="datetime-local" name="scheduled_date" id="scheduled_date" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
             </div>
 
+            {% if current_user.permission_level == 'admin' %}
             <div>
                 <label for="total_value" class="block text-sm font-medium text-gray-700">Valor Cobrado (R$)</label>
                 <input type="number" step="0.01" min="0" name="total_value" id="total_value" placeholder="0.00" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
             </div>
+            {% else %}
+            <input type="hidden" name="total_value" id="total_value" value="0">
+            {% endif %}
 
+            {% if current_user.permission_level == 'admin' %}
             <div>
                 <label for="photo_before" class="block text-sm font-medium text-gray-700">Foto ANTES do Serviço</label>
                 <input type="file" name="photo_before" id="photo_before" accept="image/*" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-primary hover:file:bg-blue-100" onchange="checkFileSize(this)">
-                <p class="text-[10px] text-gray-400 mt-1">Limite: 2MB. Imagens maiores serão redimensionadas automaticamente.</p>
+                <p class="text-[10px] text-gray-400 mt-1">Fotos até 20 megapixels e 10.000 px por lado; acima disso, reduza a resolução antes do envio.</p>
             </div>
 
             <div>
                 <label for="photo_after" class="block text-sm font-medium text-gray-700">Foto DEPOIS do Serviço</label>
                 <input type="file" name="photo_after" id="photo_after" accept="image/*" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-primary hover:file:bg-blue-100" onchange="checkFileSize(this)">
-                <p class="text-[10px] text-gray-400 mt-1">Limite: 2MB. Imagens maiores serão redimensionadas automaticamente.</p>
+                <p class="text-[10px] text-gray-400 mt-1">Fotos até 20 megapixels e 10.000 px por lado; acima disso, reduza a resolução antes do envio.</p>
             </div>
 
+            {% endif %}
             <div class="md:col-span-2">
                 <label for="description" class="block text-sm font-medium text-gray-700">Observações / Descrição do Problema</label>
                 <textarea id="description" name="description" rows="3" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"></textarea>

@@ -1,7 +1,11 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response, current_app, session
 from app.models.user import User
 from flask_jwt_extended import create_access_token, set_access_cookies, unset_jwt_cookies, jwt_required, get_jwt_identity
-from itsdangerous import URLSafeTimedSerializer
+from itsdangerous import URLSafeTimedSerializer, BadSignature
+from urllib.parse import urlsplit
+from hmac import compare_digest, new as hmac_new
+from hashlib import sha256
+from flask_bcrypt import generate_password_hash
 from app.utils.email import send_password_reset_email
 from app.utils.audit import log_login, log_logout
 from app.utils.license import evaluate_license, get_license_record, log_license_event
@@ -18,21 +22,51 @@ from datetime import datetime
 
 auth_bp = Blueprint('auth', __name__)
 
+
+def account_rate_limit_key():
+    """Stable pseudonymous account key shared across origins and workers."""
+    email = (request.form.get('email') or '').strip().casefold()
+    signing_key = current_app.config['SECRET_KEY']
+    if isinstance(signing_key, str):
+        signing_key = signing_key.encode('utf-8')
+    return 'account:' + hmac_new(signing_key, email.encode('utf-8'), sha256).hexdigest()
+
+def public_url_for(endpoint, **values):
+    """Build email links only from the configured HTTPS origin, never request Host."""
+    origin = (current_app.config.get('PUBLIC_BASE_URL') or '').rstrip('/')
+    parsed = urlsplit(origin)
+    if (parsed.scheme != 'https' or not parsed.hostname or parsed.username
+            or parsed.password or parsed.port not in (None, 443)
+            or parsed.path not in ('', '/') or parsed.query or parsed.fragment):
+        raise ValueError('PUBLIC_BASE_URL deve conter apenas a origem HTTPS pública.')
+    return origin + url_for(endpoint, **values)
+
+
 def generate_reset_token(email):
+    user = User.query.filter_by(email=email).first()
+    if user is None:
+        raise ValueError('Não é possível gerar recuperação para conta inexistente.')
     serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
-    return serializer.dumps(email, salt='password-reset-salt')
+    return serializer.dumps({
+        'email': user.email,
+        'pwdv': build_password_version(user.password_hash),
+    }, salt='password-reset-salt')
+
 
 def confirm_reset_token(token, expiration=3600):
     serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
     try:
-        email = serializer.loads(
-            token,
-            salt='password-reset-salt',
-            max_age=expiration
-        )
-    except:
+        payload = serializer.loads(token, salt='password-reset-salt', max_age=expiration)
+        if not isinstance(payload, dict) or not isinstance(payload.get('email'), str):
+            return False
+        user = User.query.filter_by(email=payload['email']).first()
+        if not user or not isinstance(payload.get('pwdv'), str):
+            return False
+        if not compare_digest(payload['pwdv'], build_password_version(user.password_hash)):
+            return False
+        return user.email
+    except (BadSignature, TypeError, ValueError):
         return False
-    return email
 
 
 def build_authenticated_response(user, redirect_url):
@@ -65,6 +99,7 @@ def build_authenticated_response(user, redirect_url):
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 @limiter.limit('5 per minute', methods=['POST'])
+@limiter.limit('15 per 15 minutes', key_func=account_rate_limit_key, methods=['POST'])
 def login():
     if request.method == 'POST':
         email = request.form.get('email')
@@ -140,6 +175,7 @@ def logout():
 
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
 @limiter.limit('3 per 15 minutes', methods=['POST'])
+@limiter.limit('3 per hour', key_func=account_rate_limit_key, methods=['POST'])
 def forgot_password():
     if request.method == 'POST':
         email = request.form.get('email')
@@ -150,7 +186,11 @@ def forgot_password():
         
         if user:
             token = generate_reset_token(user.email)
-            reset_url = url_for('auth.reset_password', token=token, _external=True)
+            try:
+                reset_url = public_url_for('auth.reset_password', token=token)
+            except ValueError:
+                current_app.logger.error('PUBLIC_BASE_URL precisa de uma origem HTTPS válida.')
+                return redirect(url_for('auth.login'))
             
             # Use absolute logo URL or fallback
             logo_url = None
@@ -164,7 +204,7 @@ def forgot_password():
                         clean_path = app_config.logo_path.lstrip('/')
                         if clean_path.startswith('static/'):
                             clean_path = clean_path.replace('static/', '', 1)
-                        logo_url = url_for('static', filename=clean_path, _external=True)
+                        logo_url = public_url_for('static', filename=clean_path)
             
             success, message = send_password_reset_email(user, reset_url, logo_url)
             if not success:
@@ -202,8 +242,17 @@ def reset_password(token):
             flash(PASSWORD_POLICY_MESSAGE, 'danger')
             return render_template('auth/reset_password.html', token=token)
             
-        user.set_password(password)
-        user.must_change_password = False
+        # Compare-and-swap closes concurrent replay of the same reset link.
+        previous_hash = user.password_hash
+        new_hash = generate_password_hash(password).decode('utf-8')
+        changed = User.query.filter_by(id=user.id, password_hash=previous_hash).update(
+            {'password_hash': new_hash, 'must_change_password': False},
+            synchronize_session=False,
+        )
+        if changed != 1:
+            db.session.rollback()
+            flash('Este link já foi utilizado. Solicite um novo.', 'danger')
+            return redirect(url_for('auth.forgot_password'))
         db.session.commit()
         
         # Log password reset
@@ -217,18 +266,11 @@ def reset_password(token):
         
         flash('Sua senha foi atualizada com sucesso! Agora você pode fazer login.', 'success')
 
-        if user.permission_level == 'admin':
-            redirect_url = url_for('admin.dashboard')
-        elif user.permission_level == 'secretary':
-            redirect_url = url_for('secretary.dashboard')
-        elif user.permission_level == 'client':
-            redirect_url = url_for('client_portal.dashboard')
-        elif user.permission_level == 'common':
-            redirect_url = url_for('common_portal.dashboard')
-        else:
-            redirect_url = url_for('tech.dashboard')
-
-        return build_authenticated_response(user, redirect_url)
+        # Recovery proves control of an email link, not a full authenticated login.
+        session.pop('jwt_session_nonce', None)
+        response = make_response(redirect(url_for('auth.login')))
+        unset_jwt_cookies(response)
+        return response
         
     return render_template('auth/reset_password.html', token=token)
 
