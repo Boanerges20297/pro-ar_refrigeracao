@@ -124,10 +124,37 @@ def create_app(config_class=Config):
     bcrypt.init_app(app)
     limiter.init_app(app)
 
-    from flask_wtf.csrf import CSRFProtect
+    from flask_wtf.csrf import CSRFError, CSRFProtect
     csrf = CSRFProtect()
     csrf.init_app(app)
     from flask import flash, g, make_response, redirect, request, session, url_for
+
+    @app.errorhandler(CSRFError)
+    def handle_expired_login_csrf(error):
+        # A mobile browser can restore an old form after losing its session cookie.
+        # Reject the submitted credentials; issue a fresh form with a clear message.
+        recoverable_reasons = {
+            'The CSRF session token is missing.',
+            'The CSRF token has expired.',
+            'The CSRF tokens do not match.',
+        }
+        if (request.endpoint != 'auth.login' or request.method != 'POST'
+                or error.description not in recoverable_reasons):
+            return error
+
+        app.logger.info('Refreshing login form after rejected CSRF: %s', error.description)
+        session.pop('csrf_token', None)
+        flash('A sessão do formulário expirou. A página foi atualizada; entre novamente. Se persistir, verifique se os cookies estão habilitados.', 'warning')
+        response = redirect(url_for('auth.login'), code=303)
+        response.headers['Cache-Control'] = 'no-store, private'
+        return response
+
+    @app.after_request
+    def prevent_cached_login_form(response):
+        if request.endpoint == 'auth.login':
+            response.headers['Cache-Control'] = 'no-store, private'
+            response.headers['Pragma'] = 'no-cache'
+        return response
     from flask_jwt_extended import get_jwt, get_jwt_identity, unset_jwt_cookies, verify_jwt_in_request
 
     def clear_auth_and_redirect(message, category='danger', endpoint='auth.login'):
