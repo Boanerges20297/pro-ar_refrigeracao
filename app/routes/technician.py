@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from app.models.user import User
 from app.models.workorder import WorkOrder
 from app.models.maintenance import MaintenanceSchedule
@@ -10,6 +10,7 @@ from app.utils.superadmin import is_superadmin
 from app.utils.security import is_password_strong, PASSWORD_POLICY_MESSAGE
 from app.utils.email import send_dynamic_email
 from app.utils.audit import log_action
+from app.utils.login_otp import OTPStoreUnavailable, revoke_all_trusted_devices
 from datetime import datetime, timedelta
 from sqlalchemy import or_
 
@@ -392,6 +393,14 @@ def edit_technician(user_id):
             flash(limit_error, 'danger')
             return render_template('technician/edit.html', user=user, clients=clients)
 
+        # Sensitive account edits permanently invalidate earlier trusted devices.
+        revoke_trust = (
+            user.email != email or user.is_active != is_active
+            or user.permission_level != permission_level
+            or user.must_change_password != must_change_password
+            or bool(password)
+        )
+
         user.name = name
         user.email = email
         user.specialty = specialty
@@ -418,6 +427,23 @@ def edit_technician(user_id):
         if password:
             user.set_password(password)
 
+        if revoke_trust:
+            try:
+                # Revoke even while MFA is temporarily disabled, so disabling
+                # and later re-enabling cannot revive old browser credentials.
+                revoke_all_trusted_devices(user.id)
+            except OTPStoreUnavailable:
+                if (current_app.config.get('EMAIL_OTP_ENABLED', False)
+                        or current_app.config.get('SECURITY_JWT_SERVER_SESSIONS', False)):
+                    db.session.rollback()
+                    flash('Não foi possível atualizar dados de acesso: verificação de segurança indisponível.', 'danger')
+                    return redirect(url_for('tech.list_technicians'))
+                current_app.logger.warning(
+                    'Account %s edited with MFA off and Redis unavailable; clear trust state before reactivation.',
+                    user.id,
+                )
+                flash('A alteração foi salva, mas a revogação dos dispositivos antigos está pendente.', 'warning')
+
         db.session.commit()
         flash('Usuário atualizado com sucesso!', 'success')
         return redirect(url_for('tech.list_technicians'))
@@ -437,6 +463,16 @@ def delete_technician(user_id):
         from app.models.audit_log import AuditLog
         AuditLog.query.filter_by(user_id=user.id).delete()
         
+        try:
+            revoke_all_trusted_devices(user.id)
+        except OTPStoreUnavailable:
+            if (current_app.config.get('EMAIL_OTP_ENABLED', False)
+                    or current_app.config.get('SECURITY_JWT_SERVER_SESSIONS', False)):
+                raise
+            current_app.logger.warning(
+                'User %s deleted while MFA off and Redis unavailable; purge trust before reactivation.',
+                user.id,
+            )
         db.session.delete(user)
         db.session.commit()
         flash('Usuário excluído com sucesso!', 'success')

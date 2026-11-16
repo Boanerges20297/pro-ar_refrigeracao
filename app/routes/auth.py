@@ -1,12 +1,12 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response, current_app, session
 from app.models.user import User
-from flask_jwt_extended import create_access_token, set_access_cookies, unset_jwt_cookies, jwt_required, get_jwt_identity
+from flask_jwt_extended import create_access_token, set_access_cookies, unset_jwt_cookies, jwt_required, get_jwt_identity, get_jwt
 from itsdangerous import URLSafeTimedSerializer, BadSignature
 from urllib.parse import urlsplit
 from hmac import compare_digest, new as hmac_new
 from hashlib import sha256
 from flask_bcrypt import generate_password_hash
-from app.utils.email import send_password_reset_email
+from app.utils.email import send_dynamic_email, send_password_reset_email
 from app.utils.audit import log_login, log_logout
 from app.utils.license import evaluate_license, get_license_record, log_license_event
 from app.utils.security import (
@@ -19,6 +19,17 @@ from app.utils.security import (
 from app import db
 from app import limiter
 from datetime import datetime
+import time
+
+from app.utils.login_otp import (
+    OTPStoreUnavailable, OTP_TTL_SECONDS, TRUST_SECONDS, TRUST_COOKIE_NAME,
+    create_challenge, delete_challenge, challenge_matches_user, verify_challenge,
+    acquire_resend_cooldown, rotate_trusted_device, issue_trusted_device,
+    list_trusted_devices, revoke_trusted_device, revoke_all_trusted_devices,
+)
+from app.utils.audit import log_action
+from app.utils.jwt_sessions import register_jwt, revoke_jwt, JWTSessionStoreUnavailable
+
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -93,9 +104,80 @@ def build_authenticated_response(user, redirect_url):
         additional_claims=additional_claims,
     )
 
+    if current_app.config.get('SECURITY_JWT_SERVER_SESSIONS', False):
+        register_jwt(access_token, user.id)
     resp = make_response(redirect(redirect_url))
     set_access_cookies(resp, access_token)
     return resp
+
+def _license_allows_login(user):
+    if not user.is_active:
+        flash('Sua conta está inativa. Contate o administrador.', 'danger')
+        log_login(user.id, success=False, details={'reason': 'inactive_account'})
+        return False
+    from app.utils.superadmin import is_superadmin
+    state = {'blocking': False} if is_superadmin(user) else evaluate_license(get_license_record(create=False))
+    if state['blocking'] and user.permission_level != 'admin':
+        flash('O acesso operacional está bloqueado por licença ausente, expirada ou inválida. Contate o administrador.', 'danger')
+        log_license_event(
+            'LICENSE_LOGIN_BLOCKED',
+            details={'status': state['status'], 'message': state['message'], 'email': user.email},
+            status='error', explicit_user_id=user.id,
+        )
+        return False
+    return True
+
+
+def _finish_login(user, method):
+    # A login is audited only after a JWT session has actually been issued.
+    if user.must_change_password:
+        flash('Por segurança, defina uma nova senha antes de acessar o sistema.', 'warning')
+        return redirect(url_for('auth.reset_password', token=generate_reset_token(user.email)))
+    destinations = {
+        'admin': 'admin.dashboard',
+        'secretary': 'secretary.dashboard',
+        'client': 'client_portal.dashboard',
+        'common': 'common_portal.dashboard',
+    }
+    endpoint = destinations.get(user.permission_level, 'tech.dashboard')
+    response = build_authenticated_response(user, url_for(endpoint))
+    log_login(user.id, success=True, details={'method': method})
+    return response
+
+
+def _otp_rate_limit_key():
+    pending = session.get('otp_pending')
+    if isinstance(pending, dict) and str(pending.get('uid', '')).isdigit():
+        return 'otp-account:' + str(pending['uid'])
+    return 'otp-ip:' + str(request.remote_addr)
+
+
+def _pending_otp_user():
+    pending = session.get('otp_pending')
+    if not isinstance(pending, dict):
+        return None, None
+    try:
+        uid, started = int(pending.get('uid', 0)), int(pending.get('issued', 0))
+    except (TypeError, ValueError):
+        session.pop('otp_pending', None)
+        return None, None
+    if uid <= 0 or not started or time.time() - started > OTP_TTL_SECONDS:
+        session.pop('otp_pending', None)
+        return None, None
+    user = User.query.get(uid)
+    if (not user or not user.is_active
+            or pending.get('pwdv') != build_password_version(user.password_hash)
+            or pending.get('role') != user.permission_level
+            or not challenge_matches_user(user, pending.get('nonce'))):
+        session.pop('otp_pending', None)
+        return None, None
+    return user, pending
+
+
+def _mask_email(value):
+    local, separator, domain = (value or '').partition('@')
+    return local[:1] + '***@' + domain if separator else 'e-mail cadastrado'
+
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 @limiter.limit('5 per minute', methods=['POST'])
@@ -104,60 +186,187 @@ def login():
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
-
         user = User.query.filter_by(email=email).first()
         if user and user.check_password(password):
-            if not user.is_active:
-                flash('Sua conta está inativa. Contate o administrador.', 'danger')
-                # Log failed login attempt (inactive user)
-                log_login(user.id, success=False, details={'reason': 'inactive_account'})
+            if not _license_allows_login(user):
                 return redirect(url_for('auth.login'))
 
-            from app.utils.superadmin import is_superadmin
-            if not is_superadmin(user):
-                license_state = evaluate_license(get_license_record(create=False))
-            else:
-                license_state = {'blocking': False}
-            if license_state['blocking'] and user.permission_level != 'admin':
-                flash('O acesso operacional está bloqueado por licença ausente, expirada ou inválida. Contate o administrador.', 'danger')
-                log_license_event(
-                    'LICENSE_LOGIN_BLOCKED',
-                    details={
-                        'status': license_state['status'],
-                        'message': license_state['message'],
-                        'email': user.email,
-                    },
-                    status='error',
-                    explicit_user_id=user.id,
-                )
+            if current_app.config.get('EMAIL_OTP_ENABLED', False):
+                try:
+                    rotated = rotate_trusted_device(user, request.cookies.get(TRUST_COOKIE_NAME))
+                    if rotated:
+                        # A trusted cookie is single-use: rotate on each login.
+                        response = _finish_login(user, 'trusted_device')
+                        response.set_cookie(
+                            TRUST_COOKIE_NAME, rotated[0], max_age=rotated[1],
+                            secure=True, httponly=True, samesite='Lax', path='/auth',
+                        )
+                        return response
+                    previous = session.get('otp_pending')
+                    if isinstance(previous, dict):
+                        delete_challenge(previous.get('nonce'))
+                    nonce, code = create_challenge(user)
+                    success, _ = send_dynamic_email(
+                        user.email, 'Código de acesso - Pronto Ar',
+                        'email/login_otp.html', user=user, code=code,
+                    )
+                    if not success:
+                        delete_challenge(nonce)
+                        session.pop('otp_pending', None)
+                        flash('Não foi possível enviar o código. Tente novamente ou contate o administrador.', 'danger')
+                        return redirect(url_for('auth.login'))
+
+                    session['otp_pending'] = {
+                        'uid': user.id, 'nonce': nonce,
+                        'issued': int(time.time()),
+                        'pwdv': build_password_version(user.password_hash),
+                        'role': user.permission_level,
+                    }
+                    acquire_resend_cooldown(user.id)
+                    response = make_response(redirect(url_for('auth.verify_otp')))
+                    unset_jwt_cookies(response)
+                    return response
+                except (OTPStoreUnavailable, JWTSessionStoreUnavailable):
+                    session.pop('otp_pending', None)
+                    flash('A verificação por e-mail está temporariamente indisponível. Tente novamente.', 'danger')
+                    return redirect(url_for('auth.login'))
+            try:
+                return _finish_login(user, 'password')
+            except JWTSessionStoreUnavailable:
+                session.pop('jwt_session_nonce', None)
+                flash('Validação da sessão indisponível. Tente novamente.', 'danger')
                 return redirect(url_for('auth.login'))
-
-            log_login(user.id, success=True)
-
-            if user.must_change_password:
-                flash('Por segurança, defina uma nova senha antes de acessar o sistema.', 'warning')
-                reset_token = generate_reset_token(user.email)
-                return redirect(url_for('auth.reset_password', token=reset_token))
-
-            # Determine where to redirect based on permission_level
-            if user.permission_level == 'admin':
-                redirect_url = url_for('admin.dashboard')
-            elif user.permission_level == 'secretary':
-                redirect_url = url_for('secretary.dashboard')
-            elif user.permission_level == 'client':
-                redirect_url = url_for('client_portal.dashboard')
-            elif user.permission_level == 'common':
-                redirect_url = url_for('common_portal.dashboard')
-            else:
-                redirect_url = url_for('tech.dashboard')
-
-            return build_authenticated_response(user, redirect_url)
-        else:
-            flash('Email ou senha inválidos.', 'danger')
-            # Log failed login attempt
-            log_login(user.id if user else None, success=False, details={'reason': 'invalid_credentials'})
-
+        flash('Email ou senha inválidos.', 'danger')
+        log_login(user.id if user else None, success=False, details={'reason': 'invalid_credentials'})
     return render_template('auth/login.html')
+
+
+@auth_bp.route('/otp', methods=['GET', 'POST'])
+@limiter.limit('10 per minute', methods=['POST'])
+@limiter.limit('10 per 15 minutes', key_func=_otp_rate_limit_key, methods=['POST'])
+def verify_otp():
+    if not current_app.config.get('EMAIL_OTP_ENABLED', False):
+        return redirect(url_for('auth.login'))
+    try:
+        user, pending = _pending_otp_user()
+        if not user:
+            flash('A verificação expirou. Informe sua senha novamente.', 'warning')
+            return redirect(url_for('auth.login'))
+        if request.method == 'POST':
+            outcome = verify_challenge(user, pending['nonce'], request.form.get('otp_code'))
+            if outcome == 'success':
+                session.pop('otp_pending', None)
+                if not _license_allows_login(user):
+                    return redirect(url_for('auth.login'))
+                response = _finish_login(user, 'email_otp')
+                if request.form.get('remember_device') == 'on' and not user.must_change_password:
+                    try:
+                        raw_token = issue_trusted_device(user, request.headers.get('User-Agent'))
+                        response.set_cookie(
+                            TRUST_COOKIE_NAME, raw_token, max_age=TRUST_SECONDS,
+                            secure=True, httponly=True, samesite='Lax', path='/auth',
+                        )
+                        log_action('TRUSTED_DEVICE_ADD', 'User', user.id,
+                                   explicit_user_id=user.id)
+                    except OTPStoreUnavailable:
+                        flash('Login concluído, mas não foi possível confiar neste dispositivo.', 'warning')
+                return response
+            if outcome in {'locked', 'expired'}:
+                session.pop('otp_pending', None)
+                log_login(user.id, success=False, details={'reason': 'otp_' + outcome})
+                flash('Código expirado ou tentativas excedidas. Comece novamente pelo login.', 'danger')
+                return redirect(url_for('auth.login'))
+            flash('Código inválido. Confira o e-mail e tente novamente.', 'danger')
+            log_login(user.id, success=False, details={'reason': 'otp_invalid'})
+        return render_template('auth/verify_otp.html', masked_email=_mask_email(user.email))
+    except (OTPStoreUnavailable, JWTSessionStoreUnavailable):
+        flash('A verificação está temporariamente indisponível. Tente novamente.', 'danger')
+        return redirect(url_for('auth.login'))
+
+
+@auth_bp.route('/otp/resend', methods=['POST'])
+@limiter.limit('3 per 15 minutes', key_func=_otp_rate_limit_key)
+@limiter.limit('5 per 15 minutes')
+def resend_otp():
+    if not current_app.config.get('EMAIL_OTP_ENABLED', False):
+        return redirect(url_for('auth.login'))
+    try:
+        user, pending = _pending_otp_user()
+        if not user:
+            flash('Sua verificação expirou. Inicie novamente o login.', 'warning')
+            return redirect(url_for('auth.login'))
+        if not acquire_resend_cooldown(user.id):
+            flash('Aguarde 60 segundos antes de solicitar outro código.', 'warning')
+            return redirect(url_for('auth.verify_otp'))
+        nonce, code = create_challenge(user)
+        success, _ = send_dynamic_email(
+            user.email, 'Novo código de acesso - Pronto Ar',
+            'email/login_otp.html', user=user, code=code,
+        )
+        if not success:
+            delete_challenge(nonce)
+            flash('Não foi possível reenviar o código. Tente novamente.', 'danger')
+            return redirect(url_for('auth.verify_otp'))
+        delete_challenge(pending['nonce'])
+        session['otp_pending'] = dict(pending, nonce=nonce, issued=int(time.time()))
+        flash('Enviamos um novo código. O anterior foi invalidado.', 'info')
+        return redirect(url_for('auth.verify_otp'))
+    except OTPStoreUnavailable:
+        flash('A verificação está temporariamente indisponível.', 'danger')
+        return redirect(url_for('auth.login'))
+
+
+@auth_bp.route('/trusted-devices', methods=['GET'])
+@jwt_required()
+def trusted_devices():
+    user = User.query.get(get_jwt_identity())
+    if not user:
+        return redirect(url_for('auth.login'))
+    try:
+        devices = list_trusted_devices(user)
+    except OTPStoreUnavailable:
+        flash('Não foi possível consultar os dispositivos neste momento.', 'danger')
+        devices = []
+    return render_template('auth/trusted_devices.html', devices=devices)
+
+
+@auth_bp.route('/trusted-devices/revoke/<device_id>', methods=['POST'])
+@jwt_required()
+def revoke_trusted_device_route(device_id):
+    user_id = get_jwt_identity()
+    try:
+        if revoke_trusted_device(user_id, device_id):
+            log_action('TRUSTED_DEVICE_REVOKE', 'User', int(user_id),
+                       explicit_user_id=int(user_id))
+            flash('Dispositivo revogado.', 'success')
+        else:
+            flash('Dispositivo não encontrado.', 'warning')
+        response = make_response(redirect(url_for('auth.trusted_devices')))
+        raw_token = request.cookies.get(TRUST_COOKIE_NAME)
+        if raw_token and sha256(raw_token.encode('utf-8')).hexdigest() == device_id:
+            response.delete_cookie(TRUST_COOKIE_NAME, path='/auth')
+        return response
+    except OTPStoreUnavailable:
+        flash('Não foi possível revogar o dispositivo. Tente novamente.', 'danger')
+        return redirect(url_for('auth.trusted_devices'))
+
+
+@auth_bp.route('/trusted-devices/revoke-all', methods=['POST'])
+@jwt_required()
+def revoke_all_trusted_devices_route():
+    user_id = get_jwt_identity()
+    try:
+        revoke_all_trusted_devices(user_id)
+        log_action('TRUSTED_DEVICE_REVOKE_ALL', 'User', int(user_id),
+                   explicit_user_id=int(user_id))
+        flash('Todos os dispositivos foram revogados.', 'success')
+        response = make_response(redirect(url_for('auth.trusted_devices')))
+        response.delete_cookie(TRUST_COOKIE_NAME, path='/auth')
+        return response
+    except OTPStoreUnavailable:
+        flash('Não foi possível revogar agora. Tente novamente.', 'danger')
+        return redirect(url_for('auth.trusted_devices'))
+
 
 @auth_bp.route('/logout', methods=['POST'])
 @jwt_required(optional=True)
@@ -165,6 +374,11 @@ def logout():
     # Log logout action
     current_user_id = get_jwt_identity()
     if current_user_id:
+        if current_app.config.get('SECURITY_JWT_SERVER_SESSIONS', False):
+            try:
+                revoke_jwt(get_jwt())
+            except JWTSessionStoreUnavailable:
+                return 'Não foi possível revogar esta sessão. Tente novamente.', 503
         log_logout(int(current_user_id))
 
     session.pop('jwt_session_nonce', None)

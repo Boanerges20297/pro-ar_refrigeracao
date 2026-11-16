@@ -38,6 +38,9 @@ class Config:
     IMAGE_MAX_DIMENSION = int(os.environ.get('IMAGE_MAX_DIMENSION', '10000'))
     RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', 'memory://')
     RATELIMIT_KEY_PREFIX = 'prontoar'
+    # OTP is opt-in until a real mailbox delivery pilot succeeds.
+    EMAIL_OTP_ENABLED = env_bool('EMAIL_OTP_ENABLED', False)
+    EMAIL_OTP_REDIS_URL = os.environ.get('EMAIL_OTP_REDIS_URL') or RATELIMIT_STORAGE_URI
     # A fixed HTTPS origin prevents password reset links from inheriting Host headers.
     PUBLIC_BASE_URL = (os.environ.get('PUBLIC_BASE_URL') or 'https://www.prontoar-servicos.com.br').rstrip('/')
     PREFERRED_URL_SCHEME = os.environ.get('PREFERRED_URL_SCHEME', 'http')
@@ -91,6 +94,7 @@ class Config:
     PROXY_FIX_X_PORT = int(os.environ.get('PROXY_FIX_X_PORT', '1'))
     PROXY_FIX_X_PREFIX = int(os.environ.get('PROXY_FIX_X_PREFIX', '0'))
     SECURITY_ENFORCE_SAME_ORIGIN_MUTATIONS = env_bool('SECURITY_ENFORCE_SAME_ORIGIN_MUTATIONS', False)
+    SECURITY_JWT_SERVER_SESSIONS = env_bool('SECURITY_JWT_SERVER_SESSIONS', False)
     SECURITY_BIND_JWT_SESSION_NONCE = env_bool('SECURITY_BIND_JWT_SESSION_NONCE', False)
     SECURITY_BIND_JWT_USER_AGENT = env_bool('SECURITY_BIND_JWT_USER_AGENT', False)
 

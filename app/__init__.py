@@ -138,7 +138,7 @@ def create_app(config_class=Config):
             'The CSRF token has expired.',
             'The CSRF tokens do not match.',
         }
-        if (request.endpoint != 'auth.login' or request.method != 'POST'
+        if (request.endpoint not in {'auth.login', 'auth.verify_otp', 'auth.resend_otp'} or request.method != 'POST'
                 or error.description not in recoverable_reasons):
             return error
 
@@ -151,7 +151,7 @@ def create_app(config_class=Config):
 
     @app.after_request
     def prevent_cached_login_form(response):
-        if request.endpoint == 'auth.login':
+        if request.endpoint in {'auth.login', 'auth.verify_otp', 'auth.resend_otp'}:
             response.headers['Cache-Control'] = 'no-store, private'
             response.headers['Pragma'] = 'no-cache'
         return response
@@ -163,6 +163,22 @@ def create_app(config_class=Config):
         response = make_response(redirect(url_for(endpoint)))
         unset_jwt_cookies(response)
         return response
+
+    @jwt.token_in_blocklist_loader
+    def jwt_session_revoked(jwt_header, jwt_payload):
+        if not app.config.get('SECURITY_JWT_SERVER_SESSIONS', False):
+            return False
+        from app.utils.jwt_sessions import is_jwt_revoked, JWTSessionStoreUnavailable
+        try:
+            return is_jwt_revoked(jwt_payload)
+        except JWTSessionStoreUnavailable:
+            # No in-memory fallback: a missing Redis must never resurrect
+            # a logged-out JWT or permit another worker to accept it.
+            return True
+
+    @jwt.revoked_token_loader
+    def revoked_jwt_response(jwt_header, jwt_payload):
+        return clear_auth_and_redirect('Sessão encerrada ou revogada. Entre novamente.', 'warning')
 
     @app.errorhandler(RequestEntityTooLarge)
     def handle_file_too_large(error):
@@ -246,7 +262,7 @@ def create_app(config_class=Config):
         endpoint = request.endpoint or ''
         # Autentica????o p??blica ?? independente do servi??o de licenciamento.
         # O POST valida a licen??a somente depois de identificar o usu??rio.
-        if endpoint in {'auth.login', 'auth.forgot_password', 'auth.reset_password'}:
+        if endpoint in {'auth.login', 'auth.forgot_password', 'auth.reset_password', 'auth.verify_otp', 'auth.resend_otp'}:
             g.license_state = None
             return None
         if endpoint in {'static', 'main.pwa_manifest', 'main.pwa_service_worker'} or request.path.startswith('/static/'):
@@ -268,7 +284,9 @@ def create_app(config_class=Config):
             common_allowed = {
                 'common_portal.dashboard',
                 'auth.login', 'auth.logout', 'auth.forgot_password',
-                'auth.reset_password', 'push.preferences',
+                'auth.reset_password', 'auth.trusted_devices',
+                'auth.revoke_trusted_device_route', 'auth.revoke_all_trusted_devices_route',
+                'push.preferences',
             }
             if endpoint not in common_allowed:
                 return 'Acesso não autorizado para usuário comum.', 403
@@ -290,6 +308,9 @@ def create_app(config_class=Config):
             'auth.logout',
             'auth.forgot_password',
             'auth.reset_password',
+            'auth.trusted_devices',
+            'auth.revoke_trusted_device_route',
+            'auth.revoke_all_trusted_devices_route',
             'main.index',
             'admin.dashboard',
             'admin.settings',

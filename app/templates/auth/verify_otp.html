@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Pronto-Ar | Verificar acesso</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="theme-color" content="#0b4f8a">
+</head>
+<body class="bg-slate-100 min-h-screen flex items-center justify-center p-4">
+  <main class="bg-white rounded-2xl shadow-lg p-7 w-full max-w-md">
+    <h1 class="text-2xl font-bold text-slate-900 mb-2">Confirme seu acesso</h1>
+    <p class="text-slate-600 mb-5">Enviamos um código de 6 dígitos para <strong>{{ masked_email }}</strong>. Ele expira em 5 minutos.</p>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+      <p role="alert" class="mb-3 rounded p-3 text-sm {{ 'bg-red-100 text-red-800' if category == 'danger' else 'bg-blue-100 text-blue-800' }}">{{ message }}</p>
+      {% endfor %}
+    {% endwith %}
+    <form method="post" action="{{ url_for('auth.verify_otp') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label for="otp_code" class="block font-semibold text-slate-800 mb-2">Código recebido por e-mail</label>
+      <input id="otp_code" name="otp_code" type="text" inputmode="numeric" autocomplete="one-time-code"
+             pattern="[0-9]{6}" maxlength="6" required autofocus
+             class="w-full border rounded-lg p-3 text-center tracking-[0.35em] text-2xl mb-4">
+      <label class="flex items-start gap-3 text-sm text-slate-700 mb-5">
+        <input type="checkbox" name="remember_device" value="on" class="mt-1">
+        <span>Confiar neste navegador por 30 dias. Não marque em aparelhos compartilhados.</span>
+      </label>
+      <button type="submit" class="w-full bg-blue-800 text-white py-3 rounded-lg font-semibold hover:bg-blue-900">Validar código e entrar</button>
+    </form>
+    <form method="post" action="{{ url_for('auth.resend_otp') }}" class="mt-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="w-full text-blue-800 underline text-sm">Reenviar código (após 60 segundos)</button>
+    </form>
+    <p class="mt-5 text-center"><a href="{{ url_for('auth.login') }}" class="text-sm text-slate-500 underline">Voltar ao login</a></p>
+  </main>
+</body>
+</html>
