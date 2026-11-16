@@ -156,17 +156,9 @@ Verifique também o login e uma rota administrativa no navegador.
 
 ## Atualização de rotina com Git na VPS
 
-Se a VPS estiver com o repositório Git inicializado, o processo mais simples é:
+Para atualizações de código **sem alteração de schema**, executar o `deploy_vps.ps1` da raiz do projeto no STI. O script exige a `main` limpa e sincronizada, verifica o SHA exato na VPS, preserva arquivos locais não rastreados, aplica apenas fast-forward, exige dependências previamente preparadas e valida serviço e HTTPS antes de confirmar êxito.
 
-```bash
-cd /var/www/pro-ar_refrigeracao
-systemctl stop pro-ar
-git pull
-./.venv/bin/pip install -r requirements.txt
-./.venv/bin/python -m flask --app wsgi db upgrade
-systemctl start pro-ar
-systemctl status pro-ar --no-pager
-```
+Ele **não** cria commits automaticamente e não executa `flask db upgrade` ou `flask finance sync` por padrão. Se a versão trouxer migrations, programar procedimento separado com backup restaurável, avaliação de compatibilidade e autorização explícita. A sincronização financeira altera registros reais e também requer decisão específica.
 
 ## Checklist rápido
 
