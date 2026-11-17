@@ -58,7 +58,7 @@ def _pinned_public_key():
     return key
 
 
-def _verify_envelope(envelope):
+def _verify_envelope(envelope, *, allow_expired_offline=False):
     if not isinstance(envelope, dict):
         raise BtaLicenseError("Snapshot BTA ausente")
     try:
@@ -82,7 +82,7 @@ def _verify_envelope(envelope):
         offline_until = _time(snapshot["offline_valid_until"])
         if not issued_at or issued_at > now + timedelta(minutes=5):
             raise BtaLicenseError("Emissão do snapshot BTA fora da janela")
-        if not offline_until or offline_until <= now:
+        if not offline_until or (offline_until <= now and not allow_expired_offline):
             raise BtaLicenseError("Snapshot BTA offline expirado")
         return snapshot
     except (KeyError, TypeError, ValueError, InvalidSignature, OSError) as exc:
@@ -93,9 +93,12 @@ def _cache_path():
     return Path(current_app.config["BTA_SNAPSHOT_CACHE_PATH"])
 
 
-def _load_cached():
+def _load_cached(*, allow_expired_offline=False):
     try:
-        return _verify_envelope(json.loads(_cache_path().read_text("utf-8")))
+        return _verify_envelope(
+            json.loads(_cache_path().read_text("utf-8")),
+            allow_expired_offline=allow_expired_offline,
+        )
     except (OSError, json.JSONDecodeError, BtaLicenseError):
         return None
 
@@ -118,6 +121,31 @@ def _store_cached(envelope):
         if temporary and os.path.exists(temporary):
             os.unlink(temporary)
 
+
+def accept_pushed_snapshot(envelope):
+    """Aplica apenas decisões novas, assinadas pelo BTA e vinculadas a este cliente."""
+    snapshot = _verify_envelope(envelope, allow_expired_offline=True)
+    if snapshot.get("modality") != "paid" or snapshot.get("expires_at") is not None:
+        raise BtaLicenseError("Evento BTA incompatível com licença vitalícia")
+    if snapshot.get("state") not in {"active", "grace", "suspended", "revoked", "expired"}:
+        raise BtaLicenseError("Estado BTA não permitido para o webhook")
+    if not snapshot.get("license_id"):
+        raise BtaLicenseError("Evento BTA sem identificação da licença")
+
+    previous = _load_cached(allow_expired_offline=True)
+    if previous:
+        previous_issued = _time(previous["issued_at"])
+        incoming_issued = _time(snapshot["issued_at"])
+        if incoming_issued < previous_issued:
+            return "stale"
+        if incoming_issued == previous_issued:
+            if snapshot == previous:
+                return "duplicate"
+            raise BtaLicenseError("Evento BTA com ordem de emissão conflitante")
+
+    _store_cached(envelope)
+    current_app.logger.info("Licença BTA atualizada por evento assinado: %s", snapshot["state"])
+    return "updated"
 
 def _resolve_remote():
     base_url = str(current_app.config.get("BTA_LICENSE_BASE_URL") or "").rstrip("/")
@@ -164,19 +192,36 @@ def _resolve_remote():
     try:
         with urllib.request.urlopen(request, timeout=3) as response:
             document = json.load(response)
-    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+    except urllib.error.HTTPError as exc:
+        if exc.code in {408, 429} or exc.code >= 500:
+            raise BtaTransportError("BTA temporariamente indisponível") from exc
+        # Negativa HTTP explícita nunca é tratada como queda de comunicação.
+        raise BtaLicenseError("BTA recusou a consulta S2S") from exc
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
         raise BtaTransportError("BTA inacessível ou resposta indisponível") from exc
+    except ValueError as exc:
+        raise BtaLicenseError("Resposta BTA inválida") from exc
 
     if not isinstance(document, dict) or document.get("contract_version") != 1:
         raise BtaLicenseError("Contrato S2S BTA inválido")
     if document.get("product") != current_app.config["BTA_LICENSE_PRODUCT_CODE"]:
         raise BtaLicenseError("Resposta S2S de outro produto")
     if not document.get("licensed"):
-        # A negativa central (revogada/suspensa/ausente) prevalece sobre cache antigo.
-        try:
-            _cache_path().unlink(missing_ok=True)
-        except OSError:
-            pass
+        # Uma revogação assinada deve sobreviver a uma posterior queda do BTA.
+        envelope = document.get("snapshot")
+        if envelope:
+            denied = _verify_envelope(envelope, allow_expired_offline=True)
+            if denied.get("state") in {"active", "grace"}:
+                raise BtaLicenseError("Negativa BTA contradiz o snapshot assinado")
+            try:
+                _store_cached(envelope)
+            except OSError as exc:
+                raise BtaLicenseError("Falha ao persistir revogação BTA") from exc
+        else:
+            try:
+                _cache_path().unlink(missing_ok=True)
+            except OSError as exc:
+                raise BtaLicenseError("Falha ao limpar cache BTA") from exc
         return {"licensed": False, "reason": document.get("reason")}
     envelope = document.get("snapshot")
     snapshot = _verify_envelope(envelope)
@@ -192,19 +237,54 @@ def evaluate_bta_license():
 
     state = _state_template()
     cached = _load_cached()
-    fresh = cached and (
-        datetime.now(timezone.utc) - _time(cached["issued_at"])
-    ).total_seconds() < max(30, current_app.config["BTA_LICENSE_REFRESH_SECONDS"])
+    historical = _load_cached(allow_expired_offline=True)
+    perpetual_cached = (
+        historical is not None
+        and historical.get("modality") == "paid"
+        and not historical.get("expires_at")
+    )
+    if perpetual_cached:
+        # Licença vitalícia já ativada: consulta 100% local. Apenas o BTA
+        # altera seu estado mediante evento POST assinado.
+        cached = historical
+        fresh = True
+    else:
+        fresh = cached and (
+            datetime.now(timezone.utc) - _time(cached["issued_at"])
+        ).total_seconds() < max(30, current_app.config["BTA_LICENSE_REFRESH_SECONDS"])
 
     try:
         if fresh:
-            result = {"licensed": True, "snapshot": cached}
+            result = {
+                "licensed": cached.get("state") in {"active", "grace"},
+                "snapshot": cached,
+                "reason": "license_state_" + str(cached.get("state")),
+            }
         else:
-            result = _resolve_remote()
+            if (current_app.config.get("BTA_LICENSE_PUSH_ONLY", True)
+                    and current_app.config.get("BTA_LICENSE_PRODUCT_CODE") == "pronto-ar"):
+                result = {"licensed": False, "reason": "awaiting_bta_event"}
+            else:
+                result = _resolve_remote()
     except BtaTransportError:
-        if cached:
-            result = {"licensed": True, "snapshot": cached}
-            state["last_validation_error"] = "BTA indisponível; operando com snapshot assinado"
+        # Sem resposta é uma contingência, não uma revogação. Aceitamos a última
+        # autorização assinada de licença perpétua, mesmo após a janela offline.
+        # Uma negativa assinada permanece negativa durante a indisponibilidade.
+        proof = cached or _load_cached(allow_expired_offline=True)
+        if proof:
+            good_state = proof.get("state") in {"active", "grace"}
+            perpetual = proof.get("modality") == "paid" and not proof.get("expires_at")
+            within_offline = _time(proof["offline_valid_until"]) > datetime.now(timezone.utc)
+            authorized = good_state and (within_offline or perpetual)
+            result = {
+                "licensed": authorized,
+                "snapshot": proof,
+                "reason": "license_state_" + str(proof.get("state")) if not good_state else "offline_expired",
+            }
+            if authorized:
+                state["last_validation_error"] = (
+                    "BTA indisponível; acesso mantido pela última licença assinada"
+                )
         else:
             result = {"licensed": False, "reason": "validation_required"}
     except (BtaLicenseError, OSError, ValueError):

@@ -69,6 +69,8 @@ class Config:
     # O emissor legado continua padrão. Habilitar BTA apenas após piloto S2S.
     LICENSE_PROVIDER = os.environ.get('LICENSE_PROVIDER', 'legacy').strip().lower()
     BTA_LICENSE_PRODUCT_CODE = os.environ.get('BTA_LICENSE_PRODUCT_CODE', 'pronto-ar')
+    # Uma vez ativada, licença vitalícia recebe eventos BTA; não faz polling.
+    BTA_LICENSE_PUSH_ONLY = env_bool('BTA_LICENSE_PUSH_ONLY', True)
     BTA_LICENSE_CUSTOMER_KEY = os.environ.get('BTA_LICENSE_CUSTOMER_KEY', '')
     BTA_LICENSE_BASE_URL = os.environ.get('BTA_LICENSE_BASE_URL', '')
     BTA_LICENSE_CLIENT_ID = os.environ.get('BTA_LICENSE_CLIENT_ID', '')

@@ -194,7 +194,8 @@ def create_app(config_class=Config):
         if request.method not in {'POST', 'PUT', 'PATCH', 'DELETE'}:
             return None
 
-        if endpoint == 'static' or request.path.startswith('/static/'):
+        if endpoint in {'static', 'license_webhook.receive'} or request.path.startswith('/static/'):
+            # Webhook S2S é validado pela assinatura Ed25519, sem cookies.
             return None
 
         if is_same_origin_request(
@@ -210,7 +211,7 @@ def create_app(config_class=Config):
     @app.before_request
     def enforce_authenticated_request_context():
         endpoint = request.endpoint or ''
-        if endpoint in {'static', 'main.pwa_manifest', 'main.pwa_service_worker'} or request.path.startswith('/static/'):
+        if endpoint in {'license_webhook.receive', 'static', 'main.pwa_manifest', 'main.pwa_service_worker'} or request.path.startswith('/static/'):
             return None
 
         g.current_user = None
@@ -260,6 +261,9 @@ def create_app(config_class=Config):
     @app.before_request
     def enforce_license_status():
         endpoint = request.endpoint or ''
+        if endpoint == 'license_webhook.receive':
+            # Webhook recebido mesmo quando o estado local está revogado.
+            return None
         # Autentica????o p??blica ?? independente do servi??o de licenciamento.
         # O POST valida a licen??a somente depois de identificar o usu??rio.
         if endpoint in {'auth.login', 'auth.forgot_password', 'auth.reset_password', 'auth.verify_otp', 'auth.resend_otp'}:
@@ -451,6 +455,8 @@ def create_app(config_class=Config):
     from app.routes.client_portal import client_portal_bp
     from app.routes.common_portal import common_portal_bp
     from app.routes.push import push_bp
+    from app.routes.license_webhook import license_webhook_bp
+    csrf.exempt(license_webhook_bp)
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -466,6 +472,7 @@ def create_app(config_class=Config):
     app.register_blueprint(client_portal_bp)
     app.register_blueprint(common_portal_bp)
     app.register_blueprint(push_bp)
+    app.register_blueprint(license_webhook_bp)
 
     from app.utils.push_notifications import register_notification_commands
     register_notification_commands(app)

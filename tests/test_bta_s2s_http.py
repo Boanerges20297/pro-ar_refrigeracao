@@ -78,6 +78,7 @@ def test_s2s_signed_http_and_cached_offline(tmp_path):
             BTA_LICENSE_PRIVATE_KEY_PATH=str(client_file)
             BTA_SNAPSHOT_PUBLIC_KEY_PATH=str(public_file)
             BTA_SNAPSHOT_CACHE_PATH=str(tmp_path/"snapshot.json")
+            BTA_LICENSE_PUSH_ONLY=False
         app=create_app(Pilot)
         with app.app_context():
             db.create_all()
