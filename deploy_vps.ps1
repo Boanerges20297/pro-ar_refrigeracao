@@ -44,6 +44,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Push da main falhou; nenhuma atualizacao na VP
 # fluxo separado, backup e aprovacao especifica: nao rodar automaticamente.
 $remoteCommands = @'
 set -eu
+# Git deve criar código legível pelo usuário do Gunicorn; jamais alterar .env/keys.
+umask 022
 cd /var/www/pro-ar_refrigeracao
 test "$(git rev-parse --abbrev-ref HEAD)" = main
 git diff --quiet HEAD
@@ -55,6 +57,8 @@ git fetch origin main
 test "$(git rev-parse origin/main)" = __APPROVED_SHA__
 git merge --ff-only origin/main
 test "$(git rev-parse HEAD)" = __APPROVED_SHA__
+# Detecta arquivos de código sem leitura para www-data ANTES do restart.
+runuser -u www-data -- .venv/bin/python -c 'import os; from pathlib import Path; assert all(os.access(p, os.R_OK) for p in Path("app").rglob("*.py")), "Código ilegível pelo Gunicorn"'
 systemctl restart pro-ar
 systemctl is-active --quiet pro-ar
 curl -fsS -o /dev/null --max-time 12 --retry 3 --retry-delay 2 https://www.prontoar-servicos.com.br/auth/login
