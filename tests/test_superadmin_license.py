@@ -3,7 +3,7 @@ from app.config import Config
 from app.models.user import User
 from app.models.config import AppConfig
 from app.utils.license import get_user_counts
-from app.utils.superadmin import is_superadmin
+from app.utils.superadmin import is_superadmin, can_manage_settings, SETTINGS_OWNER_EMAIL
 def make_app(tmp_path):
     class TestConfig(Config):
         TESTING = True
@@ -35,6 +35,7 @@ def test_superadmin_works_when_bta_invalid_and_seat_exempt(tmp_path, monkeypatch
         db.create_all()
         db.session.add(AppConfig())
         owner = new_user("Owner", "admin", "admin", "Superadmin")
+        owner.email = SETTINGS_OWNER_EMAIL
         admin = new_user("Admin", "technician", "admin", "Administrador")
         technical = new_user("Tecnico", "technician", "user", "T├®cnico")
         db.session.add_all([owner, admin, technical])
@@ -66,6 +67,7 @@ def test_settings_are_superadmin_only_and_preserve_smtp_for_regular_admin(tmp_pa
             smtp_user="original@example.test", smtp_password="original-test-secret",
         ))
         owner = new_user("SettingsOwner", "admin", "admin", "Superadmin")
+        owner.email = SETTINGS_OWNER_EMAIL
         regular = new_user("RegularAdmin", "technician", "admin", "Administrador")
         db.session.add_all([owner, regular])
         db.session.commit()
@@ -113,6 +115,34 @@ def test_settings_are_superadmin_only_and_preserve_smtp_for_regular_admin(tmp_pa
         browser_session["preview_user_id"] = regular_id
     assert owner_client.get("/admin/settings").status_code == 403
     assert owner_client.post("/admin/settings", data={"smtp_user": "preview@example.test"}).status_code == 403
+
+
+def test_another_superadmin_cannot_access_owner_settings(tmp_path):
+    app = make_app(tmp_path)
+    with app.app_context():
+        db.create_all()
+        db.session.add(AppConfig(smtp_user="preserved@example.test"))
+        owner = new_user("SettingsOwner", "admin", "admin", "Superadmin")
+        owner.email = SETTINGS_OWNER_EMAIL
+        other = new_user("AnotherSuperadmin", "admin", "admin", "Superadmin")
+        db.session.add_all([owner, other])
+        db.session.commit()
+        other_email = other.email
+        assert can_manage_settings(owner)
+        assert is_superadmin(other) and not can_manage_settings(other)
+
+    client = app.test_client()
+    login = client.post("/auth/login", data={
+        "email": other_email, "password": "SenhaDeTeste2026!",
+    }, follow_redirects=False)
+    assert login.status_code == 302
+    assert client.get("/admin/settings").status_code == 403
+    assert 'href="/admin/settings"' not in client.get("/admin/dashboard").get_data(as_text=True)
+    assert client.post("/admin/settings", data={"smtp_user": "hijacked@example.test"}).status_code == 403
+    assert client.post("/admin/license", data={"license_key": "dummy"}).status_code == 403
+    assert client.post("/admin/license/revalidate").status_code == 403
+    with app.app_context():
+        assert AppConfig.query.first().smtp_user == "preserved@example.test"
 
 
 def test_fake_superadmin_title_is_not_exempt(tmp_path):
@@ -163,12 +193,13 @@ def test_single_company_license_panel_hides_legacy_keys(tmp_path):
     with app.app_context():
         db.create_all()
         superadmin = new_user("Owner", "admin", "admin", "Superadmin")
+        superadmin.email = SETTINGS_OWNER_EMAIL
         technician = new_user("Technical", "technician", "user", "Técnico")
         db.session.add_all([superadmin, technician])
         db.session.commit()
     client = app.test_client()
     response = client.post("/auth/login", data={
-        "email": "owner@example.test",
+        "email": SETTINGS_OWNER_EMAIL,
         "password": "SenhaDeTeste2026!",
     }, follow_redirects=False)
     assert response.status_code == 302

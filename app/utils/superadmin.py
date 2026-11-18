@@ -13,3 +13,13 @@ def is_superadmin(user):
         and user.role == "admin"
         and user.job_title == "Superadmin"
     )
+
+
+SETTINGS_OWNER_EMAIL = "boanergesteixeiraalmeida@gmail.com"
+
+def can_manage_settings(user):
+    """Configurações e credenciais SMTP: somente o superadmin titular."""
+    return bool(
+        is_superadmin(user)
+        and (user.email or "").strip().casefold() == SETTINGS_OWNER_EMAIL
+    )

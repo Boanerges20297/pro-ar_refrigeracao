@@ -1,4 +1,4 @@
-from app.utils.superadmin import is_superadmin
+from app.utils.superadmin import is_superadmin, can_manage_settings
 import json
 import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session, abort
@@ -304,7 +304,7 @@ def dashboard():
 
 def _settings_superadmin_only():
     user = User.query.get(get_jwt_identity())
-    if (not is_superadmin(user) or session.get('preview_user_id')
+    if (not can_manage_settings(user) or session.get('preview_user_id')
             or session.get('preview_client_id')):
         abort(403)
     return user

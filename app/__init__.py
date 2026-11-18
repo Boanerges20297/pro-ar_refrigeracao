@@ -399,7 +399,7 @@ def create_app(config_class=Config):
             except Exception:
                 g.license_state = None
 
-        from app.utils.superadmin import is_superadmin
+        from app.utils.superadmin import is_superadmin, can_manage_settings
         preview_client = None
         preview_user = None
         if is_superadmin(g.current_user):
@@ -412,7 +412,7 @@ def create_app(config_class=Config):
             'app_runtime_config': app.config,
             'app_config': g.app_config,
             'current_user': g.current_user,
-            'can_manage_settings': bool(is_superadmin(g.current_user)
+            'can_manage_settings': bool(can_manage_settings(g.current_user)
                                         and not session.get('preview_user_id')
                                         and not session.get('preview_client_id')),
             'alerts': g.alerts,
