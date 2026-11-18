@@ -57,6 +57,64 @@ def test_superadmin_works_when_bta_invalid_and_seat_exempt(tmp_path, monkeypatch
     assert dashboard.status_code == 200
     assert client.get("/admin/audit-logs", follow_redirects=False).status_code == 200
     assert client.get("/admin/settings", follow_redirects=False).status_code == 200
+def test_settings_are_superadmin_only_and_preserve_smtp_for_regular_admin(tmp_path):
+    app = make_app(tmp_path)
+    with app.app_context():
+        db.create_all()
+        db.session.add(AppConfig(
+            smtp_provider="gmail", smtp_server="smtp.gmail.com",
+            smtp_user="original@example.test", smtp_password="original-test-secret",
+        ))
+        owner = new_user("SettingsOwner", "admin", "admin", "Superadmin")
+        regular = new_user("RegularAdmin", "technician", "admin", "Administrador")
+        db.session.add_all([owner, regular])
+        db.session.commit()
+        owner_email, regular_email, regular_id = owner.email, regular.email, regular.id
+
+    regular_client = app.test_client()
+    login = regular_client.post("/auth/login", data={
+        "email": regular_email, "password": "SenhaDeTeste2026!",
+    }, follow_redirects=False)
+    assert login.status_code == 302
+    assert regular_client.get("/admin/settings").status_code == 403
+    denied = regular_client.post("/admin/settings", data={
+        "smtp_user": "modified@example.test", "smtp_password": "modified-secret",
+    })
+    assert denied.status_code == 403
+    assert regular_client.post("/admin/license", data={"license_key": "dummy"}).status_code == 403
+    assert regular_client.post("/admin/license/revalidate").status_code == 403
+    dashboard = regular_client.get("/admin/dashboard")
+    assert dashboard.status_code == 200
+    assert 'href="/admin/settings"' not in dashboard.get_data(as_text=True)
+    with app.app_context():
+        cfg = AppConfig.query.first()
+        assert cfg.smtp_user == "original@example.test"
+        assert cfg.smtp_password == "original-test-secret"
+
+    owner_client = app.test_client()
+    login = owner_client.post("/auth/login", data={
+        "email": owner_email, "password": "SenhaDeTeste2026!",
+    }, follow_redirects=False)
+    assert login.status_code == 302
+    assert owner_client.get("/admin/settings").status_code == 200
+    assert 'href="/admin/settings"' in owner_client.get("/admin/dashboard").get_data(as_text=True)
+    changed = owner_client.post("/admin/settings", data={
+        "smtp_provider": "yahoo", "smtp_server": "smtp.mail.yahoo.com",
+        "smtp_port": "587", "smtp_use_tls": "on",
+        "smtp_user": "authorized@example.test", "smtp_password": "authorized-test-secret",
+    }, follow_redirects=False)
+    assert changed.status_code == 302
+    with app.app_context():
+        cfg = AppConfig.query.first()
+        assert cfg.smtp_provider == "yahoo"
+        assert cfg.smtp_user == "authorized@example.test"
+
+    with owner_client.session_transaction() as browser_session:
+        browser_session["preview_user_id"] = regular_id
+    assert owner_client.get("/admin/settings").status_code == 403
+    assert owner_client.post("/admin/settings", data={"smtp_user": "preview@example.test"}).status_code == 403
+
+
 def test_fake_superadmin_title_is_not_exempt(tmp_path):
     app = make_app(tmp_path)
     with app.app_context():

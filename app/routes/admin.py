@@ -1,7 +1,7 @@
 from app.utils.superadmin import is_superadmin
 import json
 import os
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session, abort
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from app.utils.decorators import license_feature_required, roles_required, permission_level_required
 from app.utils.license import activate_license_key, evaluate_license, get_instance_fingerprint, get_license_record, revalidate_license
@@ -302,9 +302,18 @@ def dashboard():
                            overdue_maintenance=overdue_maintenance,
                            upcoming_maintenance=upcoming_maintenance)
 
+def _settings_superadmin_only():
+    user = User.query.get(get_jwt_identity())
+    if (not is_superadmin(user) or session.get('preview_user_id')
+            or session.get('preview_client_id')):
+        abort(403)
+    return user
+
+
 @admin_bp.route('/settings', methods=['GET', 'POST'])
 @roles_required('admin')
 def settings():
+    current = _settings_superadmin_only()
     config = AppConfig.query.first()
     if not config:
         config = AppConfig()
@@ -337,7 +346,6 @@ def settings():
         flash('Configurações atualizadas com sucesso!', 'success')
         return redirect(url_for('admin.settings'))
 
-    current = User.query.get_or_404(get_jwt_identity())
     if is_superadmin(current):
         from app.utils.license import superadmin_access_state
         license_record = get_license_record(create=False)
@@ -376,6 +384,7 @@ def settings():
 @admin_bp.route('/license', methods=['POST'])
 @permission_level_required('admin')
 def activate_license():
+    _settings_superadmin_only()
     license_key = (request.form.get('license_key') or '').strip()
     if not license_key:
         flash('Informe uma chave de licença para ativar ou renovar.', 'danger')
@@ -389,6 +398,7 @@ def activate_license():
 @admin_bp.route('/license/revalidate', methods=['POST'])
 @permission_level_required('admin')
 def validate_license():
+    _settings_superadmin_only()
     state = revalidate_license(explicit_user_id=int(get_jwt_identity()))
     flash(state['message'], 'success' if state['valid'] and not state['blocking'] else state['flash_category'])
     return redirect(url_for('admin.settings'))

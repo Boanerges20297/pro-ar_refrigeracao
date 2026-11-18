@@ -79,7 +79,7 @@ def license_feature_required(feature_name):
             flash("Este recurso não está disponível no plano atual da licença.", "warning")
 
             if user and user.permission_level == 'admin':
-                return redirect(url_for('admin.settings'))
+                return redirect(url_for('admin.dashboard'))
             if user and user.permission_level == 'secretary':
                 return redirect(url_for('secretary.dashboard'))
             if user and user.permission_level == 'user':

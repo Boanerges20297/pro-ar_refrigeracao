@@ -259,11 +259,13 @@
             <span class="text-base font-semibold text-gray-800">Novo Equipamento</span>
             <span class="mt-2 text-sm text-gray-500">Inclua aparelhos e séries no cadastro técnico.</span>
         </a>
+        {% if can_manage_settings %}
         <a href="{{ url_for('admin.settings') }}" class="flex min-h-[148px] flex-col items-center justify-center rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-emerald-50 p-6 text-center transition hover:-translate-y-1 hover:shadow-md">
             <i class="fas fa-cog mb-3 text-4xl text-primary"></i>
             <span class="text-base font-semibold text-gray-800">Configurações</span>
             <span class="mt-2 text-sm text-gray-500">Ajuste identidade visual, licença e preferências.</span>
         </a>
+        {% endif %}
     </div>
 </div>
 

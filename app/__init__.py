@@ -412,6 +412,9 @@ def create_app(config_class=Config):
             'app_runtime_config': app.config,
             'app_config': g.app_config,
             'current_user': g.current_user,
+            'can_manage_settings': bool(is_superadmin(g.current_user)
+                                        and not session.get('preview_user_id')
+                                        and not session.get('preview_client_id')),
             'alerts': g.alerts,
             'license_state': g.license_state,
             'license_features': get_license_features(g.license_state) if g.license_state else set(),

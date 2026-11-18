@@ -188,7 +188,9 @@
                     <div class="flex max-w-4xl flex-wrap items-center justify-center gap-x-1 gap-y-1">
                         <a href="{{ url_for('admin.dashboard') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('admin.dashboard') %}active{% endif %}">Dashboard Admin</a>
                         <a href="{{ url_for('tech.list_technicians') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/tech/list' in request.path or '/tech/edit' in request.path or '/tech/add' in request.path %}active{% endif %}">Usuários</a>
+                        {% if can_manage_settings %}
                         <a href="{{ url_for('admin.settings') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if request.path == url_for('admin.settings') %}active{% endif %}">Configurações</a>
+                        {% endif %}
                         {% if has_license_feature('audit') %}
                         <a href="{{ url_for('admin.audit_logs') }}" class="nav-link px-2 py-2 rounded-md text-xs font-medium whitespace-nowrap {% if '/admin/audit-logs' in request.path %}active{% endif %}">Logs</a>
                         {% endif %}
@@ -289,7 +291,9 @@
                 {% if current_user.permission_level == 'admin' %}
                 <a href="{{ url_for('admin.dashboard') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Dashboard Admin</a>
                 <a href="{{ url_for('tech.list_technicians') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Usuários</a>
+                {% if can_manage_settings %}
                 <a href="{{ url_for('admin.settings') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Configurações</a>
+                {% endif %}
             {% if has_license_feature('audit') %}
             <a href="{{ url_for('admin.audit_logs') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">Logs de Auditoria</a>
             {% endif %}
@@ -820,7 +824,7 @@
                         <p class="mt-2 text-xs opacity-80">{{ license_state.limit_issues|join(' ') }}</p>
                         {% endif %}
                     </div>
-                    {% if current_user.permission_level == 'admin' %}
+                    {% if can_manage_settings %}
                     <a href="{{ url_for('admin.settings') }}" class="inline-flex items-center justify-center rounded-lg border border-current/15 px-4 py-2 text-xs font-semibold transition hover:bg-white/50">
                         Revisar licença
                     </a>
